@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tra cứu Biểu đồ Chạy xe - Transerco</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+      font-size: 12px;
+      background-color: #F1F4F9;
+      color: #333;
+      padding: 15px;
+    }
+
+    .panel-custom {
+      background: #FFFFFF;
+      border: 1px solid #C4D5E5;
+      border-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      max-width: 1400px;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    .panel-heading {
+      background: #3B86C4;
+      color: #FFFFFF;
+      padding: 10px 15px;
+      font-size: 13px;
+      font-weight: bold;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-body { padding: 18px 20px; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      row-gap: 12px;
+      column-gap: 15px;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .form-control {
+      height: 32px;
+      padding: 3px 8px;
+      font-size: 12px;
+      border: 1px solid #CCCCCC;
+      border-radius: 3px;
+      outline: none;
+      background-color: #FFFFFF;
+      width: 100%;
+      max-width: 500px;
+    }
+    .form-control:focus { border-color: #3B86C4; }
+
+    .days-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-top: 3px;
+    }
+    .day-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      font-size: 12px;
+      user-select: none;
+    }
+
+    .btn-view {
+      background-color: #337AB7;
+      color: #FFFFFF;
+      border: 1px solid #2E6DA4;
+      padding: 7px 18px;
+      font-size: 12px;
+      font-weight: bold;
+      border-radius: 3px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-view:hover { background-color: #286090; }
+
+    .viewer-wrapper {
+      margin-top: 20px;
+      border-top: 1px dashed #D0D7DE;
+      padding-top: 15px;
+      display: none;
+    }
+
+    .table-scroll {
+      width: 100%;
+      overflow-x: auto;
+      background: #FFFFFF;
+      border: 1px solid #CCCCCC;
+    }
+
+    .table-schedule {
+      border-collapse: collapse;
+      font-size: 11px;
+      width: 100%;
+      white-space: nowrap;
+      background-color: #FFFFFF;
+    }
+    .table-schedule th, .table-schedule td {
+      border: 1px solid #CCCCCC;
+      padding: 4px 6px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    .table-schedule thead th {
+      background-color: #EBF2F8;
+      color: #111;
+      font-weight: bold;
+      height: 28px;
+      text-align: center !important;
+    }
+    .table-schedule tbody tr:hover { background-color: #F5F9FD; }
+
+    .colstt { width: 45px; font-weight: bold; text-align: center !important; }
+    .coldau { width: 170px; text-align: left !important; padding-left: 10px !important; }
+    .colflight { width: 52px; }
+    .colthayca { background-color: #FFFF99 !important; font-weight: bold; width: 52px; color: #000; }
+    .coldiemdanh { font-style: italic; font-weight: bold; color: #000; background-color: #FFFFFF; width: 52px; }
+    .coltotal { width: 50px; font-weight: bold; text-align: center !important; }
+
+    .cold1a { display: block; color: #0F86DB; font-weight: bold; line-height: 1.3; }
+    .cold1b { display: block; text-decoration: underline; color: #333; line-height: 1.3; }
+    .cold2a { display: block; text-decoration: underline; color: #333; line-height: 1.3; }
+    .cold2b { display: block; color: #FF0000; font-weight: bold; line-height: 1.3; }
+
+    .colsa { display: block; color: #555555; font-weight: bold; line-height: 1.3; text-align: left; }
+    .colsb { display: block; color: #777777; font-style: italic; line-height: 1.3; text-align: left; }
+
+    .select2-container .select2-selection--single {
+      height: 32px !important;
+      border: 1px solid #ccc !important;
+      border-radius: 3px !important;
+      display: flex;
+      align-items: center;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+      line-height: 30px !important;
+      font-size: 12px !important;
+      color: #333 !important;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+      height: 30px !important;
+    }
+    .select2-dropdown {
+      font-size: 12px !important;
+      border: 1px solid #3B86C4 !important;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="panel-custom">
+    <div class="panel-heading">
+      <div>
+        <i class="fa fa-bus"></i>
+        <span>HỆ THỐNG TRA CỨU BIỂU ĐỒ CHẠY XE</span>
+      </div>
+      <div>
+        <a href="admin.html" style="color:#FFF; text-decoration:none; font-size:11px;"><i class="fa fa-lock"></i> Quản trị</a>
+      </div>
+    </div>
+
+    <div class="panel-body">
+      <div class="form-grid">
+        <label>Đơn vị chủ quản:</label>
+        <div style="max-width: 500px;">
+          <select id="selXn" class="form-control select2-search" style="width: 100%;">
+            <option value="">Chọn xí nghiệp</option>
+          </select>
+        </div>
+
+        <label>Tuyến xe buýt:</label>
+        <div style="max-width: 500px;">
+          <select id="selTuyen" class="form-control select2-search" style="width: 100%;">
+            <option value="">Chọn xí nghiệp trước</option>
+          </select>
+        </div>
+
+        <label>Ngày áp dụng:</label>
+        <div style="max-width: 500px;">
+          <select id="selNgayApDung" class="form-control select2-search" style="width: 100%;">
+            <option value="">Chọn tuyến trước</option>
+          </select>
+        </div>
+
+        <label>Ngày trong tuần:</label>
+        <div class="days-row">
+          <label class="day-item"><input type="radio" name="rdDay" value="T2" checked onchange="onDayChange()"> Thứ 2</label>
+          <label class="day-item"><input type="radio" name="rdDay" value="T3" onchange="onDayChange()"> Thứ 3</label>
+          <label class="day-item"><input type="radio" name="rdDay" value="T4" onchange="onDayChange()"> Thứ 4</label>
+          <label class="day-item"><input type="radio" name="rdDay" value="T5" onchange="onDayChange()"> Thứ 5</label>
+          <label class="day-item"><input type="radio" name="rdDay" value="T6" onchange="onDayChange()"> Thứ 6</label>
+          <label class="day-item"><input type="radio" name="rdDay" value="T7" onchange="onDayChange()"> Thứ 7</label>
+          <label class="day-item"><input type="radio" name="rdDay" value="CN" onchange="onDayChange()"> Chủ nhật</label>
+        </div>
+
+        <div></div>
+        <div>
+          <button class="btn-view" onclick="xemBieuDo()"><i class="fa fa-eye"></i> Xem Biểu Đồ</button>
+        </div>
+      </div>
+
+      <div id="viewerWrapper" class="viewer-wrapper">
+        <div class="table-scroll">
+          <table id="mainScheduleTable" class="table-schedule"></table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let danhMucData = [];
+    let allRoutes = [];
+
+    $(document).ready(function() {
+      $('.select2-search').select2({
+        language: {
+          noResults: function() { return "Không tìm thấy kết quả phù hợp"; }
+        }
+      });
+
+      $('#selXn').on('change', onXnChange);
+      $('#selTuyen').on('change', onTuyenChange);
+      $('#selNgayApDung').on('change', () => {
+        if ($('#selTuyen').val() && $('#selNgayApDung').val()) {
+          xemBieuDo();
+        }
+      });
+
+      napDanhMuc();
+    });
+
+    async function napDanhMuc() {
+      try {
+        // Chỉ lấy các tuyến ĐANG HOẠT ĐỘNG
+        const response = await fetch('/api/danh-muc');
+        const res = await response.json();
+        if (!res || !res.success) return;
+
+        danhMucData = res.data || [];
+        allRoutes = res.allRoutes || [];
+
+        const xnSet = new Set();
+        allRoutes.forEach(r => { if (r.xn) xnSet.add(r.xn); });
+        danhMucData.forEach(item => { if (item.xn) xnSet.add(item.xn); });
+
+        const $selXn = $('#selXn');
+        $selXn.empty().append('<option value="">Chọn xí nghiệp</option>');
+        Array.from(xnSet).sort().forEach(xn => {
+          $selXn.append(new Option(xn, xn));
+        });
+        $selXn.trigger('change');
+      } catch (err) {
+        console.error("Lỗi khi tải danh mục:", err);
+      }
+    }
+
+    function onXnChange() {
+      const xn = $('#selXn').val();
+      const $selTuyen = $('#selTuyen');
+      const $selNgay = $('#selNgayApDung');
+
+      $selTuyen.empty().append('<option value="">Chọn tuyến</option>');
+      $selNgay.empty().append('<option value="">Chọn tuyến trước</option>');
+
+      if (!xn) {
+        $selTuyen.trigger('change');
+        $selNgay.trigger('change');
+        return;
+      }
+
+      const tuyenSet = new Set();
+      allRoutes.forEach(r => {
+        if (r.xn === xn && r.tenTuyen) tuyenSet.add(r.tenTuyen);
+      });
+      danhMucData.forEach(item => {
+        if (item.xn === xn && item.tuyen) tuyenSet.add(item.tuyen);
+      });
+
+      Array.from(tuyenSet).sort().forEach(tuyen => {
+        $selTuyen.append(new Option(tuyen, tuyen));
+      });
+
+      $selTuyen.trigger('change');
+      $selNgay.trigger('change');
+    }
+
+    function trichXuatNgayThuan(str) {
+      if (!str) return "";
+      const match = str.match(/(\d{1,2}[\/\.]\d{1,2}[\/\.]\d{2,4})/);
+      return match ? match[1].replace(/\./g, '/') : str;
+    }
+
+    function onTuyenChange() {
+      const xn = $('#selXn').val();
+      const tuyen = $('#selTuyen').val();
+      const $selNgay = $('#selNgayApDung');
+
+      $selNgay.empty().append('<option value="">Chọn ngày áp dụng</option>');
+      if (!xn || !tuyen) {
+        $selNgay.trigger('change');
+        return;
+      }
+
+      const bieuDoCuaTuyen = danhMucData.filter(item => item.xn === xn && item.tuyen === tuyen);
+
+      const uniqueDays = [];
+      bieuDoCuaTuyen.forEach(item => {
+        const ngayThuan = trichXuatNgayThuan(item.bieuDo || item.tenTab);
+        if (ngayThuan && !uniqueDays.includes(ngayThuan)) {
+          uniqueDays.push(ngayThuan);
+        }
+      });
+
+      uniqueDays.reverse();
+
+      uniqueDays.forEach(day => {
+        $selNgay.append(new Option(day, day));
+      });
+
+      if (uniqueDays.length > 0) {
+        $selNgay.val(uniqueDays[0]);
+      }
+
+      $selNgay.trigger('change');
+    }
+
+    function onDayChange() {
+      if ($('#selTuyen').val() && $('#selNgayApDung').val()) {
+        xemBieuDo();
+      }
+    }
+
+    function timTabPhuHop(xn, tuyen, ngayApDung, thuDaChon) {
+      const bieuDoList = danhMucData.filter(item => item.xn === xn && item.tuyen === tuyen);
+      const candidates = bieuDoList.filter(item => {
+        const fullStr = (item.bieuDo + " " + item.tenTab).toLowerCase();
+        const ngayKhongDau = ngayApDung.replace(/\//g, '.');
+        return fullStr.includes(ngayApDung.toLowerCase()) || fullStr.includes(ngayKhongDau);
+      });
+
+      if (candidates.length === 0) return null;
+      if (candidates.length === 1) return candidates[0].tenTab;
+
+      if (thuDaChon === "CN") {
+        for (let item of candidates) {
+          const txt = (item.bieuDo + " " + item.tenTab).toLowerCase();
+          if (txt.includes("chủ nhật") || txt.includes("cn")) return item.tenTab;
+        }
+      } else {
+        for (let item of candidates) {
+          const txt = (item.bieuDo + " " + item.tenTab).toLowerCase();
+          if (txt.includes("thứ 2 - thứ 7") || txt.includes("t2-t7") || txt.includes("ngày thường")) return item.tenTab;
+        }
+      }
+
+      for (let item of candidates) {
+        const txt = (item.bieuDo + " " + item.tenTab).toLowerCase();
+        if (txt.includes("cả tuần")) return item.tenTab;
+      }
+
+      return candidates[0].tenTab;
+    }
+
+    async function xemBieuDo() {
+      const xn = $('#selXn').val();
+      const tuyen = $('#selTuyen').val();
+      const ngayApDung = $('#selNgayApDung').val();
+      const thuDaChon = $('input[name="rdDay"]:checked').val() || "T2";
+
+      if (!xn || !tuyen || !ngayApDung) {
+        alert("Vui lòng chọn đầy đủ Đơn vị chủ quản, Tuyến xe và Ngày áp dụng!");
+        return;
+      }
+
+      const tabName = timTabPhuHop(xn, tuyen, ngayApDung, thuDaChon);
+      if (!tabName) {
+        alert("Không tìm thấy biểu đồ chạy xe phù hợp cho ngày đã chọn!");
+        return;
+      }
+
+      const $btn = $('.btn-view');
+      $btn.html('<i class="fa fa-spinner fa-spin"></i> Đang tải...').prop('disabled', true);
+      $('#viewerWrapper').show();
+
+      try {
+        const res = await fetch(`/api/table-data?tab=${encodeURIComponent(tabName)}&tuyen=${encodeURIComponent(tuyen)}`).then(r => r.json());
+        $btn.html('<i class="fa fa-eye"></i> Xem Biểu Đồ').prop('disabled', false);
+
+        hienThiBangHTML(res);
+      } catch (err) {
+        $btn.html('<i class="fa fa-eye"></i> Xem Biểu Đồ').prop('disabled', false);
+        alert("Lỗi kết nối máy chủ: " + err);
+      }
+    }
+
+    function chuanHoaGio(str) {
+      if (!str) return "";
+      str = String(str).trim();
+      if (str.includes("T") && str.includes("Z")) {
+        const d = new Date(str);
+        if (!isNaN(d.getTime())) {
+          const h = String(d.getUTCHours());
+          const m = String(d.getUTCMinutes());
+          return h + ":" + (m.length < 2 ? "0" + m : m);
+        }
+      }
+      const parts = str.split(":");
+      if (parts.length >= 2) {
+        const h = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10);
+        if (!isNaN(h) && !isNaN(m)) {
+          return h + ":" + (m < 10 ? "0" + m : m);
+        }
+      }
+      return str;
+    }
+
+    function chuyenPhut(t) {
+      if (!t) return 0;
+      const p = t.split(":");
+      return p.length >= 2 ? parseInt(p[0], 10) * 60 + parseInt(p[1], 10) : 0;
+    }
+
+    function hienThiBangHTML(res) {
+      if (!res || !res.success) {
+        alert("Không tải được dữ liệu: " + (res.message || "Lỗi không xác định"));
+        $('#viewerWrapper').hide();
+        return;
+      }
+
+      const rawData = res.rawData;
+      if (!rawData || rawData.length === 0) {
+        alert("Tab này không có dữ liệu!");
+        return;
+      }
+
+      const customDauA = res.dauA || "";
+      const customDauB = res.dauB || "";
+      const bannerLines = [];
+      let startRow = -1;
+      const diemDanhCols = [];
+
+      for (let i = 0; i < rawData.length; i++) {
+        const valCol0 = String(rawData[i][0] || "").trim();
+        if (valCol0 === "1" || valCol0 === "01") {
+          startRow = i;
+          break;
+        }
+
+        for (let col = 0; col < rawData[i].length; col++) {
+          const cellStr = String(rawData[i][col] || "").toLowerCase();
+          if (cellStr.includes("điểm danh") && !diemDanhCols.includes(col)) {
+            diemDanhCols.push(col);
+          }
+        }
+
+        const rowString = rawData[i].join(" ");
+        const hasColon = rowString.includes(":");
+        const isFirstColEmpty = (valCol0 === "");
+
+        if ((isFirstColEmpty && hasColon) || rowString.toLowerCase().includes("giờ gạch chân")) {
+          continue;
+        }
+
+        const fullText = rawData[i].filter(c => c && c.trim() !== "").join(" - ").trim();
+        if (fullText.length > 3 && !fullText.toLowerCase().includes("đầu a-b") && fullText.toLowerCase() !== "nốt" && !fullText.toLowerCase().includes("điểm danh")) {
+          bannerLines.push(fullText);
+        }
+      }
+
+      if (startRow === -1) startRow = 0;
+      const tableData = rawData.slice(startRow);
+
+      const cleanTableData = [];
+      for (let j = 0; j < tableData.length; j++) {
+        const col0 = String(tableData[j][0] || "").trim();
+        if (col0 !== "" && !isNaN(col0)) {
+          cleanTableData.push(tableData[j]); 
+          if (j + 1 < tableData.length) {
+            cleanTableData.push(tableData[j + 1]); 
+          }
+        }
+      }
+
+      const notList = [];
+      for (let r = 0; r < cleanTableData.length; r += 2) {
+        const rowA = cleanTableData[r];
+        const rowB = cleanTableData[r + 1] || [];
+
+        const notVal = rowA[0] ? String(rowA[0]).trim() : "";
+        if (!notVal && (!rowA[1] || rowA[1].trim() === "")) continue;
+
+        const dauA = customDauA || (rowA[1] ? rowA[1].trim() : "");
+        const dauB = customDauB || (rowB[1] ? rowB[1].trim() : "");
+
+        const cells = [];
+        let totalTrips = 0;
+        let endC = Math.max(rowA.length, rowB.length);
+
+        const lastA = String(rowA[endC - 1] || "").trim();
+        const lastB = String(rowB[endC - 1] || "").trim();
+        if ((lastA !== "" && !isNaN(lastA) && !lastA.includes(":")) ||
+            (lastB !== "" && !isNaN(lastB) && !lastB.includes(":"))) {
+          endC = endC - 1;
+        }
+
+        for (let c = 2; c < endC; c++) {
+          const valA = chuanHoaGio(rowA[c] ? rowA[c].trim() : "");
+          const valB = chuanHoaGio(rowB[c] ? rowB[c].trim() : "");
+
+          if (diemDanhCols.includes(c)) {
+            const valDD = valA || valB;
+            cells.push(valDD ? { type: "diemdanh", val: valDD } : { type: "empty" });
+            continue;
+          }
+
+          if (valA.toLowerCase().includes("thay ca") || valB.toLowerCase().includes("thay ca")) {
+            cells.push({ type: "thayca" });
+            continue;
+          }
+          if (!valA && !valB) {
+            cells.push({ type: "empty" });
+            continue;
+          }
+
+          totalTrips++;
+          const pA = chuyenPhut(valA);
+          const pB = chuyenPhut(valB);
+
+          if (valA && valB) {
+            if (pA < pB) {
+              cells.push({ type: "flight", top: valA, topCls: "cold1a", btm: valB, btmCls: "cold1b" });
+            } else {
+              cells.push({ type: "flight", top: valA, topCls: "cold2a", btm: valB, btmCls: "cold2b" });
+            }
+          } else if (valA) {
+            cells.push({ type: "flight", top: valA, topCls: "cold1a", btm: "", btmCls: "" });
+          } else {
+            cells.push({ type: "flight", top: "", topCls: "", btm: valB, btmCls: "cold2b" });
+          }
+        }
+
+        notList.push({ not: notVal || (r / 2 + 1), dauA, dauB, cells, totalTrips });
+      }
+
+      let maxCols = 0;
+      notList.forEach(item => {
+        while (item.cells.length > 0 && item.cells[item.cells.length - 1].type === "empty") item.cells.pop();
+        if (item.cells.length > maxCols) maxCols = item.cells.length;
+      });
+
+      const totalTableWidthCols = maxCols + 3;
+      let html = '<thead>';
+
+      if (bannerLines.length > 0) {
+        bannerLines.forEach((line, idx) => {
+          html += `<tr><th colspan="${totalTableWidthCols}" style="font-size:${idx === 0 ? '13px' : '12px'}; font-weight:bold; padding:8px 6px; background:#FFFFFF; border:1px solid #CCCCCC; text-align:center; color:#111;">${line}</th></tr>`;
+        });
+      }
+
+      html += '<tr>';
+      html += '<th class="colstt">Nốt</th>';
+      html += '<th class="coldau">Đầu A-B</th>';
+      html += `<th colspan="${maxCols}">GIỜ XE XUẤT BẾN/ VỀ BẾN</th>`;
+      html += '<th class="coltotal" style="background-color: #EBF2F8 !important; color: #111 !important;">LƯỢT</th>';
+      html += '</tr></thead><tbody>';
+
+      let tongLuotToanTuyen = 0;
+
+      notList.forEach(item => {
+        tongLuotToanTuyen += item.totalTrips;
+        html += '<tr>';
+        html += `<td class="colstt">${item.not}</td>`;
+        html += `<td class="coldau"><span class="colsa">${item.dauA}</span><span class="colsb">${item.dauB}</span></td>`;
+        
+        let cnt = 0;
+        item.cells.forEach(c => {
+          if (c.type === "thayca") {
+            html += '<td class="colthayca">Thay ca</td>';
+          } else if (c.type === "diemdanh") {
+            html += `<td class="coldiemdanh">${c.val}</td>`;
+          } else if (c.type === "flight") {
+            html += `<td class="colflight"><span class="${c.topCls}">${c.top}</span><span class="${c.btmCls}">${c.btm}</span></td>`;
+          } else {
+            html += '<td></td>';
+          }
+          cnt++;
+        });
+        while (cnt < maxCols) { html += '<td></td>'; cnt++; }
+        html += `<td class="coltotal">${item.totalTrips}</td>`;
+        html += '</tr>';
+      });
+
+      html += '<tr style="font-weight:bold; background:#FAFAFA;">';
+      html += '<td colspan="2" style="text-align:center;">Tổng lượt</td>';
+      html += `<td colspan="${maxCols}"></td>`;
+      html += `<td class="coltotal" style="background-color: #FAFAFA !important; color: #0F86DB;">${tongLuotToanTuyen}</td>`;
+      html += '</tr></tbody>';
+
+      $('#mainScheduleTable').html(html);
+      $('#viewerWrapper').show();
+      $('html, body').animate({ scrollTop:$('#viewerWrapper').offset().top - 20 }, 300);
+    }
+  </script>
+</body>
+</html>
