@@ -165,6 +165,9 @@
     }
     .select2-container--default .select2-selection--single .select2-selection__arrow { height: 30px !important; }
     .select2-dropdown { font-size: 12px !important; border: 1px solid #3B86C4 !important; }
+    .select2-container--open {
+      z-index: 10005 !important;
+    }
   </style>
 </head>
 <body>
@@ -980,7 +983,14 @@
       mapTuyenChiTiet.forEach(t => {
         $sel.append(new Option(`${t.maTuyen} - ${t.tenTuyen}`, t.maTuyen));
       });
-      $sel.trigger('change.select2');$('#modalDieuChuyen').css('display', 'flex');
+      
+      // GẮN DROPDOWN VÀO TRONG MODAL ĐỂ KHÔNG BỊ CHE KHUẤT
+      $sel.select2({
+        dropdownParent: $('#modalDieuChuyen'),
+        language: { noResults: () => "Không tìm thấy kết quả phù hợp" }
+      });
+
+      $('#modalDieuChuyen').css('display', 'flex');
     }
 
     async function xacNhanDieuChuyen() {
