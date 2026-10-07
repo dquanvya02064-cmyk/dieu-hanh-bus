@@ -27,7 +27,6 @@ const BusModel = mongoose.model('BusData', busDataSchema);
 mongoose.connect(MONGO_URI)
   .then(async () => {
     console.log('>>> Ket noi thanh cong MongoDB Atlas!');
-    // Tự động khôi phục dữ liệu gốc nếu database chưa có hoặc thiếu tuyến khóa
     const doc = await BusModel.findOne({ key: 'main_data' });
     if (!doc || !doc.data || !doc.data.tuyenList || !doc.data.tuyenList['14']) {
       const localPath = path.join(__dirname, 'bus_full_data.json');
@@ -44,7 +43,6 @@ mongoose.connect(MONGO_URI)
   })
   .catch(err => console.error('>>> Loi ket noi MongoDB:', err));
 
-// Hàm đọc dữ liệu an toàn
 async function getRawData() {
   const doc = await BusModel.findOne({ key: 'main_data' });
   if (doc && doc.data && doc.data.tuyenList && Object.keys(doc.data.tuyenList).length > 0) {
@@ -57,7 +55,6 @@ async function getRawData() {
   return { tuyenList: {}, bieuDoList: [] };
 }
 
-// Hàm lưu dữ liệu vào MongoDB
 async function saveRawData(data) {
   await BusModel.findOneAndUpdate(
     { key: 'main_data' },
@@ -66,7 +63,7 @@ async function saveRawData(data) {
   );
 }
 
-// 1. API LẤY DANH MỤC (XỬ LÝ ĐÚNG CHO CẢ TRANG TRA CỨU VÀ TRANG ADMIN)
+// 1. API LẤY DANH MỤC
 app.get('/api/danh-muc', async (req, res) => {
   try {
     const isAdmin = req.query.admin === 'true';
@@ -81,7 +78,6 @@ app.get('/api/danh-muc', async (req, res) => {
         const item = raw.tuyenList[k];
         const isLocked = item.status === 'locked';
 
-        // Admin: lấy toàn bộ tuyến. Trang chủ: chỉ lấy tuyến active
         if (isAdmin || !isLocked) {
           activeRouteNames.add(item.tenTuyen || k);
           allRoutesList.push({
@@ -90,6 +86,8 @@ app.get('/api/danh-muc', async (req, res) => {
             xn: item.xn || "",
             dauA: item.dauA || "",
             dauB: item.dauB || "",
+            soXeVd: item.soXeVd || item.soXe || "",
+            soXeKh: item.soXeKh || item.soXe || "",
             soXe: item.soXe || "",
             loaiXe: item.loaiXe || "",
             sucChua: item.sucChua || "",
@@ -190,10 +188,10 @@ app.post(['/api/bus-data', '/api/save-data'], async (req, res) => {
   }
 });
 
-// 5. API LƯU THÔNG TIN TUYẾN TỪ ADMIN (/api/tuyen-moi)
+// 5. API LƯU THÔNG TIN TUYẾN TỪ ADMIN (LƯU RÕ XE VD VÀ XE KH)
 app.post(['/api/save-tuyen', '/api/tuyen-moi'], async (req, res) => {
   try {
-    const { maTuyen, tenTuyen, xn, dauA, dauB, soXe, loaiXe, sucChua, status } = req.body;
+    const { maTuyen, tenTuyen, xn, dauA, dauB, soXeVd, soXeKh, soXe, loaiXe, sucChua, status } = req.body;
     if (!maTuyen) {
       return res.status(400).json({ success: false, message: 'Vui lòng cung cấp mã tuyến!' });
     }
@@ -209,7 +207,9 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], async (req, res) => {
       xn: xn || "",
       dauA: dauA || "",
       dauB: dauB || "",
-      soXe: soXe || "",
+      soXeVd: soXeVd || soXe || "",
+      soXeKh: soXeKh || soXe || "",
+      soXe: soXeKh || soXeVd || soXe || "",
       loaiXe: loaiXe || "",
       sucChua: sucChua || "",
       status: status || oldStatus
@@ -223,7 +223,7 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], async (req, res) => {
   }
 });
 
-// 6. API KHÓA / MỞ LẠI TUYẾN (/api/toggle-status-tuyen)
+// 6. API KHÓA / MỞ LẠI TUYẾN
 app.post('/api/toggle-status-tuyen', async (req, res) => {
   try {
     const { maTuyen, status } = req.body;
@@ -243,7 +243,7 @@ app.post('/api/toggle-status-tuyen', async (req, res) => {
   }
 });
 
-// 7. API LƯU BIỂU ĐỒ TỪ ADMIN (/api/luu-bieu-do)
+// 7. API LƯU BIỂU ĐỒ
 app.post('/api/luu-bieu-do', async (req, res) => {
   try {
     const { xn, tuyen, bieuDo, tenTab, rawData } = req.body;
@@ -277,7 +277,7 @@ app.post('/api/luu-bieu-do', async (req, res) => {
   }
 });
 
-// 8. API XÓA BIỂU ĐỒ TỪ ADMIN (/api/xoa-bieu-do)
+// 8. API XÓA BIỂU ĐỒ
 app.post('/api/xoa-bieu-do', async (req, res) => {
   try {
     const { tenTab } = req.body;
@@ -299,7 +299,7 @@ app.post('/api/xoa-bieu-do', async (req, res) => {
   }
 });
 
-// 9. API CỨU HỘ BACKUP GỐC
+// 9. API CỨU HỘ
 app.get('/api/restore-backup', async (req, res) => {
   try {
     const localPath = path.join(__dirname, 'bus_full_data.json');
