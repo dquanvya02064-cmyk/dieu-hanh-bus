@@ -23,6 +23,53 @@
     }
     body { padding: 15px; }
 
+    /* DASHBOARD CARDS THỐNG KÊ XE & TUYẾN */
+    .dashboard-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 15px;
+      max-width: 1250px;
+      min-width: 650px;
+      margin: 0 auto 20px auto;
+    }
+    .stat-card {
+      background: #FFFFFF;
+      border: 1px solid #C4D5E5;
+      border-radius: 5px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .stat-card .info h4 {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #777;
+      margin-bottom: 5px;
+      letter-spacing: 0.5px;
+    }
+    .stat-card .info .number {
+      font-size: 22px;
+      font-weight: bold;
+      color: #2C3E50;
+    }
+    .stat-card .info .subtext {
+      font-size: 11px;
+      color: #888;
+      margin-top: 3px;
+    }
+    .stat-card .icon {
+      font-size: 32px;
+      opacity: 0.8;
+    }
+    .stat-card.blue { border-left: 4px solid #3B86C4; }
+    .stat-card.blue .icon { color: #3B86C4; }
+    .stat-card.green { border-left: 4px solid #27AE60; }
+    .stat-card.green .icon { color: #27AE60; }
+    .stat-card.orange { border-left: 4px solid #E67E22; }
+    .stat-card.orange .icon { color: #E67E22; }
+
     .panel-custom {
       background: #FFFFFF;
       border: 1px solid #C4D5E5;
@@ -164,6 +211,34 @@
   </style>
 </head>
 <body>
+
+  <!-- KHU VỰC THỐNG KÊ TỔNG QUAN XE VẬN DOANH & TUYẾN -->
+  <div class="dashboard-stats">
+    <div class="stat-card blue">
+      <div class="info">
+        <h4>Tổng số tuyến</h4>
+        <div class="number" id="statTongTuyen">0</div>
+        <div class="subtext" id="statTuyenDetail">Đang tải dữ liệu...</div>
+      </div>
+      <div class="icon"><i class="fa fa-bus"></i></div>
+    </div>
+    <div class="stat-card green">
+      <div class="info">
+        <h4>Xe vận doanh (Kế hoạch)</h4>
+        <div class="number" id="statXeActive">0 xe</div>
+        <div class="subtext">Phục vụ trên các tuyến đang chạy</div>
+      </div>
+      <div class="icon"><i class="fa fa-tachometer"></i></div>
+    </div>
+    <div class="stat-card orange">
+      <div class="info">
+        <h4>Tuyến tạm dừng / Khóa</h4>
+        <div class="number" id="statTuyenLocked">0</div>
+        <div class="subtext" id="statXeLocked">0 xe tạm dừng hoạt động</div>
+      </div>
+      <div class="icon"><i class="fa fa-lock"></i></div>
+    </div>
+  </div>
 
   <!-- PHẦN 1: XÁC LẬP / ĐIỀU CHUYỂN & THÔNG TIN ĐỘI XE -->
   <div class="panel-custom">
@@ -324,8 +399,7 @@
     let mapTuyenChiTiet = new Map();
     let dangLamMoi = false;
 
-    $(document).ready(function() {
-      $('.select2-search').select2({
+    $(document).ready(function() {$('.select2-search').select2({
         language: { noResults: () => "Không tìm thấy kết quả phù hợp" }
       });
 
@@ -341,7 +415,7 @@
 
     function toggleExtraInput(selectId, inputId) {
       const val = $('#' + selectId).val();
-      const $inp = $('#' + inputId);
+      const $inp =$('#' + inputId);
       if (val === "__NEW__") {
         $inp.show().focus();
       } else {
@@ -436,7 +510,7 @@
         doVaoSelect2("selDauA", dsDauBen, "đầu bến A");
         doVaoSelect2("selDauB", dsDauBen, "đầu bến B");
 
-        const $selSua = $('#selChonTuyenDeSua');
+        const $selSua =$('#selChonTuyenDeSua');
         $selSua.empty().append('<option value="">[+ Tạo mới một tuyến hoàn toàn]</option>');
         mapTuyenChiTiet.forEach(t => {
           const lockText = t.status === 'locked' ? ' [ĐÃ KHÓA]' : '';
@@ -444,7 +518,7 @@
         });
         $selSua.trigger('change.select2');
 
-        const $selTuyen = $('#selChonTuyen');
+        const $selTuyen =$('#selChonTuyen');
         $selTuyen.empty().append('<option value="">Chọn tuyến</option>');
         
         let selectedVal = "";
@@ -452,17 +526,43 @@
           const isSelected = chonMaTuyenMoi && (t.maTuyen === chonMaTuyenMoi);
           if (isSelected) selectedVal = t.tenTuyen;
           const opt = new Option(t.tenTuyen, t.tenTuyen, false, false);
-          $(opt).attr('data-xn', t.xn);
-          $selTuyen.append(opt);
+          $(opt).attr('data-xn', t.xn);$selTuyen.append(opt);
         });
 
-        if (selectedVal) $selTuyen.val(selectedVal);
-        $selTuyen.trigger('change.select2');
+        if (selectedVal) $selTuyen.val(selectedVal);$selTuyen.trigger('change.select2');
 
+        // Vẽ bảng danh sách tuyến & Cập nhật số liệu Dashboard
         veBangDanhSachTuyen();
+        capNhatThongKe();
       } catch (err) {
         console.error("Lỗi nạp dữ liệu:", err);
       }
+    }
+
+    // TÍNH TOÁN VÀ CẬP NHẬT XE VẬN DOANH & TỔNG SỐ TUYẾN
+    function capNhatThongKe() {
+      let tongTuyen = mapTuyenChiTiet.size;
+      let tuyenActive = 0;
+      let tuyenLocked = 0;
+      let tongXeActive = 0;
+      let tongXeLocked = 0;
+
+      mapTuyenChiTiet.forEach(t => {
+        const soXe = parseInt(t.soXe, 10) || 0;
+        if (t.status === 'locked') {
+          tuyenLocked++;
+          tongXeLocked += soXe;
+        } else {
+          tuyenActive++;
+          tongXeActive += soXe;
+        }
+      });
+
+      $('#statTongTuyen').text(tongTuyen);
+      $('#statTuyenDetail').text(`${tuyenActive} đang chạy / ${tuyenLocked} tạm dừng`);
+      $('#statXeActive').text(`${tongXeActive} xe`);
+      $('#statTuyenLocked').text(tuyenLocked);
+      $('#statXeLocked').text(`${tongXeLocked} xe tạm dừng hoạt động`);
     }
 
     function veBangDanhSachTuyen() {
@@ -477,7 +577,7 @@
             : '<span class="status-badge status-active"><i class="fa fa-check"></i> Đang chạy</span>';
           
           const thongTinXe = (t.soXe || t.loaiXe) 
-            ? `${t.soXe ? t.soXe + ' xe' : ''} ${t.loaiXe ? '- ' + t.loaiXe : ''} ${t.sucChua ? '(' + t.sucChua + ')' : ''}`
+            ? `<strong style="color:#0F86DB;">${t.soXe ? t.soXe + ' xe KH' : ''}</strong> ${t.loaiXe ? '- ' + t.loaiXe : ''} ${t.sucChua ? '(' + t.sucChua + ')' : ''}`
             : '<span style="color:#aaa;">Chưa cập nhật</span>';
 
           const btnToggle = isLocked
@@ -528,7 +628,7 @@
     }
 
     function doVaoSelect2(elemId, dataSet, label) {
-      const $sel = $('#' + elemId);
+      const $sel =$('#' + elemId);
       $sel.empty().append(`<option value="">Chọn ${label}</option>`);
       Array.from(dataSet).sort().forEach(val => {
         $sel.append(new Option(val, val));
@@ -548,7 +648,7 @@
       const tuyen = $('#selChonTuyen').val();
       const ngay = $('#txtNgayApDung').val().trim();
       const phamVi = $('input[name="rdPhamVi"]:checked').val() || "Cả tuần";
-      const $tabInp = $('#txtTenTab');
+      const $tabInp =$('#txtTenTab');
 
       if (!tuyen) {
         $tabInp.val("");
