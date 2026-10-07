@@ -14,6 +14,7 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://dquan4701_db_user:Quan
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Schema dữ liệu MongoDB Atlas
@@ -30,45 +31,60 @@ mongoose.connect(MONGO_URI)
 // Hàm đọc dữ liệu thô
 async function getRawData() {
   const doc = await BusModel.findOne({ key: 'main_data' });
-  if (doc && doc.data) {
+  if (doc && doc.data && Object.keys(doc.data).length > 0) {
     return doc.data;
   }
   const localPath = path.join(__dirname, 'bus_full_data.json');
   if (fs.existsSync(localPath)) {
     return JSON.parse(fs.readFileSync(localPath, 'utf8'));
   }
-  return {};
+  return { tuyenList: {}, bieuDoList: [] };
 }
 
-// 1. API TRẢ DANH MỤC CHO INDEX.HTML
+// Hàm lưu dữ liệu vào MongoDB
+async function saveRawData(data) {
+  await BusModel.findOneAndUpdate(
+    { key: 'main_data' },
+    { key: 'main_data', data: data },
+    { upsert: true, returnDocument: 'after' }
+  );
+}
+
+// 1. API LẤY DANH MỤC CHO TRANG TRA CỨU (CHỈ HIỆN TUYẾN KHÔNG BỊ KHÓA)
 app.get('/api/danh-muc', async (req, res) => {
   try {
     const raw = await getRawData();
     let danhMucList = [];
     let allRoutesList = [];
 
-    // Lấy danh sách tuyến xe
+    const activeRouteKeys = new Set();
+
     if (raw.tuyenList && typeof raw.tuyenList === 'object') {
       for (let k in raw.tuyenList) {
         const item = raw.tuyenList[k];
-        allRoutesList.push({
-          maTuyen: item.maTuyen || k,
-          tenTuyen: item.tenTuyen || k,
-          xn: item.xn || "",
-          dauA: item.dauA || "",
-          dauB: item.dauB || ""
-        });
+        // Chỉ lấy tuyến đang hoạt động, bỏ qua các tuyến có status là 'locked'
+        if (item.status !== 'locked') {
+          activeRouteKeys.add(item.tenTuyen || k);
+          allRoutesList.push({
+            maTuyen: item.maTuyen || k,
+            tenTuyen: item.tenTuyen || k,
+            xn: item.xn || "",
+            dauA: item.dauA || "",
+            dauB: item.dauB || ""
+          });
+        }
       }
     }
 
-    // Lấy danh sách biểu đồ
     if (Array.isArray(raw.bieuDoList)) {
-      danhMucList = raw.bieuDoList.map(item => ({
-        xn: item.xn || "",
-        tuyen: item.tuyen || "",
-        bieuDo: item.bieuDo || "",
-        tenTab: item.tenTab || ""
-      }));
+      danhMucList = raw.bieuDoList
+        .filter(item => activeRouteKeys.has(item.tuyen))
+        .map(item => ({
+          xn: item.xn || "",
+          tuyen: item.tuyen || "",
+          bieuDo: item.bieuDo || "",
+          tenTab: item.tenTab || ""
+        }));
     }
 
     res.json({
@@ -82,7 +98,7 @@ app.get('/api/danh-muc', async (req, res) => {
   }
 });
 
-// 2. API TRẢ CHI TIẾT DỮ LIỆU BIỂU ĐỒ (RAW DATA)
+// 2. API LẤY DỮ LIỆU BIỂU ĐỒ (RAW DATA)
 app.get('/api/table-data', async (req, res) => {
   try {
     const { tab, tuyen } = req.query;
@@ -102,10 +118,9 @@ app.get('/api/table-data', async (req, res) => {
     }
 
     if (!foundItem) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy dữ liệu biểu đồ phù hợp' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy dữ liệu biểu đồ' });
     }
 
-    // Tìm thông tin đầu bến A-B tương ứng
     let customDauA = "";
     let customDauB = "";
     if (raw.tuyenList) {
@@ -131,22 +146,55 @@ app.get('/api/table-data', async (req, res) => {
   }
 });
 
+// 3. API DÀNH RIÊNG CHO TRANG QUẢN TRỊ ADMIN (LẤY TẤT CẢ TUYẾN KỂ CẢ KHÓA)
 app.get('/api/bus-data', async (req, res) => {
-  const data = await getRawData();
-  res.json(data);
+  try {
+    const data = await getRawData();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
-app.post(['/api/danh-muc', '/api/bus-data'], async (req, res) => {
+// 4. API LƯU TOÀN BỘ DỮ LIỆU / IMPORT
+app.post(['/api/bus-data', '/api/danh-muc', '/api/save-data'], async (req, res) => {
   try {
-    await BusModel.findOneAndUpdate(
-      { key: 'main_data' },
-      { key: 'main_data', data: req.body },
-      { upsert: true, returnDocument: 'after' }
-    );
-    res.json({ success: true, message: 'Lưu dữ liệu thành công' });
+    await saveRawData(req.body);
+    res.json({ success: true, message: 'Lưu thành công!' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: 'Lỗi ghi database' });
+  }
+});
+
+// 5. API LƯU / CẬP NHẬT RIÊNG THÔNG TIN MỘT TUYẾN TỪ ADMIN
+app.post('/api/save-tuyen', async (req, res) => {
+  try {
+    const raw = await getRawData();
+    if (!raw.tuyenList) raw.tuyenList = {};
+
+    const { maTuyen, xn, tenTuyen, dauA, dauB, soXe, loaiXe, sucChua, status } = req.body;
+    if (!maTuyen) {
+      return res.status(400).json({ success: false, message: 'Thiếu mã tuyến' });
+    }
+
+    raw.tuyenList[maTuyen] = {
+      maTuyen,
+      xn: xn || "",
+      tenTuyen: tenTuyen || `${maTuyen}. Tuyến ${maTuyen}`,
+      dauA: dauA || "",
+      dauB: dauB || "",
+      soXe: soXe || "",
+      loaiXe: loaiXe || "",
+      sucChua: sucChua || "",
+      status: status || "active"
+    };
+
+    await saveRawData(raw);
+    res.json({ success: true, message: 'Cập nhật thông tin tuyến thành công!' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Lỗi lưu thông tin tuyến' });
   }
 });
 
