@@ -12,7 +12,7 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       font-size: 13px;
       background-color: #F1F4F9;
       color: #333;
@@ -162,76 +162,14 @@
     .colsa { display: block; color: #333; font-weight: bold; }
     .colsb { display: block; color: #777; font-style: italic; }
 
-    /* TAB 2: TRA CỨU XE LIVE SEARCH */
-    .bus-card {
-      background: #FFF;
+    /* KHUNG THẺ KẾT QUẢ TRA CỨU XE THEO MẪU MỚI */
+    .bus-card-custom {
+      background: #FFFFFF;
       border: 1px solid #D0D7DE;
-      border-radius: 8px;
-      margin-top: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-      overflow: hidden;
-    }
-    .bus-card-header {
-      background: #F8FAFC;
-      padding: 10px 14px;
-      border-bottom: 1px solid #E1E4E8;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .license-plate {
-      background: #FFD100;
-      color: #111;
-      font-weight: 900;
-      font-size: 16px;
-      padding: 3px 10px;
-      border-radius: 4px;
-      border: 2px solid #333;
-      letter-spacing: 1px;
-    }
-    .route-badge {
-      background: #E8F4FD;
-      color: #0F86DB;
-      font-weight: bold;
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 11px;
-      border: 1px solid #B6E0FE;
-    }
-    .bus-card-body {
-      padding: 12px 14px;
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 8px;
-    }
-    .bus-info-item label {
-      color: #777;
-      font-size: 10px;
-      text-transform: uppercase;
-      display: block;
-      margin-bottom: 1px;
-    }
-    .bus-info-item span {
-      font-size: 12px;
-      font-weight: bold;
-      color: #2C3E50;
-    }
-    .bus-card-footer {
-      background: #F8FAFC;
-      padding: 8px 14px;
-      border-top: 1px solid #E1E4E8;
-      text-align: right;
-    }
-    .btn-quick-schedule {
-      background: #27AE60;
-      color: #FFF;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: bold;
-      width: 100%;
-      cursor: pointer;
+      border-radius: 10px;
+      margin-top: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     }
 
     .bottom-nav {
@@ -345,7 +283,7 @@
       </div>
     </div>
 
-    <!-- TAB 2: TRA CỨU XE (TỰ ĐỘNG GÕ ĐẾN ĐÂU HIỆN ĐẾN ĐÓ) -->
+    <!-- TAB 2: TRA CỨU XE -->
     <div id="tab-xe" class="tab-content">
       <div class="card-panel">
         <div class="card-header"><i class="fa fa-search"></i> Định danh Phương tiện</div>
@@ -445,31 +383,24 @@
           let html = '';
           res.data.forEach(xe => {
             html += `
-              <div class="bus-card">
-                <div class="bus-card-header">
-                  <span class="license-plate">${xe.bks}</span>
-                  <span class="route-badge">Tuyến ${xe.maTuyen}</span>
-                </div>
-                <div class="bus-card-body">
-                  <div class="bus-info-item">
-                    <label>Tên tuyến</label>
-                    <span>${xe.tenTuyen || 'Tuyến ' + xe.maTuyen}</span>
-                  </div>
-                  <div class="bus-info-item">
-                    <label>Đơn vị quản lý</label>
-                    <span>${xe.xn || 'Transerco'}</span>
-                  </div>
-                  <div class="bus-info-item">
-                    <label>Nhãn hiệu / Chủng loại</label>
-                    <span>${xe.nhanHieu || ''} ${xe.chungLoai || ''}</span>
-                  </div>
-                  <div class="bus-info-item">
-                    <label>Năm SX / Sức chứa</label>
-                    <span>${xe.namSx || '-'} | ${xe.sucChua ? xe.sucChua + ' chỗ' : '-'}</span>
+              <div class="bus-card-custom">
+                <div style="font-size: 24px; font-weight: 800; color: #111; letter-spacing: -0.5px; margin-bottom: 2px;">${xe.bks}</div>
+                <div style="font-size: 14px; font-weight: bold; color: #2C3E50; margin-bottom: 10px;">${xe.tenTuyen || 'Tuyến ' + xe.maTuyen}</div>
+                
+                <hr style="border: none; border-top: 1px solid #E1E4E8; margin: 10px 0;">
+
+                <div style="font-size: 13px; color: #333; line-height: 1.6;">
+                  <div><strong>Chủng loại:</strong> ${xe.nhanHieu || ''} ${xe.chungLoai || ''}</div>
+                  <div><strong>Sức chứa:</strong> ${xe.sucChua ? xe.sucChua + ' chỗ' : '-'}</div>
+                  <div><strong>Năm sản xuất:</strong> ${xe.namSx || '-'}</div>
+                  <div><strong>Đơn vị:</strong> ${xe.xn || 'Transerco'}</div>
+                  <div style="color: #0F86DB; font-weight: bold; margin-top: 6px;">
+                    <i class="fa fa-bus"></i> Tổng số xe tuyến (Vận doanh / Kế hoạch): ${xe.soXeVd || 0} / ${xe.soXeKh || 0} xe
                   </div>
                 </div>
-                <div class="bus-card-footer">
-                  <button class="btn-quick-schedule" onclick="chuyenNhanhSangBieuDo('${xe.xn}', '${xe.tenTuyen}')">
+
+                <div style="margin-top: 12px; border-top: 1px dashed #E1E4E8; padding-top: 10px; text-align: right;">
+                  <button onclick="chuyenNhanhSangBieuDo('${xe.xn}', '${xe.tenTuyen}')" style="background: #27AE60; color: #FFF; border: none; padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; width: 100%;">
                     <i class="fa fa-calendar"></i> Xem biểu đồ Tuyến ${xe.maTuyen}
                   </button>
                 </div>
