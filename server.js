@@ -58,7 +58,7 @@ async function saveRawData(data) {
   );
 }
 
-// 1. API LẤY DANH MỤC
+// 1. API LẤY DANH MỤC TUYẾN & TRẠNG THÁI BIỂU ĐỒ
 app.get('/api/danh-muc', async (req, res) => {
   try {
     const isAdmin = req.query.admin === 'true';
@@ -67,11 +67,26 @@ app.get('/api/danh-muc', async (req, res) => {
     let allRoutesList = [];
     const activeRouteNames = new Set();
 
+    // Lập danh sách các tuyến đã có biểu đồ lưu trong bieuDoList để kiểm tra thất lạc
+    const bieuDoTuyenSet = new Set();
+    if (Array.isArray(raw.bieuDoList)) {
+      raw.bieuDoList.forEach(b => {
+        if (b.tuyen) bieuDoTuyenSet.add(String(b.tuyen).trim().toUpperCase());
+      });
+    }
+
     if (raw.tuyenList && typeof raw.tuyenList === 'object') {
       for (let k in raw.tuyenList) {
         const item = raw.tuyenList[k];
         if (isAdmin || item.status !== 'locked') {
           activeRouteNames.add(item.tenTuyen || k);
+
+          const maT = (item.maTuyen || k).toUpperCase();
+          const tenT = (item.tenTuyen || "").toUpperCase();
+          
+          // Kiểm tra xem tuyến này đã có biểu đồ chưa
+          const hasBieuDo = Array.from(bieuDoTuyenSet).some(t => t.includes(maT) || tenT.includes(t));
+
           allRoutesList.push({
             maTuyen: item.maTuyen || k,
             tenTuyen: item.tenTuyen || k,
@@ -82,7 +97,8 @@ app.get('/api/danh-muc', async (req, res) => {
             soXeKh: item.soXeKh || item.soXe || 0,
             loaiXe: item.loaiXe || "",
             sucChua: item.sucChua || "",
-            status: item.status || "active"
+            status: item.status || "active",
+            hasBieuDo: hasBieuDo // Cờ báo tuyến có hay mất biểu đồ
           });
         }
       }
@@ -95,11 +111,22 @@ app.get('/api/danh-muc', async (req, res) => {
           xn: item.xn || "",
           tuyen: item.tuyen || "",
           bieuDo: item.bieuDo || "",
-          tenTab: item.tenTab || ""
+          tenTab: item.tenTab || "",
+          // Quét trực tiếp số nốt lớn nhất trong rawData của tab này làm số xe vận doanh chuẩn
+          soNot: (() => {
+            let maxN = 0;
+            if (Array.isArray(item.rawData)) {
+              item.rawData.forEach(r => {
+                let v = parseInt(String(r[0] || '').trim(), 10);
+                if (!isNaN(v) && v > maxN) maxN = v;
+              });
+            }
+            return maxN;
+          })()
         }));
     }
 
-    res.json({ success: true, data: danhMucList, allRoutes: allRoutesList });
+    res.json({ success: true, data: danhMucList, allRoutes: allRoutesList, bieuDoList: raw.bieuDoList || [] });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -129,7 +156,7 @@ app.get('/api/table-data', async (req, res) => {
   }
 });
 
-// 3. API ĐỌC TOÀN BỘ DỮ LIỆU (PHỤC VỤ TRANG QUẢN TRỊ)
+// 3. API ĐỌC TOÀN BỘ DỮ LIỆU
 app.get('/api/bus-data', async (req, res) => {
   try {
     const data = await getRawData();
@@ -139,7 +166,7 @@ app.get('/api/bus-data', async (req, res) => {
   }
 });
 
-// 4. API LƯU TOÀN BỘ DỮ LIỆU (PHỤC VỤ TRANG QUẢN TRỊ)
+// 4. API LƯU TOÀN BỘ DỮ LIỆU
 app.post(['/api/bus-data', '/api/save-data'], async (req, res) => {
   try {
     await saveRawData(req.body);
@@ -196,7 +223,7 @@ app.post('/api/toggle-status-tuyen', async (req, res) => {
   }
 });
 
-// 7. API LƯU BIỂU ĐỒ (TỰ ĐỘNG TÍNH NỐT LỚN NHẤT LÀM SỐ XE VẬN DOANH)
+// 7. API LƯU BIỂU ĐỒ (QUÉT NỐT LỚN NHẤT GÁN VẬN DOANH TỰ ĐỘNG)
 app.post('/api/luu-bieu-do', async (req, res) => {
   try {
     const { xn, tuyen, bieuDo, tenTab, rawData } = req.body;
@@ -210,10 +237,11 @@ app.post('/api/luu-bieu-do', async (req, res) => {
     if (idx >= 0) raw.bieuDoList[idx] = newTabObj;
     else raw.bieuDoList.push(newTabObj);
 
+    // Quét nốt lớn nhất từ cột 0 của bảng biểu đồ
     let maxNot = 0;
     if (Array.isArray(rawData)) {
       rawData.forEach(row => {
-        const val = parseInt(String(row[0] || '').trim(), 10);
+        let val = parseInt(String(row[0] || '').trim(), 10);
         if (!isNaN(val) && val > maxNot) maxNot = val;
       });
     }
