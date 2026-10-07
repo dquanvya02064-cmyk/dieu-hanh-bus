@@ -17,7 +17,7 @@
       font-size: 12px;
       background-color: #F1F4F9;
       color: #333;
-      padding: 15px;
+      padding: 12px;
     }
 
     .panel-custom {
@@ -27,7 +27,6 @@
       box-shadow: 0 1px 4px rgba(0,0,0,0.08);
       max-width: 1400px;
       margin: 0 auto;
-      overflow: hidden;
     }
 
     .panel-heading {
@@ -43,7 +42,7 @@
       gap: 10px;
     }
 
-    .panel-body { padding: 18px 20px; }
+    .panel-body { padding: 16px; }
 
     .form-grid {
       display: grid;
@@ -102,6 +101,8 @@
       border-top: 1px dashed #D0D7DE;
       padding-top: 15px;
       display: none;
+      width: 100%;
+      overflow: hidden;
     }
 
     .table-scroll {
@@ -110,6 +111,7 @@
       background: #FFFFFF;
       border: 1px solid #CCCCCC;
       -webkit-overflow-scrolling: touch;
+      display: block;
     }
 
     .table-schedule {
@@ -336,9 +338,8 @@
       $selNgay.trigger('change');
     }
 
-    // Phân tích chuỗi ngày và chuyển đổi sang dạng Date/SortKey
     function parseDateInfo(str) {
-      if (!str) return { label: "Hiện hành", sortKey: "00000000", year: 0, month: 0, day: 0 };
+      if (!str) return { label: "Hiện hành", sortKey: "00000000" };
       str = String(str).trim();
 
       const matchFull = str.match(/(\d{1,2})[\/\.](\d{1,2})[\/\.](\d{2,4})/);
@@ -351,8 +352,7 @@
         const mStr = String(m).padStart(2, '0');
         return {
           label: `${dStr}/${mStr}/${y}`,
-          sortKey: `${y}${mStr}${dStr}`,
-          year: y, month: m, day: d
+          sortKey: `${y}${mStr}${dStr}`
         };
       }
 
@@ -364,15 +364,13 @@
         const mStr = String(m).padStart(2, '0');
         return {
           label: `Tháng ${mStr}/${y}`,
-          sortKey: `${y}${mStr}01`,
-          year: y, month: m, day: 1
+          sortKey: `${y}${mStr}01`
         };
       }
 
-      return { label: "Hiện hành", sortKey: "00000000", year: 0, month: 0, day: 0 };
+      return { label: "Hiện hành", sortKey: "00000000" };
     }
 
-    // Nhận diện loại biểu đồ: 'weekday' (Thứ 2-7), 'sunday' (Chủ nhật), hoặc 'all' (Cả tuần)
     function detectTabType(tabItem) {
       const txt = (tabItem.tenTab + " " + (tabItem.bieuDo || "")).toLowerCase();
       if (txt.includes("cn") || txt.includes("chủ nhật")) return "sunday";
@@ -393,63 +391,22 @@
 
       const bieuDoCuaTuyen = danhMucData.filter(item => item.xn === xn && item.tuyen === tuyen);
 
-      // Thu thập thông tin chi tiết từng tab
-      const parsedTabs = bieuDoCuaTuyen.map(item => {
-        const dateInfo = parseDateInfo(item.tenTab || item.bieuDo || "");
-        return {
-          ...item,
-          tabType: detectTabType(item),
-          dateInfo: dateInfo
-        };
-      });
+      const parsedTabs = bieuDoCuaTuyen.map(item => ({
+        ...item,
+        tabType: detectTabType(item),
+        dateInfo: parseDateInfo(item.tenTab || item.bieuDo || "")
+      }));
 
-      // Kiểm tra xem tuyến có tách thành nhóm tab Ngày thường và Chủ nhật không
-      const hasWeekday = parsedTabs.some(t => t.tabType === "weekday");
-      const hasSunday = parsedTabs.some(t => t.tabType === "sunday");
-
-      let uniqueOptions = [];
-
-      if (hasWeekday && hasSunday) {
-        // Gom lại: Lấy ngày áp dụng mới nhất của Ngày thường làm mốc đại diện
-        const weekdayTabs = parsedTabs.filter(t => t.tabType === "weekday");
-        weekdayTabs.sort((a, b) => b.dateInfo.sortKey.localeCompare(a.dateInfo.sortKey));
-        const newestWeekday = weekdayTabs[0];
-
-        uniqueOptions.push({
-          label: newestWeekday.dateInfo.label,
-          sortKey: newestWeekday.dateInfo.sortKey
-        });
-
-        // Nếu có các đợt áp dụng cũ hơn (ngày thường khác), hiển thị thêm nếu người dùng muốn tra cứu quá khứ
-        for (let i = 1; i < weekdayTabs.length; i++) {
-          if (!uniqueOptions.some(o => o.label === weekdayTabs[i].dateInfo.label)) {
-            uniqueOptions.push({
-              label: weekdayTabs[i].dateInfo.label,
-              sortKey: weekdayTabs[i].dateInfo.sortKey
-            });
-          }
+      // Luôn lấy mốc ngày áp dụng mới nhất làm đại diện duy nhất
+      let bestDate = null;
+      parsedTabs.forEach(item => {
+        if (!bestDate || item.dateInfo.sortKey.localeCompare(bestDate.sortKey) > 0) {
+          bestDate = item.dateInfo;
         }
-      } else {
-        // Tuyến bình thường: gom theo các mốc ngày duy nhất
-        const dateMap = new Map();
-        parsedTabs.forEach(item => {
-          const lbl = item.dateInfo.label;
-          if (!dateMap.has(lbl)) {
-            dateMap.set(lbl, item.dateInfo.sortKey);
-          }
-        });
-        uniqueOptions = Array.from(dateMap.keys()).map(lbl => ({
-          label: lbl,
-          sortKey: dateMap.get(lbl)
-        })).sort((a, b) => b.sortKey.localeCompare(a.sortKey));
-      }
-
-      uniqueOptions.forEach(opt => {
-        $selNgay.append(new Option(opt.label, opt.label));
       });
 
-      if (uniqueOptions.length > 0) {
-        $selNgay.val(uniqueOptions[0].label);
+      if (bestDate) {
+        $selNgay.append(new Option(bestDate.label, bestDate.label));$selNgay.val(bestDate.label);
       }
 
       $selNgay.trigger('change');
@@ -461,58 +418,54 @@
       }
     }
 
-    // Tìm tab biểu đồ phù hợp
     function timTabPhuHop(xn, tuyen, ngayApDungChuan, thuDaChon) {
       const bieuDoList = danhMucData.filter(item => item.xn === xn && item.tuyen === tuyen);
       if (bieuDoList.length === 0) return null;
       if (bieuDoList.length === 1) return bieuDoList[0].tenTab;
 
-      const parsedTabs = bieuDoList.map(item => {
-        return {
-          ...item,
-          tabType: detectTabType(item),
-          dateInfo: parseDateInfo(item.tenTab || item.bieuDo || "")
-        };
-      });
+      const parsedTabs = bieuDoList.map(item => ({
+        ...item,
+        tabType: detectTabType(item),
+        dateInfo: parseDateInfo(item.tenTab || item.bieuDo || "")
+      }));
 
       const isChuNhat = (thuDaChon === "CN");
 
       if (isChuNhat) {
-        // 1. Tìm tab Chủ nhật khớp chính xác với ngày được chọn
-        let cnTab = parsedTabs.find(t => t.tabType === "sunday" && t.dateInfo.label === ngayApDungChuan);
-        if (cnTab) return cnTab.tenTab;
+        // TÌM TAB CHỦ NHẬT
+        const sundayTabs = parsedTabs.filter(t => t.tabType === "sunday");
+        if (sundayTabs.length > 0) {
+          const exactSunday = sundayTabs.find(t => t.dateInfo.label === ngayApDungChuan);
+          if (exactSunday) return exactSunday.tenTab;
 
-        // 2. Nếu ngày áp dụng được gộp từ ngày thường (ví dụ chọn 14/06/2025), tìm tab Chủ nhật mới nhất hợp lệ
-        const allSundayTabs = parsedTabs.filter(t => t.tabType === "sunday");
-        if (allSundayTabs.length > 0) {
-          allSundayTabs.sort((a, b) => b.dateInfo.sortKey.localeCompare(a.dateInfo.sortKey));
-          return allSundayTabs[0].tenTab;
+          // Lấy tab Chủ nhật mới nhất đang áp dụng
+          sundayTabs.sort((a, b) => b.dateInfo.sortKey.localeCompare(a.dateInfo.sortKey));
+          return sundayTabs[0].tenTab;
         }
       } else {
-        // Ngày thường (Thứ 2 - Thứ 7):
-        // 1. Tìm tab Ngày thường khớp chính xác với ngày được chọn
-        let wdTab = parsedTabs.find(t => t.tabType === "weekday" && t.dateInfo.label === ngayApDungChuan);
-        if (wdTab) return wdTab.tenTab;
+        // TÌM TAB NGÀY THƯỜNG (THỨ 2 - THỨ 7)
+        const weekdayTabs = parsedTabs.filter(t => t.tabType === "weekday");
+        if (weekdayTabs.length > 0) {
+          const exactWeekday = weekdayTabs.find(t => t.dateInfo.label === ngayApDungChuan);
+          if (exactWeekday) return exactWeekday.tenTab;
 
-        // 2. Tìm tab Ngày thường mới nhất nếu có
-        const allWdTabs = parsedTabs.filter(t => t.tabType === "weekday");
-        if (allWdTabs.length > 0) {
-          allWdTabs.sort((a, b) => b.dateInfo.sortKey.localeCompare(a.dateInfo.sortKey));
-          return allWdTabs[0].tenTab;
+          // Lấy tab Ngày thường mới nhất đang áp dụng
+          weekdayTabs.sort((a, b) => b.dateInfo.sortKey.localeCompare(a.dateInfo.sortKey));
+          return weekdayTabs[0].tenTab;
         }
       }
 
-      // 3. Nếu tuyến áp dụng chung 1 biểu đồ cho Cả tuần
-      let allWeekTab = parsedTabs.find(t => t.tabType === "all" && t.dateInfo.label === ngayApDungChuan);
-      if (allWeekTab) return allWeekTab.tenTab;
+      // Nếu tuyến dùng chung tab "Cả tuần"
+      const allWeekTabs = parsedTabs.filter(t => t.tabType === "all");
+      if (allWeekTabs.length > 0) {
+        const exactAll = allWeekTabs.find(t => t.dateInfo.label === ngayApDungChuan);
+        if (exactAll) return exactAll.tenTab;
 
-      const allTabs = parsedTabs.filter(t => t.tabType === "all");
-      if (allTabs.length > 0) {
-        allTabs.sort((a, b) => b.dateInfo.sortKey.localeCompare(a.dateInfo.sortKey));
-        return allTabs[0].tenTab;
+        allWeekTabs.sort((a, b) => b.dateInfo.sortKey.localeCompare(a.dateInfo.sortKey));
+        return allWeekTabs[0].tenTab;
       }
 
-      return parsedTabs[0].tenTab;
+      return bieuDoList[0].tenTab;
     }
 
     async function xemBieuDo() {
