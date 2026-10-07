@@ -384,7 +384,7 @@
         </div>
       </div>
 
-      <!-- BẢNG THEO DÕI TRẠNG THÁI BIỂU ĐỒ (CHUẨN XÁC THEO MÃ TUYẾN) -->
+      <!-- BẢNG THEO DÕI TRẠNG THÁI BIỂU ĐỒ (SO KHỚP THÔNG MINH) -->
       <div style="margin-top: 25px; border-top: 1px solid #D0D7DE; padding-top: 15px;">
         <h4 style="font-size: 13px; color: #2C3E50; margin-bottom: 10px;"><i class="fa fa-exclamation-triangle" style="color:#e67e22;"></i> Kiểm tra trạng thái Biểu đồ các tuyến trong hệ thống:</h4>
         <div style="overflow-x: auto; max-height: 250px;">
@@ -469,7 +469,6 @@
       $('#selChonTuyenDeSua').on('change', onChonTuyenDeSuaChange);
       $('#selChonTuyen').on('change', onSelectTuyenChange);
 
-      // Tự động lọc danh sách tuyến khi chọn Xí nghiệp ở bảng đội xe
       $('#filterXnXe').on('change', function() {
         const selectedXn = $(this).val();
         const $filterTuyen = $('#filterTuyenXe');
@@ -622,28 +621,25 @@
       }
     }
 
-    // VẼ BẢNG KIỂM TRA TRẠNG THÁI BIỂU ĐỒ (SO KHỚP CHUẨN XÁC THEO MÃ TUYẾN)
+    // VẼ BẢNG KIỂM TRA TRẠNG THÁI BIỂU ĐỒ (SO KHỚP THÔNG MINH)
     function veBangTrangThaiBieuDo(sortedRoutes) {
       let html = '';
       if (!sortedRoutes || sortedRoutes.length === 0) {
         html = '<tr><td colspan="3" style="text-align:center; color:#999; padding:15px;">Chưa có tuyến nào!</td></tr>';
       } else {
-        const bieuDoMaTuyenSet = new Set();
-        if (Array.isArray(dsBieuDoLuu)) {
-          dsBieuDoLuu.forEach(b => {
-            let bTuyenStr = String(b.tuyen || '').trim();
-            let match = bTuyenStr.match(/^([A-Za-z0-9]+)/);
-            if (match) {
-              bieuDoMaTuyenSet.add(match[1].toUpperCase());
-            } else {
-              bieuDoMaTuyenSet.add(bTuyenStr.toUpperCase());
-            }
-          });
-        }
-
         sortedRoutes.forEach(t => {
           let maTuyenCurrent = String(t.maTuyen || '').trim().toUpperCase();
-          const hasChart = bieuDoMaTuyenSet.has(maTuyenCurrent);
+          let tenTuyenCurrent = String(t.tenTuyen || '').trim().toUpperCase();
+
+          const hasChart = dsBieuDoLuu.some(b => {
+            let bTuyen = String(b.tuyen || '').trim().toUpperCase();
+            let bTab = String(b.tenTab || '').trim().toUpperCase();
+            
+            return bTuyen.includes(maTuyenCurrent) || 
+                   tenTuyenCurrent.includes(bTuyen) || 
+                   bTab.includes(maTuyenCurrent) ||
+                   bTuyen === maTuyenCurrent;
+          });
 
           const badge = hasChart
             ? '<span class="status-badge status-has-chart"><i class="fa fa-check-circle"></i> Đã có biểu đồ</span>'
