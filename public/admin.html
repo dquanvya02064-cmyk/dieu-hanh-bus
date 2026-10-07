@@ -304,7 +304,7 @@
       <div class="filter-box">
         <div>
           <label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Xí nghiệp:</label>
-          <select id="filterXnXe" class="form-control select2-search" style="width:100%;" onchange="locBangXeAdmin()">
+          <select id="filterXnXe" class="form-control select2-search" style="width:100%;">
             <option value="">-- Tất cả xí nghiệp --</option>
           </select>
         </div>
@@ -384,7 +384,7 @@
         </div>
       </div>
 
-      <!-- BẢNG THEO DÕI TRẠNG THÁI BIỂU ĐỒ (BIẾT NGAY TUYẾN NÀO CÓ / THIẾU BIỂU ĐỒ) -->
+      <!-- BẢNG THEO DÕI TRẠNG THÁI BIỂU ĐỒ (CHUẨN XÁC THEO MÃ TUYẾN) -->
       <div style="margin-top: 25px; border-top: 1px solid #D0D7DE; padding-top: 15px;">
         <h4 style="font-size: 13px; color: #2C3E50; margin-bottom: 10px;"><i class="fa fa-exclamation-triangle" style="color:#e67e22;"></i> Kiểm tra trạng thái Biểu đồ các tuyến trong hệ thống:</h4>
         <div style="overflow-x: auto; max-height: 250px;">
@@ -469,12 +469,27 @@
       $('#selChonTuyenDeSua').on('change', onChonTuyenDeSuaChange);
       $('#selChonTuyen').on('change', onSelectTuyenChange);
 
+      // Tự động lọc danh sách tuyến khi chọn Xí nghiệp ở bảng đội xe
+      $('#filterXnXe').on('change', function() {
+        const selectedXn = $(this).val();
+        const $filterTuyen = $('#filterTuyenXe');
+        $filterTuyen.empty().append('<option value="">-- Tất cả tuyến --</option>');
+        
+        mapTuyenChiTiet.forEach(t => {
+          if (!selectedXn || (t.xn || '').toLowerCase() === selectedXn.toLowerCase()) {
+            $filterTuyen.append(new Option(`${t.maTuyen} - ${t.tenTuyen}`, t.maTuyen));
+          }
+        });
+        $filterTuyen.trigger('change.select2');
+        locBangXeAdmin();
+      });
+
       napDuLieuTong();
     });
 
     function toggleExtraInput(selectId, inputId) {
       const val = $('#' + selectId).val();
-      const $inp = $('#' + inputId);
+      const $inp =$('#' + inputId);
       if (val === "__NEW__") $inp.show().focus();
       else $inp.hide().val("");
     }
@@ -607,20 +622,28 @@
       }
     }
 
-    // VẼ BẢNG KIỂM TRA TRẠNG THÁI BIỂU ĐỒ (BIẾT TUYẾN NÀO CÓ / THIẾU)
+    // VẼ BẢNG KIỂM TRA TRẠNG THÁI BIỂU ĐỒ (SO KHỚP CHUẨN XÁC THEO MÃ TUYẾN)
     function veBangTrangThaiBieuDo(sortedRoutes) {
       let html = '';
       if (!sortedRoutes || sortedRoutes.length === 0) {
         html = '<tr><td colspan="3" style="text-align:center; color:#999; padding:15px;">Chưa có tuyến nào!</td></tr>';
       } else {
-        sortedRoutes.forEach(t => {
-          // Kiểm tra xem bieuDoList có chứa biểu đồ của tuyến này không
-          const hasChart = dsBieuDoLuu.some(b => {
-            let bTuyen = String(b.tuyen || '').toUpperCase();
-            let tMa = String(t.maTuyen || '').toUpperCase();
-            let tTen = String(t.tenTuyen || '').toUpperCase();
-            return bTuyen.includes(tMa) || tTen.includes(bTuyen);
+        const bieuDoMaTuyenSet = new Set();
+        if (Array.isArray(dsBieuDoLuu)) {
+          dsBieuDoLuu.forEach(b => {
+            let bTuyenStr = String(b.tuyen || '').trim();
+            let match = bTuyenStr.match(/^([A-Za-z0-9]+)/);
+            if (match) {
+              bieuDoMaTuyenSet.add(match[1].toUpperCase());
+            } else {
+              bieuDoMaTuyenSet.add(bTuyenStr.toUpperCase());
+            }
           });
+        }
+
+        sortedRoutes.forEach(t => {
+          let maTuyenCurrent = String(t.maTuyen || '').trim().toUpperCase();
+          const hasChart = bieuDoMaTuyenSet.has(maTuyenCurrent);
 
           const badge = hasChart
             ? '<span class="status-badge status-has-chart"><i class="fa fa-check-circle"></i> Đã có biểu đồ</span>'
