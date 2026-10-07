@@ -4,11 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
   <title>Tra cứu Biểu đồ Chạy xe - Transerco</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-
-  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+  <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css)">
+  <link href="[https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css](https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css)" rel="stylesheet" />
+  <script src="[https://code.jquery.com/jquery-3.6.0.min.js](https://code.jquery.com/jquery-3.6.0.min.js)"></script>
+  <script src="[https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js](https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js)"></script>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -17,8 +16,76 @@
       font-size: 12px;
       background-color: #F1F4F9;
       color: #333;
-      padding: 12px;
     }
+
+    /* THANH MENU ĐIỀU HƯỚNG TỔNG CÓ NÚT 3 GẠCH */
+    .app-header {
+      background-color: #2C3E50;
+      color: #FFF;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .nav-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 15px;
+      height: 48px;
+    }
+    .brand-title {
+      font-size: 13px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .menu-toggle-btn {
+      display: none;
+      background: none;
+      border: none;
+      color: #FFF;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 6px;
+    }
+    .nav-tabs-list {
+      display: flex;
+      list-style: none;
+      height: 100%;
+    }
+    .nav-tab-btn {
+      background: none;
+      border: none;
+      color: #BDC3C7;
+      padding: 0 16px;
+      height: 48px;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+      border-bottom: 3px solid transparent;
+      text-decoration: none;
+    }
+    .nav-tab-btn:hover { color: #FFF; background-color: rgba(255,255,255,0.05); }
+    .nav-tab-btn.active {
+      color: #FFF;
+      border-bottom: 3px solid #3498DB;
+      background-color: rgba(255,255,255,0.08);
+    }
+
+    /* KHUNG NỘI DUNG */
+    .main-body { padding: 12px; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
 
     .panel-custom {
       background: #FFFFFF;
@@ -28,7 +95,6 @@
       max-width: 1400px;
       margin: 0 auto;
     }
-
     .panel-heading {
       background: #3B86C4;
       color: #FFFFFF;
@@ -41,7 +107,6 @@
       justify-content: space-between;
       gap: 10px;
     }
-
     .panel-body { padding: 16px; }
 
     .form-grid {
@@ -52,7 +117,6 @@
       align-items: center;
       margin-bottom: 15px;
     }
-
     .form-control {
       height: 34px;
       padding: 3px 8px;
@@ -96,6 +160,7 @@
     }
     .btn-view:hover { background-color: #286090; }
 
+    /* BẢNG BIỂU ĐỒ */
     .viewer-wrapper {
       margin-top: 20px;
       border-top: 1px dashed #D0D7DE;
@@ -104,7 +169,6 @@
       width: 100%;
       overflow: hidden;
     }
-
     .table-scroll {
       width: 100%;
       overflow-x: auto;
@@ -113,7 +177,6 @@
       -webkit-overflow-scrolling: touch;
       display: block;
     }
-
     .table-schedule {
       border-collapse: collapse;
       font-size: 11px;
@@ -151,6 +214,100 @@
     .colsa { display: block; color: #555555; font-weight: bold; line-height: 1.3; text-align: left; }
     .colsb { display: block; color: #777777; font-style: italic; line-height: 1.3; text-align: left; }
 
+    /* TAB TRA CỨU XE VÀ THẺ BIỂN VÀNG */
+    .search-xe-box {
+      max-width: 600px;
+      margin: 0 auto 20px auto;
+      text-align: center;
+    }
+    .search-xe-input-wrap {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .search-xe-input {
+      flex: 1;
+      height: 40px;
+      font-size: 15px;
+      padding: 0 12px;
+      border: 2px solid #3B86C4;
+      border-radius: 4px;
+      outline: none;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .bus-card {
+      background: #FFF;
+      border: 1px solid #D0D7DE;
+      border-radius: 6px;
+      max-width: 650px;
+      margin: 15px auto;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      overflow: hidden;
+    }
+    .bus-card-header {
+      background: #F8FAFC;
+      border-bottom: 1px solid #E1E4E8;
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .license-plate {
+      background: #FFD100;
+      color: #111;
+      font-weight: 900;
+      font-size: 18px;
+      padding: 5px 14px;
+      border-radius: 5px;
+      border: 2px solid #333;
+      display: inline-block;
+      letter-spacing: 1px;
+    }
+    .route-badge {
+      background: #E8F4FD;
+      color: #0F86DB;
+      font-weight: bold;
+      padding: 5px 12px;
+      border-radius: 15px;
+      font-size: 12px;
+      border: 1px solid #B6E0FE;
+    }
+    .bus-card-body {
+      padding: 16px 18px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .bus-info-item label {
+      color: #777;
+      font-size: 11px;
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .bus-info-item span {
+      font-size: 13px;
+      font-weight: bold;
+      color: #2C3E50;
+    }
+    .bus-card-footer {
+      background: #F8FAFC;
+      border-top: 1px solid #E1E4E8;
+      padding: 10px 18px;
+      text-align: right;
+    }
+    .btn-quick-schedule {
+      background: #27AE60;
+      color: #FFF;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 3px;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
     .select2-container { width: 100% !important; max-width: 100% !important; }
     .select2-container .select2-selection--single {
       height: 34px !important;
@@ -169,123 +326,184 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .select2-container--default .select2-selection--single .select2-selection__arrow {
-      height: 32px !important;
-    }
-    .select2-dropdown {
-      font-size: 12px !important;
-      border: 1px solid #3B86C4 !important;
-    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow { height: 32px !important; }
+    .select2-dropdown { font-size: 12px !important; border: 1px solid #3B86C4 !important; }
 
     @media (max-width: 768px) {
-      body { padding: 6px; }
-      .panel-body { padding: 12px 10px; }
-      .form-grid {
-        grid-template-columns: 1fr;
-        row-gap: 6px;
-      }
-      .form-grid label {
-        font-weight: bold;
-        margin-top: 5px;
-      }
-      .form-grid > div {
-        max-width: 100% !important;
-        width: 100% !important;
-      }
-      .btn-view {
+      body { padding: 0; }
+      .main-body { padding: 6px; }
+      .menu-toggle-btn { display: block; }
+      .nav-tabs-list {
+        display: none;
+        position: absolute;
+        top: 48px;
+        left: 0;
         width: 100%;
-        justify-content: center;
-        padding: 10px;
-        margin-top: 8px;
+        background-color: #2C3E50;
+        flex-direction: column;
+        height: auto;
+        border-top: 1px solid rgba(255,255,255,0.1);
       }
+      .nav-tabs-list.open-mobile { display: flex; }
+      .nav-tab-btn {
+        width: 100%;
+        justify-content: flex-start;
+        height: 44px;
+        border-bottom: none;
+        border-left: 4px solid transparent;
+      }
+      .nav-tab-btn.active { border-bottom: none; border-left: 4px solid #3498DB; }
+      .panel-body { padding: 12px 10px; }
+      .form-grid { grid-template-columns: 1fr; row-gap: 6px; }
+      .bus-card-body { grid-template-columns: 1fr; }
+      .btn-view { width: 100%; justify-content: center; padding: 10px; margin-top: 8px; }
     }
   </style>
 </head>
 <body>
 
-  <div class="panel-custom">
-    <div class="panel-heading">
-      <div>
+  <!-- HEADER THANH ĐIỀU HƯỚNG 3 TAB -->
+  <header class="app-header">
+    <div class="nav-container">
+      <div class="brand-title">
         <i class="fa fa-bus"></i>
-        <span>HỆ THỐNG TRA CỨU BIỂU ĐỒ CHẠY XE</span>
+        <span>ĐIỀU HÀNH XE BUÝT</span>
       </div>
-      <div>
-        <a href="admin.html" style="color:#FFF; text-decoration:none; font-size:11px;"><i class="fa fa-lock"></i> Quản trị</a>
+
+      <button class="menu-toggle-btn" onclick="toggleMenuMobile()"><i class="fa fa-bars"></i></button>
+
+      <ul class="nav-tabs-list" id="navTabsList">
+        <li>
+          <button class="nav-tab-btn active" onclick="chuyenTab('tab-bieudo', this)">
+            <i class="fa fa-calendar-check-o"></i> Biểu đồ chạy xe
+          </button>
+        </li>
+        <li>
+          <button class="nav-tab-btn" onclick="chuyenTab('tab-tracuu-xe', this)">
+            <i class="fa fa-search"></i> Tra cứu thông tin xe
+          </button>
+        </li>
+        <li>
+          <a href="admin.html" class="nav-tab-btn">
+            <i class="fa fa-lock"></i> Quản trị hệ thống
+          </a>
+        </li>
+      </ul>
+    </div>
+  </header>
+
+  <div class="main-body">
+
+    <!-- ==================== TAB 1: BIỂU ĐỒ CHẠY XE (MẶC ĐỊNH) ==================== -->
+    <div id="tab-bieudo" class="tab-pane active">
+      <div class="panel-custom">
+        <div class="panel-heading">
+          <div><i class="fa fa-calendar"></i> Tra cứu Biểu đồ chạy xe</div>
+        </div>
+        <div class="panel-body">
+          <div class="form-grid">
+            <label>Đơn vị chủ quản:</label>
+            <div>
+              <select id="selXn" class="form-control select2-search" style="width: 100%;">
+                <option value="">Chọn xí nghiệp</option>
+              </select>
+            </div>
+
+            <label>Tuyến xe buýt:</label>
+            <div>
+              <select id="selTuyen" class="form-control select2-search" style="width: 100%;">
+                <option value="">Chọn xí nghiệp trước</option>
+              </select>
+            </div>
+
+            <label>Ngày áp dụng:</label>
+            <div>
+              <select id="selNgayApDung" class="form-control select2-search" style="width: 100%;">
+                <option value="">Chọn tuyến trước</option>
+              </select>
+            </div>
+
+            <label>Ngày trong tuần:</label>
+            <div class="days-row">
+              <label class="day-item"><input type="radio" name="rdDay" value="T2" checked onchange="onDayChange()"> Thứ 2</label>
+              <label class="day-item"><input type="radio" name="rdDay" value="T3" onchange="onDayChange()"> Thứ 3</label>
+              <label class="day-item"><input type="radio" name="rdDay" value="T4" onchange="onDayChange()"> Thứ 4</label>
+              <label class="day-item"><input type="radio" name="rdDay" value="T5" onchange="onDayChange()"> Thứ 5</label>
+              <label class="day-item"><input type="radio" name="rdDay" value="T6" onchange="onDayChange()"> Thứ 6</label>
+              <label class="day-item"><input type="radio" name="rdDay" value="T7" onchange="onDayChange()"> Thứ 7</label>
+              <label class="day-item"><input type="radio" name="rdDay" value="CN" onchange="onDayChange()"> Chủ nhật</label>
+            </div>
+
+            <div></div>
+            <div>
+              <button class="btn-view" onclick="xemBieuDo()"><i class="fa fa-eye"></i> Xem Biểu Đồ</button>
+            </div>
+          </div>
+
+          <div id="viewerWrapper" class="viewer-wrapper">
+            <div class="table-scroll">
+              <table id="mainScheduleTable" class="table-schedule"></table>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="panel-body">
-      <div class="form-grid">
-        <label>Đơn vị chủ quản:</label>
-        <div>
-          <select id="selXn" class="form-control select2-search" style="width: 100%;">
-            <option value="">Chọn xí nghiệp</option>
-          </select>
-        </div>
+    <!-- ==================== TAB 2: TRA CỨU THÔNG TIN XE ==================== -->
+    <div id="tab-tracuu-xe" class="tab-pane">
+      <div class="panel-custom">
+        <div class="panel-heading"><i class="fa fa-id-card"></i> Tra cứu Định danh Phương tiện & Tuyến</div>
+        <div class="panel-body">
+          <div class="search-xe-box">
+            <p style="font-size:13px; color:#555;">Nhập biển kiểm soát để xem chủng loại xe và tuyến hoạt động:</p>
+            <div class="search-xe-input-wrap">
+              <input type="text" id="txtSearchBks" class="search-xe-input" placeholder="Ví dụ: 29B-153.49 hoặc 153.49" onkeypress="if(event.key==='Enter') timKiemXe()">
+              <button class="btn-view" onclick="timKiemXe()"><i class="fa fa-search"></i> Tìm xe</button>
+            </div>
+          </div>
 
-        <label>Tuyến xe buýt:</label>
-        <div>
-          <select id="selTuyen" class="form-control select2-search" style="width: 100%;">
-            <option value="">Chọn xí nghiệp trước</option>
-          </select>
-        </div>
-
-        <label>Ngày áp dụng:</label>
-        <div>
-          <select id="selNgayApDung" class="form-control select2-search" style="width: 100%;">
-            <option value="">Chọn tuyến trước</option>
-          </select>
-        </div>
-
-        <label>Ngày trong tuần:</label>
-        <div class="days-row">
-          <label class="day-item"><input type="radio" name="rdDay" value="T2" checked onchange="onDayChange()"> Thứ 2</label>
-          <label class="day-item"><input type="radio" name="rdDay" value="T3" onchange="onDayChange()"> Thứ 3</label>
-          <label class="day-item"><input type="radio" name="rdDay" value="T4" onchange="onDayChange()"> Thứ 4</label>
-          <label class="day-item"><input type="radio" name="rdDay" value="T5" onchange="onDayChange()"> Thứ 5</label>
-          <label class="day-item"><input type="radio" name="rdDay" value="T6" onchange="onDayChange()"> Thứ 6</label>
-          <label class="day-item"><input type="radio" name="rdDay" value="T7" onchange="onDayChange()"> Thứ 7</label>
-          <label class="day-item"><input type="radio" name="rdDay" value="CN" onchange="onDayChange()"> Chủ nhật</label>
-        </div>
-
-        <div></div>
-        <div>
-          <button class="btn-view" onclick="xemBieuDo()"><i class="fa fa-eye"></i> Xem Biểu Đồ</button>
-        </div>
-      </div>
-
-      <div id="viewerWrapper" class="viewer-wrapper">
-        <div class="table-scroll">
-          <table id="mainScheduleTable" class="table-schedule"></table>
+          <div id="ketQuaTraCuuXe"></div>
         </div>
       </div>
     </div>
+
   </div>
 
   <script>
+    const API_BASE = ""; // Gọi API cùng domain hoặc trỏ link Render
     let danhMucData = [];
     let allRoutes = [];
 
-    $(document).ready(function() {$('.select2-search').select2({
-        language: {
-          noResults: function() { return "Không tìm thấy kết quả phù hợp"; }
-        }
+    function chuyenTab(tabId, btn) {
+      $('.tab-pane').removeClass('active');
+      $('.nav-tab-btn').removeClass('active');
+      $('#' + tabId).addClass('active');
+      $(btn).addClass('active');
+      $('#navTabsList').removeClass('open-mobile');
+    }
+
+    function toggleMenuMobile() {
+      $('#navTabsList').toggleClass('open-mobile');
+    }
+
+    $(document).ready(function() {
+      $('.select2-search').select2({
+        language: { noResults: () => "Không tìm thấy kết quả phù hợp" }
       });
 
       $('#selXn').on('change', onXnChange);
       $('#selTuyen').on('change', onTuyenChange);
       $('#selNgayApDung').on('change', () => {
-        if ($('#selTuyen').val() && $('#selNgayApDung').val()) {
-          xemBieuDo();
-        }
+        if ($('#selTuyen').val() && $('#selNgayApDung').val()) xemBieuDo();
       });
 
       napDanhMuc();
     });
 
+    // ==================== NGHIỆP VỤ BIỂU ĐỒ GỐC ====================
     async function napDanhMuc() {
       try {
-        const response = await fetch('/api/danh-muc');
+        const response = await fetch(`${API_BASE}/api/danh-muc`);
         const res = await response.json();
         if (!res || !res.success) return;
 
@@ -296,11 +514,9 @@
         allRoutes.forEach(r => { if (r.xn) xnSet.add(r.xn); });
         danhMucData.forEach(item => { if (item.xn) xnSet.add(item.xn); });
 
-        const $selXn =$('#selXn');
+        const $selXn = $('#selXn');
         $selXn.empty().append('<option value="">Chọn xí nghiệp</option>');
-        Array.from(xnSet).sort().forEach(xn => {
-          $selXn.append(new Option(xn, xn));
-        });
+        Array.from(xnSet).sort().forEach(xn => $selXn.append(new Option(xn, xn)));
         $selXn.trigger('change');
       } catch (err) {
         console.error("Lỗi khi tải danh mục:", err);
@@ -309,14 +525,14 @@
 
     function onXnChange() {
       const xn = $('#selXn').val();
-      const $selTuyen =$('#selTuyen');
-      const $selNgay =$('#selNgayApDung');
+      const $selTuyen = $('#selTuyen');
+      const $selNgay = $('#selNgayApDung');
 
       $selTuyen.empty().append('<option value="">Chọn tuyến</option>');
       $selNgay.empty().append('<option value="">Chọn tuyến trước</option>');
 
       if (!xn) {
-        $selTuyen.trigger('change');$selNgay.trigger('change');
+        $selTuyen.trigger('change'); $selNgay.trigger('change');
         return;
       }
 
@@ -332,13 +548,12 @@
         $selTuyen.append(new Option(tuyen, tuyen));
       });
 
-      $selTuyen.trigger('change');$selNgay.trigger('change');
+      $selTuyen.trigger('change'); $selNgay.trigger('change');
     }
 
     function parseDateInfo(str) {
       if (!str) return { label: "Hiện hành", sortKey: "00000000" };
       str = String(str).trim();
-
       const matchFull = str.match(/(\d{1,2})[\/\.](\d{1,2})[\/\.](\d{2,4})/);
       if (matchFull) {
         let d = parseInt(matchFull[1], 10);
@@ -347,24 +562,16 @@
         if (y < 100) y += 2000;
         const dStr = String(d).padStart(2, '0');
         const mStr = String(m).padStart(2, '0');
-        return {
-          label: `${dStr}/${mStr}/${y}`,
-          sortKey: `${y}${mStr}${dStr}`
-        };
+        return { label: `${dStr}/${mStr}/${y}`, sortKey: `${y}${mStr}${dStr}` };
       }
-
       const matchMonthYear = str.match(/(\d{1,2})[\/\.](\d{2,4})/);
       if (matchMonthYear) {
         let m = parseInt(matchMonthYear[1], 10);
         let y = parseInt(matchMonthYear[2], 10);
         if (y < 100) y += 2000;
         const mStr = String(m).padStart(2, '0');
-        return {
-          label: `Tháng ${mStr}/${y}`,
-          sortKey: `${y}${mStr}01`
-        };
+        return { label: `Tháng ${mStr}/${y}`, sortKey: `${y}${mStr}01` };
       }
-
       return { label: "Hiện hành", sortKey: "00000000" };
     }
 
@@ -378,23 +585,18 @@
     function onTuyenChange() {
       const xn = $('#selXn').val();
       const tuyen = $('#selTuyen').val();
-      const $selNgay =$('#selNgayApDung');
+      const $selNgay = $('#selNgayApDung');
 
       $selNgay.empty().append('<option value="">Chọn ngày áp dụng</option>');
-      if (!xn || !tuyen) {
-        $selNgay.trigger('change');
-        return;
-      }
+      if (!xn || !tuyen) { $selNgay.trigger('change'); return; }
 
       const bieuDoCuaTuyen = danhMucData.filter(item => item.xn === xn && item.tuyen === tuyen);
-
       const parsedTabs = bieuDoCuaTuyen.map(item => ({
         ...item,
         tabType: detectTabType(item),
         dateInfo: parseDateInfo(item.tenTab || item.bieuDo || "")
       }));
 
-      // Lấy mốc ngày áp dụng mới nhất làm đại diện
       let bestDate = null;
       parsedTabs.forEach(item => {
         if (!bestDate || item.dateInfo.sortKey.localeCompare(bestDate.sortKey) > 0) {
@@ -403,16 +605,14 @@
       });
 
       if (bestDate) {
-        $selNgay.append(new Option(bestDate.label, bestDate.label));$selNgay.val(bestDate.label);
+        $selNgay.append(new Option(bestDate.label, bestDate.label));
+        $selNgay.val(bestDate.label);
       }
-
       $selNgay.trigger('change');
     }
 
     function onDayChange() {
-      if ($('#selTuyen').val() && $('#selNgayApDung').val()) {
-        xemBieuDo();
-      }
+      if ($('#selTuyen').val() && $('#selNgayApDung').val()) xemBieuDo();
     }
 
     function timTabPhuHop(xn, tuyen, ngayApDungChuan, thuDaChon) {
@@ -427,39 +627,31 @@
       }));
 
       const isChuNhat = (thuDaChon === "CN");
-
       if (isChuNhat) {
-        // TÌM TAB CHỦ NHẬT
         const sundayTabs = parsedTabs.filter(t => t.tabType === "sunday");
         if (sundayTabs.length > 0) {
           const exactSunday = sundayTabs.find(t => t.dateInfo.label === ngayApDungChuan);
           if (exactSunday) return exactSunday.tenTab;
-
           sundayTabs.sort((a, b) => b.dateInfo.sortKey.localeCompare(a.dateInfo.sortKey));
           return sundayTabs[0].tenTab;
         }
       } else {
-        // TÌM TAB NGÀY THƯỜNG (THỨ 2 - THỨ 7)
         const weekdayTabs = parsedTabs.filter(t => t.tabType === "weekday");
         if (weekdayTabs.length > 0) {
           const exactWeekday = weekdayTabs.find(t => t.dateInfo.label === ngayApDungChuan);
           if (exactWeekday) return exactWeekday.tenTab;
-
           weekdayTabs.sort((a, b) => b.dateInfo.sortKey.localeCompare(a.dateInfo.sortKey));
           return weekdayTabs[0].tenTab;
         }
       }
 
-      // Tuyến áp dụng Cả tuần
       const allWeekTabs = parsedTabs.filter(t => t.tabType === "all");
       if (allWeekTabs.length > 0) {
         const exactAll = allWeekTabs.find(t => t.dateInfo.label === ngayApDungChuan);
         if (exactAll) return exactAll.tenTab;
-
         allWeekTabs.sort((a, b) => b.dateInfo.sortKey.localeCompare(a.dateInfo.sortKey));
         return allWeekTabs[0].tenTab;
       }
-
       return bieuDoList[0].tenTab;
     }
 
@@ -480,13 +672,13 @@
         return;
       }
 
-      const $btn = $('.btn-view');$btn.html('<i class="fa fa-spinner fa-spin"></i> Đang tải...').prop('disabled', true);
+      const $btn = $('.btn-view');
+      $btn.html('<i class="fa fa-spinner fa-spin"></i> Đang tải...').prop('disabled', true);
       $('#viewerWrapper').show();
 
       try {
-        const res = await fetch(`/api/table-data?tab=${encodeURIComponent(tabName)}&tuyen=${encodeURIComponent(tuyen)}`).then(r => r.json());
+        const res = await fetch(`${API_BASE}/api/table-data?tab=${encodeURIComponent(tabName)}&tuyen=${encodeURIComponent(tuyen)}`).then(r => r.json());
         $btn.html('<i class="fa fa-eye"></i> Xem Biểu Đồ').prop('disabled', false);
-
         hienThiBangHTML(res);
       } catch (err) {
         $btn.html('<i class="fa fa-eye"></i> Xem Biểu Đồ').prop('disabled', false);
@@ -509,9 +701,7 @@
       if (parts.length >= 2) {
         const h = parseInt(parts[0], 10);
         const m = parseInt(parts[1], 10);
-        if (!isNaN(h) && !isNaN(m)) {
-          return h + ":" + (m < 10 ? "0" + m : m);
-        }
+        if (!isNaN(h) && !isNaN(m)) return h + ":" + (m < 10 ? "0" + m : m);
       }
       return str;
     }
@@ -559,9 +749,7 @@
         const hasColon = rowString.includes(":");
         const isFirstColEmpty = (valCol0 === "");
 
-        if ((isFirstColEmpty && hasColon) || rowString.toLowerCase().includes("giờ gạch chân")) {
-          continue;
-        }
+        if ((isFirstColEmpty && hasColon) || rowString.toLowerCase().includes("giờ gạch chân")) continue;
 
         const fullText = rawData[i].filter(c => c && c.trim() !== "").join(" - ").trim();
         if (fullText.length > 3 && !fullText.toLowerCase().includes("đầu a-b") && fullText.toLowerCase() !== "nốt" && !fullText.toLowerCase().includes("điểm danh")) {
@@ -577,9 +765,7 @@
         const col0 = String(tableData[j][0] || "").trim();
         if (col0 !== "" && !isNaN(col0)) {
           cleanTableData.push(tableData[j]); 
-          if (j + 1 < tableData.length) {
-            cleanTableData.push(tableData[j + 1]); 
-          }
+          if (j + 1 < tableData.length) cleanTableData.push(tableData[j + 1]); 
         }
       }
 
@@ -600,8 +786,7 @@
 
         const lastA = String(rowA[endC - 1] || "").trim();
         const lastB = String(rowB[endC - 1] || "").trim();
-        if ((lastA !== "" && !isNaN(lastA) && !lastA.includes(":")) ||
-            (lastB !== "" && !isNaN(lastB) && !lastB.includes(":"))) {
+        if ((lastA !== "" && !isNaN(lastA) && !lastA.includes(":")) || (lastB !== "" && !isNaN(lastB) && !lastB.includes(":"))) {
           endC = endC - 1;
         }
 
@@ -667,7 +852,6 @@
       html += '</tr></thead><tbody>';
 
       let tongLuotToanTuyen = 0;
-
       notList.forEach(item => {
         tongLuotToanTuyen += item.totalTrips;
         html += '<tr>';
@@ -676,31 +860,95 @@
         
         let cnt = 0;
         item.cells.forEach(c => {
-          if (c.type === "thayca") {
-            html += '<td class="colthayca">Thay ca</td>';
-          } else if (c.type === "diemdanh") {
-            html += `<td class="coldiemdanh">${c.val}</td>`;
-          } else if (c.type === "flight") {
-            html += `<td class="colflight"><span class="${c.topCls}">${c.top}</span><span class="${c.btmCls}">${c.btm}</span></td>`;
-          } else {
-            html += '<td></td>';
-          }
+          if (c.type === "thayca") html += '<td class="colthayca">Thay ca</td>';
+          else if (c.type === "diemdanh") html += `<td class="coldiemdanh">${c.val}</td>`;
+          else if (c.type === "flight") html += `<td class="colflight"><span class="${c.topCls}">${c.top}</span><span class="${c.btmCls}">${c.btm}</span></td>`;
+          else html += '<td></td>';
           cnt++;
         });
         while (cnt < maxCols) { html += '<td></td>'; cnt++; }
-        html += `<td class="coltotal">${item.totalTrips}</td>`;
-        html += '</tr>';
+        html += `<td class="coltotal">${item.totalTrips}</td></tr>`;
       });
 
       html += '<tr style="font-weight:bold; background:#FAFAFA;">';
       html += '<td colspan="2" style="text-align:center;">Tổng lượt</td>';
       html += `<td colspan="${maxCols}"></td>`;
-      html += `<td class="coltotal" style="background-color: #FAFAFA !important; color: #0F86DB;">${tongLuotToanTuyen}</td>`;
-      html += '</tr></tbody>';
+      html += `<td class="coltotal" style="background-color: #FAFAFA !important; color: #0F86DB;">${tongLuotToanTuyen}</td></tr></tbody>';
 
       $('#mainScheduleTable').html(html);
       $('#viewerWrapper').show();
-      $('html, body').animate({ scrollTop:$('#viewerWrapper').offset().top - 20 }, 300);
+      $('html, body').animate({ scrollTop: $('#viewerWrapper').offset().top - 20 }, 300);
+    }
+
+    // ==================== NGHIỆP VỤ TRA CỨU XE ====================
+    async function timKiemXe() {
+      const q = $('#txtSearchBks').val().trim();
+      if (!q) { alert("Vui lòng nhập biển kiểm soát cần tra cứu!"); return; }
+
+      const $box = $('#ketQuaTraCuuXe');
+      $box.html('<p style="text-align:center; padding:20px;"><i class="fa fa-spinner fa-spin"></i> Đang tìm kiếm...</p>');
+
+      try {
+        const res = await fetch(`${API_BASE}/api/tim-kiem-xe?q=${encodeURIComponent(q)}`).then(r => r.json());
+        if (!res.success || !res.data || res.data.length === 0) {
+          $box.html('<p style="text-align:center; color:#d9534f; padding:20px; font-weight:bold;">Không tìm thấy phương tiện nào phù hợp với biển số trên!</p>');
+          return;
+        }
+
+        let html = '';
+        res.data.forEach(xe => {
+          html += `
+            <div class="bus-card">
+              <div class="bus-card-header">
+                <span class="license-plate">${xe.bks}</span>
+                <span class="route-badge">Tuyến ${xe.maTuyen}</span>
+              </div>
+              <div class="bus-card-body">
+                <div class="bus-info-item">
+                  <label>Tên tuyến hoạt động</label>
+                  <span>${xe.tenTuyen || 'Tuyến ' + xe.maTuyen}</span>
+                </div>
+                <div class="bus-info-item">
+                  <label>Đơn vị quản lý</label>
+                  <span>${xe.xn || 'Transerco'}</span>
+                </div>
+                <div class="bus-info-item">
+                  <label>Nhãn hiệu</label>
+                  <span>${xe.nhanHieu || '-'}</span>
+                </div>
+                <div class="bus-info-item">
+                  <label>Chủng loại phương tiện</label>
+                  <span>${xe.chungLoai || '-'}</span>
+                </div>
+                <div class="bus-info-item">
+                  <label>Năm sản xuất</label>
+                  <span>${xe.namSx || '-'}</span>
+                </div>
+                <div class="bus-info-item">
+                  <label>Sức chứa thiết kế</label>
+                  <span>${xe.sucChua ? xe.sucChua + ' chỗ' : '-'}</span>
+                </div>
+              </div>
+              <div class="bus-card-footer">
+                <button class="btn-quick-schedule" onclick="chuyenNhanhSangBieuDo('${xe.xn}', '${xe.tenTuyen}')">
+                  <i class="fa fa-calendar"></i> Xem biểu đồ giờ tuyến ${xe.maTuyen}
+                </button>
+              </div>
+            </div>
+          `;
+        });
+        $box.html(html);
+      } catch (err) {
+        $box.html('<p style="text-align:center; color:red;">Lỗi kết nối khi tìm xe: ' + err + '</p>');
+      }
+    }
+
+    function chuyenNhanhSangBieuDo(xn, tenTuyen) {
+      chuyenTab('tab-bieudo', $('.nav-tab-btn').first());
+      if (xn) $('#selXn').val(xn).trigger('change');
+      setTimeout(() => {
+        if (tenTuyen) $('#selTuyen').val(tenTuyen).trigger('change');
+      }, 350);
     }
   </script>
 </body>
