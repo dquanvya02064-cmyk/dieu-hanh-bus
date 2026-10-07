@@ -4,10 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quản trị Điều hành Biểu đồ & Tuyến</title>
-  <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css)">
-  <link href="[https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css](https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css)" rel="stylesheet" />
-  <script src="[https://code.jquery.com/jquery-3.6.0.min.js](https://code.jquery.com/jquery-3.6.0.min.js)"></script>
-  <script src="[https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js](https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js)"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -269,14 +270,14 @@
     </div>
   </div>
 
-  <!-- PHẦN 2: DÁN EXCEL DANH SÁCH XE (TỰ ĐỘNG MỞ TUYẾN & TÍNH XE KẾ HOẠCH) -->
+  <!-- PHẦN 2: DÁN EXCEL DANH SÁCH XE -->
   <div class="panel-custom">
     <div class="panel-heading">
       <div><i class="fa fa-file-excel-o"></i> 2. Nạp Danh sách xe từ Excel (Tự động mở tuyến mới & Tự tính xe KH)</div>
     </div>
     <div class="panel-body">
       <p style="margin-bottom:8px; color:#555;">
-        Copy toàn bộ danh sách xe từ Google Sheets/Excel (gồm các dòng phân cách <strong>Tuyến 22B: BẾN XE GIÁP BÁT - ĐÔ NGHĨA...</strong> và các cột <strong>Biển số | Nhãn hiệu | Chủng loại | Năm SX | Sức chứa</strong>) rồi dán vào đây:
+        Copy toàn bộ danh sách xe từ Google Sheets/Excel rồi dán vào đây:
       </p>
       <textarea id="txtExcelXe" class="form-control" style="height:120px;" placeholder="Dán danh sách xe từ Excel vào đây..."></textarea>
       <div style="margin-top:10px;">
@@ -285,7 +286,7 @@
     </div>
   </div>
 
-  <!-- PHẦN 3: DÁN VÀ QUẢN LÝ BIỂU ĐỒ CHẠY XE -->
+  <!-- PHẦN 3: DÁN BIỂU ĐỒ CHẠY XE -->
   <div class="panel-custom">
     <div class="panel-heading">
       <div><i class="fa fa-calendar-plus-o"></i> 3. Nhập / Cập nhật / Xóa Biểu đồ chạy xe</div>
@@ -333,7 +334,7 @@
     </div>
   </div>
 
-  <!-- PHẦN 4: BẢNG THEO DÕI TỔNG QUAN TẤT CẢ CÁC TUYẾN & ĐIỀU CHUYỂN XE -->
+  <!-- PHẦN 4: DANH SÁCH TUYẾN & ĐIỀU CHUYỂN XE -->
   <div class="panel-custom">
     <div class="panel-heading">
       <div><i class="fa fa-list"></i> 4. Danh sách Tuyến & Trạng thái hoạt động</div>
@@ -377,6 +378,9 @@
   </div>
 
   <script>
+    // KHAI BÁO API_BASE TRỎ THẲNG VÀO RENDER
+    const API_BASE = "https://dieu-hanh-bus.onrender.com";
+
     let rawDanhMuc = [];
     let dsXn = new Set();
     let dsDauBen = new Set();
@@ -458,7 +462,7 @@
 
     async function napDuLieuTong(chonMaTuyenMoi = '') {
       try {
-        const res = await fetch('/api/danh-muc?admin=true');
+        const res = await fetch(`${API_BASE}/api/danh-muc?admin=true`);
         const data = await res.json();
         rawDanhMuc = data.data || [];
         const allRoutes = data.allRoutes || [];
@@ -611,7 +615,7 @@
       if (!confirm(`Bạn có chắc chắn muốn ${tenStatus} hoạt động của tuyến [${maTuyen}]?`)) return;
 
       try {
-        const res = await fetch('/api/toggle-status-tuyen', {
+        const res = await fetch(`${API_BASE}/api/toggle-status-tuyen`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ maTuyen, status: statusMoi })
@@ -680,7 +684,7 @@
       }
 
       try {
-        const res = await fetch('/api/tuyen-moi', {
+        const res = await fetch(`${API_BASE}/api/tuyen-moi`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ maTuyen, tenTuyen, xn, dauA, dauB, soXeVd, soXeKh, loaiXe, sucChua, status })
@@ -723,7 +727,7 @@
       const bieuDo = `${ngayApDung} (${phamVi})`;
 
       try {
-        const res = await fetch('/api/luu-bieu-do', {
+        const res = await fetch(`${API_BASE}/api/luu-bieu-do`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ xn, tuyen, bieuDo, tenTab, rawData, ngayApDung, phamVi })
@@ -743,7 +747,7 @@
       if (!confirm(`Bạn có chắc chắn muốn XÓA VĨNH VIỄN biểu đồ [${tenTab}] khỏi hệ thống không?`)) return;
 
       try {
-        const res = await fetch('/api/xoa-bieu-do', {
+        const res = await fetch(`${API_BASE}/api/xoa-bieu-do`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tenTab })
@@ -761,13 +765,12 @@
       }
     }
 
-    // ==================== CÁC HÀM NẠP EXCEL VÀ ĐIỀU CHUYỂN XE ====================
     async function napDanhSachXeExcel() {
       const rawText = $('#txtExcelXe').val().trim();
       if (!rawText) { alert("Vui lòng dán dữ liệu Excel danh sách xe vào ô văn bản!"); return; }
 
       try {
-        const res = await fetch('/api/import-danh-sach-xe', {
+        const res = await fetch(`${API_BASE}/api/import-danh-sach-xe`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ rawText })
@@ -785,9 +788,9 @@
 
     async function moModalXemXeTuyen(maTuyen) {
       try {
-        const res = await fetch(`/api/tim-kiem-xe?tuyen=${encodeURIComponent(maTuyen)}`).then(r => r.json());
+        const res = await fetch(`${API_BASE}/api/tim-kiem-xe?tuyen=${encodeURIComponent(maTuyen)}`).then(r => r.json());
         if (!res.success || !res.data || res.data.length === 0) {
-          alert(`Tuyến ${maTuyen} hiện chưa có xe nào được định danh! Bạn có thể dán bảng Excel ở Phần 2 để nạp xe.`);
+          alert(`Tuyến ${maTuyen} hiện chưa có xe nào được định danh!`);
           return;
         }
 
@@ -818,7 +821,7 @@
       if (!bks || !tuyenMoi) return;
 
       try {
-        const res = await fetch('/api/dieu-chuyen-xe', {
+        const res = await fetch(`${API_BASE}/api/dieu-chuyen-xe`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ bks, tuyenMoi })
