@@ -46,16 +46,20 @@ mongoose.connect(MONGO_URI)
 async function getRawData() {
   const doc = await BusModel.findOne({ key: 'main_data' });
   if (doc && doc.data && doc.data.tuyenList && Object.keys(doc.data.tuyenList).length > 0) {
+    if (!Array.isArray(doc.data.xeList)) doc.data.xeList = [];
     return doc.data;
   }
   const localPath = path.join(__dirname, 'bus_full_data.json');
   if (fs.existsSync(localPath)) {
-    return JSON.parse(fs.readFileSync(localPath, 'utf8'));
+    const fileData = JSON.parse(fs.readFileSync(localPath, 'utf8'));
+    if (!Array.isArray(fileData.xeList)) fileData.xeList = [];
+    return fileData;
   }
   return { tuyenList: {}, bieuDoList: [], xeList: [] };
 }
 
 async function saveRawData(data) {
+  if (!Array.isArray(data.xeList)) data.xeList = [];
   await BusModel.findOneAndUpdate(
     { key: 'main_data' },
     { key: 'main_data', data: data },
@@ -317,7 +321,7 @@ app.post('/api/xoa-bieu-do', async (req, res) => {
   }
 });
 
-// 9. API TRA CỨU XE / TÌM KIẾM ĐỊNH DANH (Dùng cho cả Vercel và hệ thống nội bộ)
+// 9. API TRA CỨU XE / TÌM KIẾM ĐỊNH DANH
 app.get('/api/tim-kiem-xe', async (req, res) => {
   try {
     const q = (req.query.q || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -337,7 +341,6 @@ app.get('/api/tim-kiem-xe', async (req, res) => {
       ketQua = xeList;
     }
 
-    // Ghép tên tuyến đầy đủ và đơn vị quản lý vào kết quả
     const tuyenMap = raw.tuyenList || {};
     ketQua = ketQua.map(x => {
       const t = tuyenMap[x.maTuyen];
@@ -355,8 +358,8 @@ app.get('/api/tim-kiem-xe', async (req, res) => {
   }
 });
 
-// 10. API IMPORT DANH SÁCH XE EXCEL (Tự động mở tuyến mới & tự tính số xe KH)
-app.post('/api/import-xe-excel', async (req, res) => {
+// 10. API IMPORT DANH SÁCH XE EXCEL (ĐÃ SỬA: NHẬN DIỆN MỌI BIỂN SỐ CÓ CHỨA DẤU GẠCH / CHẤM)
+app.post(['/api/import-xe-excel', '/api/import-danh-sach-xe'], async (req, res) => {
   try {
     const { rawText } = req.body;
     if (!rawText) return res.status(400).json({ success: false, message: 'Vui lòng dán dữ liệu bảng xe!' });
@@ -377,14 +380,12 @@ app.post('/api/import-xe-excel', async (req, res) => {
       const parts = line.split('\t').map(p => p.trim());
 
       // Nhận diện tiêu đề: Tuyến 22B: BẾN XE GIÁP BÁT - ĐÔ NGHĨA...
-      const matchTuyen = fullLine.match(/^Tuyến\s+([0-9A-Za-z]+)\s*:\s*(.*)/i);
+      const matchTuyen = fullLine.match(/^Tuyến\s+([0-9A-Za-z]+)\s*[:\-]?\s*(.*)/i);
       if (matchTuyen) {
         currentMaTuyen = matchTuyen[1].toUpperCase();
         currentTenLoTrinh = matchTuyen[2] ? matchTuyen[2].trim() : '';
-        // Bỏ số lượng ở cuối chuỗi nếu có
         currentTenLoTrinh = currentTenLoTrinh.replace(/\t.*$/, '').trim();
 
-        // NẾU LÀ TUYẾN MỚI CHƯA CÓ TRONG HỆ THỐNG: TỰ ĐỘNG KHỞI TẠO
         if (!raw.tuyenList[currentMaTuyen]) {
           let dauA = "", dauB = "";
           const loTrinhParts = currentTenLoTrinh.split('-');
@@ -410,9 +411,9 @@ app.post('/api/import-xe-excel', async (req, res) => {
         return;
       }
 
-      // Nhận diện dòng dữ liệu xe (Cột 0 có tiền tố 29B-, 29F-, 29E-...)
+      // Nhận diện dòng dữ liệu xe (Cột 0 có chứa dấu gạch ngang hoặc dấu chấm của biển số)
       const bks = parts[0] || '';
-      if (/^29[A-Z0-9\-\.]+$/i.test(bks) && currentMaTuyen) {
+      if ((bks.includes('-') || bks.includes('.')) && currentMaTuyen) {
         const nhanHieu = parts[1] || '';
         const chungLoai = parts[2] || '';
         const namSx = parts[3] || '';
@@ -431,7 +432,6 @@ app.post('/api/import-xe-excel', async (req, res) => {
 
         countMap[currentMaTuyen] = (countMap[currentMaTuyen] || 0) + 1;
 
-        // Tự động gán loại xe và sức chứa làm thông số tuyến nếu tuyến chưa có
         if (raw.tuyenList[currentMaTuyen] && (!raw.tuyenList[currentMaTuyen].loaiXe || raw.tuyenList[currentMaTuyen].loaiXe === '')) {
           raw.tuyenList[currentMaTuyen].loaiXe = `${nhanHieu} ${chungLoai}`.trim();
           raw.tuyenList[currentMaTuyen].sucChua = sucChua ? `${sucChua} chỗ` : '';
@@ -443,13 +443,11 @@ app.post('/api/import-xe-excel', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Không tìm thấy dòng xe hợp lệ nào để nạp!' });
     }
 
-    // Cập nhật hoặc thêm mới vào danh sách xe tổng
     const existingMap = new Map();
     raw.xeList.forEach(x => existingMap.set(x.bks.toUpperCase(), x));
     importedCars.forEach(x => existingMap.set(x.bks, x));
     raw.xeList = Array.from(existingMap.values());
 
-    // Cập nhật lại số xe kế hoạch (soXeKh) dựa trên toàn bộ xe đang gán vào từng tuyến
     const finalCounts = {};
     raw.xeList.forEach(x => {
       finalCounts[x.maTuyen] = (finalCounts[x.maTuyen] || 0) + 1;
@@ -490,10 +488,8 @@ app.post('/api/dieu-chuyen-xe', async (req, res) => {
     const dest = tuyenMoi.toUpperCase();
     if (tuyenCu === dest) return res.json({ success: false, message: `Xe ${bks} hiện đã thuộc tuyến ${dest} rồi!` });
 
-    // Cập nhật mã tuyến mới cho xe
     xe.maTuyen = dest;
 
-    // Tự động tính toán lại số xe kế hoạch cho tất cả các tuyến
     const finalCounts = {};
     raw.xeList.forEach(x => {
       finalCounts[x.maTuyen] = (finalCounts[x.maTuyen] || 0) + 1;
