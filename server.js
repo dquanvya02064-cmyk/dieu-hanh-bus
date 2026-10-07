@@ -25,13 +25,29 @@ const busDataSchema = new mongoose.Schema({
 const BusModel = mongoose.model('BusData', busDataSchema);
 
 mongoose.connect(MONGO_URI)
-  .then(() => console.log('>>> Ket noi thanh cong MongoDB Atlas!'))
+  .then(async () => {
+    console.log('>>> Ket noi thanh cong MongoDB Atlas!');
+    // Tự động khôi phục dữ liệu gốc nếu database chưa có hoặc thiếu tuyến khóa
+    const doc = await BusModel.findOne({ key: 'main_data' });
+    if (!doc || !doc.data || !doc.data.tuyenList || !doc.data.tuyenList['14']) {
+      const localPath = path.join(__dirname, 'bus_full_data.json');
+      if (fs.existsSync(localPath)) {
+        const fileData = JSON.parse(fs.readFileSync(localPath, 'utf8'));
+        await BusModel.findOneAndUpdate(
+          { key: 'main_data' },
+          { key: 'main_data', data: fileData },
+          { upsert: true }
+        );
+        console.log('>>> Da tu dong nap lai du lieu goc co day du tuyen khoa!');
+      }
+    }
+  })
   .catch(err => console.error('>>> Loi ket noi MongoDB:', err));
 
-// Hàm đọc dữ liệu thô
+// Hàm đọc dữ liệu an toàn
 async function getRawData() {
   const doc = await BusModel.findOne({ key: 'main_data' });
-  if (doc && doc.data && Object.keys(doc.data).length > 0) {
+  if (doc && doc.data && doc.data.tuyenList && Object.keys(doc.data.tuyenList).length > 0) {
     return doc.data;
   }
   const localPath = path.join(__dirname, 'bus_full_data.json');
@@ -50,27 +66,34 @@ async function saveRawData(data) {
   );
 }
 
-// 1. API LẤY DANH MỤC CHO TRANG TRA CỨU (CHỈ HIỆN TUYẾN KHÔNG BỊ KHÓA)
+// 1. API LẤY DANH MỤC (XỬ LÝ ĐÚNG CHO CẢ TRANG TRA CỨU VÀ TRANG ADMIN)
 app.get('/api/danh-muc', async (req, res) => {
   try {
+    const isAdmin = req.query.admin === 'true';
     const raw = await getRawData();
     let danhMucList = [];
     let allRoutesList = [];
 
-    const activeRouteKeys = new Set();
+    const activeRouteNames = new Set();
 
     if (raw.tuyenList && typeof raw.tuyenList === 'object') {
       for (let k in raw.tuyenList) {
         const item = raw.tuyenList[k];
-        // Chỉ lấy tuyến đang hoạt động, bỏ qua các tuyến có status là 'locked'
-        if (item.status !== 'locked') {
-          activeRouteKeys.add(item.tenTuyen || k);
+        const isLocked = item.status === 'locked';
+
+        // Admin: lấy toàn bộ tuyến. Trang chủ: chỉ lấy tuyến active
+        if (isAdmin || !isLocked) {
+          activeRouteNames.add(item.tenTuyen || k);
           allRoutesList.push({
             maTuyen: item.maTuyen || k,
             tenTuyen: item.tenTuyen || k,
             xn: item.xn || "",
             dauA: item.dauA || "",
-            dauB: item.dauB || ""
+            dauB: item.dauB || "",
+            soXe: item.soXe || "",
+            loaiXe: item.loaiXe || "",
+            sucChua: item.sucChua || "",
+            status: item.status || "active"
           });
         }
       }
@@ -78,7 +101,7 @@ app.get('/api/danh-muc', async (req, res) => {
 
     if (Array.isArray(raw.bieuDoList)) {
       danhMucList = raw.bieuDoList
-        .filter(item => activeRouteKeys.has(item.tuyen))
+        .filter(item => isAdmin || activeRouteNames.has(item.tuyen))
         .map(item => ({
           xn: item.xn || "",
           tuyen: item.tuyen || "",
@@ -94,7 +117,7 @@ app.get('/api/danh-muc', async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Lỗi khi tải danh mục' });
+    res.status(500).json({ success: false, message: 'Lỗi khi tải danh mục: ' + err.message });
   }
 });
 
@@ -142,11 +165,11 @@ app.get('/api/table-data', async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Lỗi nạp bảng biểu đồ' });
+    res.status(500).json({ success: false, message: 'Lỗi nạp bảng biểu đồ: ' + err.message });
   }
 });
 
-// 3. API DÀNH RIÊNG CHO TRANG QUẢN TRỊ ADMIN (LẤY TẤT CẢ TUYẾN KỂ CẢ KHÓA)
+// 3. API ĐỌC TOÀN BỘ DỮ LIỆU
 app.get('/api/bus-data', async (req, res) => {
   try {
     const data = await getRawData();
@@ -156,8 +179,8 @@ app.get('/api/bus-data', async (req, res) => {
   }
 });
 
-// 4. API LƯU TOÀN BỘ DỮ LIỆU / IMPORT
-app.post(['/api/bus-data', '/api/danh-muc', '/api/save-data'], async (req, res) => {
+// 4. API LƯU TOÀN BỘ DỮ LIỆU
+app.post(['/api/bus-data', '/api/save-data'], async (req, res) => {
   try {
     await saveRawData(req.body);
     res.json({ success: true, message: 'Lưu thành công!' });
@@ -167,34 +190,128 @@ app.post(['/api/bus-data', '/api/danh-muc', '/api/save-data'], async (req, res) 
   }
 });
 
-// 5. API LƯU / CẬP NHẬT RIÊNG THÔNG TIN MỘT TUYẾN TỪ ADMIN
-app.post('/api/save-tuyen', async (req, res) => {
+// 5. API LƯU THÔNG TIN TUYẾN TỪ ADMIN (/api/tuyen-moi)
+app.post(['/api/save-tuyen', '/api/tuyen-moi'], async (req, res) => {
   try {
+    const { maTuyen, tenTuyen, xn, dauA, dauB, soXe, loaiXe, sucChua, status } = req.body;
+    if (!maTuyen) {
+      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp mã tuyến!' });
+    }
+
     const raw = await getRawData();
     if (!raw.tuyenList) raw.tuyenList = {};
 
-    const { maTuyen, xn, tenTuyen, dauA, dauB, soXe, loaiXe, sucChua, status } = req.body;
-    if (!maTuyen) {
-      return res.status(400).json({ success: false, message: 'Thiếu mã tuyến' });
-    }
+    const oldStatus = raw.tuyenList[maTuyen] ? raw.tuyenList[maTuyen].status : "active";
 
     raw.tuyenList[maTuyen] = {
       maTuyen,
-      xn: xn || "",
       tenTuyen: tenTuyen || `${maTuyen}. Tuyến ${maTuyen}`,
+      xn: xn || "",
       dauA: dauA || "",
       dauB: dauB || "",
       soXe: soXe || "",
       loaiXe: loaiXe || "",
       sucChua: sucChua || "",
-      status: status || "active"
+      status: status || oldStatus
     };
 
     await saveRawData(raw);
-    res.json({ success: true, message: 'Cập nhật thông tin tuyến thành công!' });
+    res.json({ success: true, message: `Lưu thông tin tuyến [${maTuyen}] thành công!` });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Lỗi lưu thông tin tuyến' });
+    res.status(500).json({ success: false, message: 'Lỗi lưu thông tin tuyến: ' + err.message });
+  }
+});
+
+// 6. API KHÓA / MỞ LẠI TUYẾN (/api/toggle-status-tuyen)
+app.post('/api/toggle-status-tuyen', async (req, res) => {
+  try {
+    const { maTuyen, status } = req.body;
+    const raw = await getRawData();
+    if (!raw.tuyenList || !raw.tuyenList[maTuyen]) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy mã tuyến này!' });
+    }
+
+    raw.tuyenList[maTuyen].status = status;
+    await saveRawData(raw);
+
+    const msg = status === 'locked' ? `Đã khóa tuyến [${maTuyen}] thành công!` : `Đã mở lại tuyến [${maTuyen}] thành công!`;
+    res.json({ success: true, message: msg });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Lỗi cập nhật trạng thái: ' + err.message });
+  }
+});
+
+// 7. API LƯU BIỂU ĐỒ TỪ ADMIN (/api/luu-bieu-do)
+app.post('/api/luu-bieu-do', async (req, res) => {
+  try {
+    const { xn, tuyen, bieuDo, tenTab, rawData } = req.body;
+    if (!tenTab || !rawData) {
+      return res.status(400).json({ success: false, message: 'Thiếu tên tab hoặc dữ liệu bảng!' });
+    }
+
+    const raw = await getRawData();
+    if (!Array.isArray(raw.bieuDoList)) raw.bieuDoList = [];
+
+    const newTabObj = {
+      xn: xn || "",
+      tuyen: tuyen || "",
+      bieuDo: bieuDo || "Cả tuần",
+      tenTab: tenTab,
+      rawData: rawData
+    };
+
+    const idx = raw.bieuDoList.findIndex(b => String(b.tenTab || '').trim() === String(tenTab).trim());
+    if (idx >= 0) {
+      raw.bieuDoList[idx] = newTabObj;
+    } else {
+      raw.bieuDoList.push(newTabObj);
+    }
+
+    await saveRawData(raw);
+    res.json({ success: true, message: `Lưu biểu đồ [${tenTab}] thành công!` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Lỗi lưu biểu đồ: ' + err.message });
+  }
+});
+
+// 8. API XÓA BIỂU ĐỒ TỪ ADMIN (/api/xoa-bieu-do)
+app.post('/api/xoa-bieu-do', async (req, res) => {
+  try {
+    const { tenTab } = req.body;
+    const raw = await getRawData();
+    if (!Array.isArray(raw.bieuDoList)) raw.bieuDoList = [];
+
+    const beforeLen = raw.bieuDoList.length;
+    raw.bieuDoList = raw.bieuDoList.filter(b => String(b.tenTab || '').trim() !== String(tenTab).trim());
+
+    if (raw.bieuDoList.length === beforeLen) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy biểu đồ này để xóa!' });
+    }
+
+    await saveRawData(raw);
+    res.json({ success: true, message: `Đã xóa biểu đồ [${tenTab}] khỏi hệ thống!` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Lỗi xóa biểu đồ: ' + err.message });
+  }
+});
+
+// 9. API CỨU HỘ BACKUP GỐC
+app.get('/api/restore-backup', async (req, res) => {
+  try {
+    const localPath = path.join(__dirname, 'bus_full_data.json');
+    if (fs.existsSync(localPath)) {
+      const fileData = JSON.parse(fs.readFileSync(localPath, 'utf8'));
+      await saveRawData(fileData);
+      res.json({ success: true, message: 'Khôi phục dữ liệu gốc thành công!' });
+    } else {
+      res.status(404).json({ success: false, message: 'Không tìm thấy file bus_full_data.json' });
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
