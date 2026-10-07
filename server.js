@@ -67,7 +67,7 @@ async function saveRawData(data) {
   );
 }
 
-// 1. API LẤY DANH MỤC
+// 1. API LẤY DANH MỤC & THÔNG TIN TUYẾN
 app.get('/api/danh-muc', async (req, res) => {
   try {
     const isAdmin = req.query.admin === 'true';
@@ -90,9 +90,9 @@ app.get('/api/danh-muc', async (req, res) => {
             xn: item.xn || "",
             dauA: item.dauA || "",
             dauB: item.dauB || "",
-            soXeVd: item.soXeVd || "",
-            soXeKh: item.soXeKh || item.soXe || "",
-            soXe: item.soXe || "",
+            soXeVd: item.soXeVd || 0,
+            soXeKh: item.soXeKh || item.soXe || 0,
+            soXe: item.soXe || 0,
             loaiXe: item.loaiXe || "",
             sucChua: item.sucChua || "",
             status: item.status || "active"
@@ -204,6 +204,7 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], async (req, res) => {
     if (!raw.tuyenList) raw.tuyenList = {};
 
     const oldStatus = raw.tuyenList[maTuyen] ? raw.tuyenList[maTuyen].status : "active";
+    const oldVd = raw.tuyenList[maTuyen] ? (raw.tuyenList[maTuyen].soXeVd || 0) : 0;
 
     raw.tuyenList[maTuyen] = {
       maTuyen,
@@ -211,9 +212,9 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], async (req, res) => {
       xn: xn || "",
       dauA: dauA || "",
       dauB: dauB || "",
-      soXeVd: soXeVd || raw.tuyenList[maTuyen]?.soXeVd || "",
-      soXeKh: soXeKh || soXe || "",
-      soXe: soXeKh || soXe || "",
+      soXeVd: soXeVd || oldVd,
+      soXeKh: soXeKh || soXe || 0,
+      soXe: soXeKh || soXe || 0,
       loaiXe: loaiXe || "",
       sucChua: sucChua || "",
       status: status || oldStatus
@@ -247,7 +248,7 @@ app.post('/api/toggle-status-tuyen', async (req, res) => {
   }
 });
 
-// 7. API LƯU BIỂU ĐỒ (QUÉT NỐT CUỐI CÙNG LÀM SOXEVĐ VÀ KHỚP CHUẨN THEO MÃ TUYẾN)
+// 7. API LƯU BIỂU ĐỒ (QUÉT NỐT LỚN NHẤT LÀM SOXEVĐ VÀ GÁN ĐÚNG MÃ TUYẾN)
 app.post('/api/luu-bieu-do', async (req, res) => {
   try {
     const { xn, tuyen, bieuDo, tenTab, rawData } = req.body;
@@ -273,7 +274,7 @@ app.post('/api/luu-bieu-do', async (req, res) => {
       raw.bieuDoList.push(newTabObj);
     }
 
-    // Quét số nốt lớn nhất
+    // Quét số nốt lớn nhất từ cột 0 của bảng biểu đồ
     let maxNot = 0;
     if (Array.isArray(rawData)) {
       rawData.forEach(row => {
@@ -284,7 +285,7 @@ app.post('/api/luu-bieu-do', async (req, res) => {
       });
     }
 
-    // Lấy mã tuyến từ tên tuyến hoặc tên tab (ví dụ "E05. Long Biên..." -> mã tuyến là "E05")
+    // Trích xuất mã tuyến chuẩn từ tên tuyến (Ví dụ: "01. Bến xe..." -> "01", hoặc "E05..." -> "E05")
     let matchMa = String(tuyen || '').match(/^([A-Za-z0-9]+)/);
     let maTuyenTarget = matchMa ? matchMa[1].toUpperCase() : '';
 
@@ -334,7 +335,7 @@ app.post('/api/xoa-bieu-do', async (req, res) => {
   }
 });
 
-// 9. API TRA CỨU XE / TÌM KIẾM ĐỊNH DANH (DÒ CHUẨN THEO MÃ TUYẾN)
+// 9. API TRA CỨU XE / TÌM KIẾM ĐỊNH DANH (DÒ CHUẨN MÃ TUYẾN LẤY CẢ VẬN DOANH VÀ KẾ HOẠCH)
 app.get('/api/tim-kiem-xe', async (req, res) => {
   try {
     const q = (req.query.q || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -357,7 +358,6 @@ app.get('/api/tim-kiem-xe', async (req, res) => {
     const tuyenMap = raw.tuyenList || {};
     ketQua = ketQua.map(x => {
       const maXe = (x.maTuyen || '').toUpperCase();
-      // Dò chính xác theo mã tuyến
       let foundTuyen = tuyenMap[maXe] || Object.values(tuyenMap).find(t => (t.maTuyen || '').toUpperCase() === maXe);
 
       return {
