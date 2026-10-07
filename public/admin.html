@@ -358,6 +358,22 @@
     </div>
   </div>
 
+  <!-- MODAL DANH SÁCH XE (MỖI XE 1 Ô RIÊNG BIỆT, GỌN GÀNG) -->
+  <div id="modalDanhSachXe" style="display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
+    <div style="background:#fff; width:95%; max-width:550px; border-radius:6px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.25); max-height:85vh; display:flex; flex-direction:column;">
+      <div style="background:#3B86C4; color:#fff; padding:12px 16px; font-weight:bold; display:flex; justify-content:space-between; align-items:center;">
+        <span id="modalTitleXe" style="font-size:14px;"><i class="fa fa-bus"></i> Danh sách phương tiện</span>
+        <button onclick="$('#modalDanhSachXe').css('display','none')" style="background:none; border:none; color:#fff; font-size:18px; cursor:pointer;"><i class="fa fa-times"></i></button>
+      </div>
+      <div id="modalBodyXe" style="padding:15px; overflow-y:auto; flex:1; background:#F8F9FA;">
+        <!-- Danh sách xe render từng ô ở đây -->
+      </div>
+      <div style="padding:12px 16px; background:#fff; border-top:1px solid #ddd; text-align:right;">
+        <button class="btn btn-default" onclick="$('#modalDanhSachXe').css('display','none')">Đóng</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL ĐIỀU CHUYỂN XE -->
   <div id="modalDieuChuyen" style="display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
     <div style="background:#fff; width:450px; border-radius:5px; padding:20px; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
@@ -378,7 +394,6 @@
   </div>
 
   <script>
-    // KHAI BÁO API_BASE TRỎ THẲNG VÀO RENDER
     const API_BASE = "https://dieu-hanh-bus.onrender.com";
 
     let rawDanhMuc = [];
@@ -786,23 +801,44 @@
       }
     }
 
+    // HIỂN THỊ MODAL DANH SÁCH XE (MỖI XE 1 Ô RIÊNG BIỆT, CÓ NÚT CHUYỂN TUYẾN TRỰC QUAN)
     async function moModalXemXeTuyen(maTuyen) {
       try {
         const res = await fetch(`${API_BASE}/api/tim-kiem-xe?tuyen=${encodeURIComponent(maTuyen)}`).then(r => r.json());
         if (!res.success || !res.data || res.data.length === 0) {
-          alert(`Tuyến ${maTuyen} hiện chưa có xe nào được định danh!`);
+          alert(`Tuyến ${maTuyen} hiện chưa có phương tiện nào được định danh!`);
           return;
         }
 
-        const listXeStr = res.data.map(x => `• ${x.bks} (${x.nhanHieu} ${x.chungLoai})`).join('\n');
-        const bksCanChuyen = prompt(`Danh sách xe Tuyến ${maTuyen} (${res.data.length} xe):\n\n${listXeStr}\n\nNhập biển số xe bạn muốn ĐIỀU CHUYỂN SANG TUYẾN KHÁC (hoặc bấm Hủy):`);
-        
-        if (bksCanChuyen && bksCanChuyen.trim()) {
-          batModalDieuChuyen(bksCanChuyen.trim().toUpperCase());
-        }
+        $('#modalTitleXe').html(`<i class="fa fa-bus"></i> Danh sách xe Tuyến ${maTuyen} (${res.data.length} xe)`);
+        let html = '';
+
+        res.data.forEach(xe => {
+          html += `
+            <div style="background:#fff; border:1px solid #d0d7de; border-radius:6px; padding:10px 14px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+              <div>
+                <div style="font-size:14px; font-weight:bold; color:#111; margin-bottom:2px;">${xe.bks}</div>
+                <div style="font-size:11px; color:#555;">${xe.nhanHieu || ''} ${xe.chungLoai || ''} ${xe.sucChua ? '(' + xe.sucChua + ')' : ''}</div>
+              </div>
+              <div>
+                <button class="btn btn-primary" style="padding:5px 10px; font-size:11px;" onclick="batModalDieuChuyenTuModalXe('${xe.bks}')">
+                  <i class="fa fa-random"></i> Chuyển tuyến
+                </button>
+              </div>
+            </div>
+          `;
+        });
+
+        $('#modalBodyXe').html(html);
+        $('#modalDanhSachXe').css('display', 'flex');
       } catch (err) {
         alert("Lỗi lấy danh sách xe: " + err);
       }
+    }
+
+    function batModalDieuChuyenTuModalXe(bks) {
+      $('#modalDanhSachXe').css('display', 'none');
+      batModalDieuChuyen(bks);
     }
 
     function batModalDieuChuyen(bks) {
