@@ -328,7 +328,7 @@
         if (item.xn === xn && item.tuyen) tuyenSet.add(item.tuyen);
       });
 
-      Array.from(tuyenSet).sort().forEach(tuyen => {
+      Array.from(tuyenSet).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })).forEach(tuyen => {
         $selTuyen.append(new Option(tuyen, tuyen));
       });
 
