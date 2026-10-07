@@ -10,9 +10,17 @@
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
   <style>
-        /* Ép tất cả các tiêu đề h2, h3, h4 hoặc chữ đầu bảng nhỏ gọn lại */
-    h2, h3, h4, .card-header {
-      font-size: 13px !important;
+            /* Ép tất cả các ô trong bảng (kể cả ô gộp tiêu đề) về kích thước chuẩn và tự động ngắt dòng */
+    table th, table td, tr[style*="font"], td[colspan], th[colspan] {
+      font-size: 11px !important;
+      font-weight: normal !important;
+      white-space: normal !important;
+      word-break: break-word !important;
+    }
+    
+    /* Riêng dòng tiêu đề chính của biểu đồ ép nhỏ lại và nằm gọn trong bảng */
+    .table-scroll tr:first-child th, .table-scroll tr:first-child td {
+      font-size: 11px !important;
       font-weight: bold !important;
     }
 
