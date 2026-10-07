@@ -14,8 +14,6 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       width: 100%;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
       font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
       font-size: 12px;
       background-color: #F1F4F9;
@@ -28,7 +26,6 @@
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 15px;
       max-width: 1250px;
-      min-width: 650px;
       margin: 0 auto 20px auto;
     }
     .stat-card {
@@ -64,7 +61,6 @@
       border-radius: 4px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.08);
       max-width: 1250px;
-      min-width: 650px;
       margin: 0 auto 20px auto;
     }
     .panel-heading {
@@ -139,6 +135,19 @@
     .status-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-weight: bold; font-size: 11px; }
     .status-active { background-color: #E6F4EA; color: #137333; }
     .status-locked { background-color: #FCE8E6; color: #C5221F; }
+
+    /* Filter Box Panel chuẩn mẫu */
+    .filter-box {
+      background: #F8FAFC;
+      border: 1px solid #D0D7DE;
+      border-radius: 4px;
+      padding: 12px 15px;
+      margin-bottom: 12px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+      align-items: center;
+    }
 
     .select2-container .select2-selection--single {
       height: 32px !important;
@@ -358,18 +367,49 @@
     </div>
   </div>
 
-  <!-- MODAL DANH SÁCH XE (MỖI XE 1 Ô RIÊNG BIỆT, GỌN GÀNG) -->
-  <div id="modalDanhSachXe" style="display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
-    <div style="background:#fff; width:95%; max-width:550px; border-radius:6px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.25); max-height:85vh; display:flex; flex-direction:column;">
-      <div style="background:#3B86C4; color:#fff; padding:12px 16px; font-weight:bold; display:flex; justify-content:space-between; align-items:center;">
-        <span id="modalTitleXe" style="font-size:14px;"><i class="fa fa-bus"></i> Danh sách phương tiện</span>
-        <button onclick="$('#modalDanhSachXe').css('display','none')" style="background:none; border:none; color:#fff; font-size:18px; cursor:pointer;"><i class="fa fa-times"></i></button>
+  <!-- PHẦN 5: QUẢN LÝ ĐỘI XE DẠNG BẢNG LƯỚI CHUYÊN NGHIỆP -->
+  <div class="panel-custom">
+    <div class="panel-heading">
+      <div><i class="fa fa-table"></i> 5. Quản lý Đội xe toàn hệ thống & Điều chuyển nhanh</div>
+    </div>
+    <div class="panel-body">
+      <!-- Bộ lọc tra cứu nhanh -->
+      <div class="filter-box">
+        <div>
+          <label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Xí nghiệp:</label>
+          <select id="filterXnXe" class="form-control select2-search" style="width:100%;" onchange="locBangXeAdmin()">
+            <option value="">-- Tất cả xí nghiệp --</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Tuyến:</label>
+          <select id="filterTuyenXe" class="form-control select2-search" style="width:100%;" onchange="locBangXeAdmin()">
+            <option value="">-- Tất cả tuyến --</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Tìm kiếm biển số:</label>
+          <input type="text" id="filterBksXe" class="form-control" placeholder="Nhập biển số xe..." oninput="locBangXeAdmin()">
+        </div>
       </div>
-      <div id="modalBodyXe" style="padding:15px; overflow-y:auto; flex:1; background:#F8F9FA;">
-        <!-- Danh sách xe render từng ô ở đây -->
-      </div>
-      <div style="padding:12px 16px; background:#fff; border-top:1px solid #ddd; text-align:right;">
-        <button class="btn btn-default" onclick="$('#modalDanhSachXe').css('display','none')">Đóng</button>
+
+      <!-- Bảng danh sách xe chuẩn mẫu -->
+      <div style="overflow-x: auto; max-height: 500px;">
+        <table class="table-custom">
+          <thead>
+            <tr>
+              <th style="width: 50px; text-align: center;">STT</th>
+              <th style="width: 80px; text-align: center;">Tuyến</th>
+              <th style="width: 120px;">Biển số</th>
+              <th>Chủng loại xe</th>
+              <th style="width: 90px; text-align: center;">Sức chứa</th>
+              <th style="width: 140px; text-align: center;">Hành động</th>
+            </tr>
+          </thead>
+          <tbody id="tblQuanLyXeAdmin">
+            <!-- Render danh sách xe dạng bảng ở đây -->
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -400,6 +440,7 @@
     let dsXn = new Set();
     let dsDauBen = new Set();
     let mapTuyenChiTiet = new Map();
+    let tatCaXeHeThong = [];
     let dangLamMoi = false;
 
     $(document).ready(function() {
@@ -508,9 +549,19 @@
         doVaoSelect2("selDauA", dsDauBen, "đầu bến A");
         doVaoSelect2("selDauB", dsDauBen, "đầu bến B");
 
+        // Đổ dữ liệu cho bộ lọc xí nghiệp & tuyến ở bảng đội xe
+        doVaoSelect2ThongThuong("filterXnXe", dsXn, "-- Tất cả xí nghiệp --");
+        
         const sortedRoutes = Array.from(mapTuyenChiTiet.values()).sort((a, b) => {
           return (a.maTuyen || '').localeCompare(b.maTuyen || '', undefined, { numeric: true, sensitivity: 'base' });
         });
+
+        const $filterTuyen =$('#filterTuyenXe');
+        $filterTuyen.empty().append('<option value="">-- Tất cả tuyến --</option>');
+        sortedRoutes.forEach(t => {
+          $filterTuyen.append(new Option(`${t.maTuyen} - ${t.tenTuyen}`, t.maTuyen));
+        });
+        $filterTuyen.trigger('change.select2');
 
         const $selSua =$('#selChonTuyenDeSua');
         $selSua.empty().append('<option value="">[+ Tạo mới một tuyến hoàn toàn]</option>');
@@ -535,9 +586,64 @@
 
         veBangDanhSachTuyen(sortedRoutes);
         capNhatThongKe();
+
+        // Tải danh sách xe toàn hệ thống cho bảng quản lý đội xe
+        await taiToanBoXeAdmin();
       } catch (err) {
         console.error("Lỗi nạp dữ liệu:", err);
       }
+    }
+
+    async function taiToanBoXeAdmin() {
+      try {
+        const res = await fetch(`${API_BASE}/api/tim-kiem-xe?q=`).then(r => r.json());
+        if (res.success) {
+          tatCaXeHeThong = res.data || [];
+          locBangXeAdmin();
+        }
+      } catch (err) {
+        console.error("Lỗi tải đội xe:", err);
+      }
+    }
+
+    function locBangXeAdmin() {
+      const selectedXn = $('#filterXnXe').val();
+      const selectedTuyen = $('#filterTuyenXe').val();
+      const keyword = $('#filterBksXe').val().trim().toLowerCase();
+
+      const filtered = tatCaXeHeThong.filter(x => {
+        const matchXn = !selectedXn || (x.xn || '').toLowerCase() === selectedXn.toLowerCase();
+        const matchTuyen = !selectedTuyen || (x.maTuyen || '').toUpperCase() === selectedTuyen.toUpperCase();
+        const matchBks = !keyword || (x.bks || '').toLowerCase().includes(keyword);
+        return matchXn && matchTuyen && matchBks;
+      });
+
+      veBangQuanLyXeAdmin(filtered);
+    }
+
+    function veBangQuanLyXeAdmin(listXe) {
+      let html = '';
+      if (!listXe || listXe.length === 0) {
+        html = '<tr><td colspan="6" style="text-align:center; color:#999; padding:20px;">Không tìm thấy phương tiện nào phù hợp bộ lọc!</td></tr>';
+      } else {
+        listXe.forEach((xe, index) => {
+          html += `
+            <tr>
+              <td style="text-align: center; color: #555;">${index + 1}</td>
+              <td style="text-align: center; font-weight: bold; color: #3B86C4;">${xe.maTuyen || '-'}</td>
+              <td><strong style="color: #111;">${xe.bks}</strong></td>
+              <td>${xe.nhanHieu || ''} ${xe.chungLoai || ''}</td>
+              <td style="text-align: center;">${xe.sucChua || '-'}</td>
+              <td style="text-align: center;">
+                <button class="btn btn-primary" style="padding:3px 8px; font-size:11px;" onclick="batModalDieuChuyen('${xe.bks}')">
+                  <i class="fa fa-random"></i> Chuyển tuyến
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+      }
+      $('#tblQuanLyXeAdmin').html(html);
     }
 
     function capNhatThongKe() {
@@ -571,9 +677,7 @@
 
     function veBangDanhSachTuyen(sortedList) {
       let html = '';
-      const listToRender = sortedList || Array.from(mapTuyenChiTiet.values()).sort((a, b) => {
-        return (a.maTuyen || '').localeCompare(b.maTuyen || '', undefined, { numeric: true, sensitivity: 'base' });
-      });
+      const listToRender = sortedList || Array.from(mapTuyenChiTiet.values());
 
       if (listToRender.length === 0) {
         html = '<tr><td colspan="6" style="text-align:center; color:#999; padding:15px;">Chưa có tuyến xe nào trong hệ thống!</td></tr>';
@@ -609,7 +713,6 @@
               <td style="text-align: center;">
                 <div style="display:flex; gap:5px; justify-content:center;">
                   <button class="btn btn-default" style="padding:3px 8px; font-size:11px;" onclick="napTuyenLenSua('${t.maTuyen}')"><i class="fa fa-pencil"></i> Sửa</button>
-                  <button class="btn btn-primary" style="padding:3px 8px; font-size:11px;" onclick="moModalXemXeTuyen('${t.maTuyen}')"><i class="fa fa-bus"></i> DS Xe</button>
                   ${btnToggle}
                 </div>
               </td>
@@ -648,6 +751,12 @@
       $sel.empty().append(`<option value="">Chọn ${label}</option>`);
       Array.from(dataSet).sort().forEach(val => $sel.append(new Option(val, val)));$sel.append(new Option(`[+ Thêm ${label} mới...]`, "__NEW__"));
       $sel.trigger('change.select2');
+    }
+
+    function doVaoSelect2ThongThuong(elemId, dataSet, defaultText) {
+      const $sel =$('#' + elemId);
+      $sel.empty().append(`<option value="">${defaultText}</option>`);
+      Array.from(dataSet).sort().forEach(val => $sel.append(new Option(val, val)));$sel.trigger('change.select2');
     }
 
     function onSelectTuyenChange() {
@@ -799,46 +908,6 @@
       } catch (e) {
         alert("Lỗi nạp danh sách xe: " + e);
       }
-    }
-
-    // HIỂN THỊ MODAL DANH SÁCH XE (MỖI XE 1 Ô RIÊNG BIỆT, CÓ NÚT CHUYỂN TUYẾN TRỰC QUAN)
-    async function moModalXemXeTuyen(maTuyen) {
-      try {
-        const res = await fetch(`${API_BASE}/api/tim-kiem-xe?tuyen=${encodeURIComponent(maTuyen)}`).then(r => r.json());
-        if (!res.success || !res.data || res.data.length === 0) {
-          alert(`Tuyến ${maTuyen} hiện chưa có phương tiện nào được định danh!`);
-          return;
-        }
-
-        $('#modalTitleXe').html(`<i class="fa fa-bus"></i> Danh sách xe Tuyến ${maTuyen} (${res.data.length} xe)`);
-        let html = '';
-
-        res.data.forEach(xe => {
-          html += `
-            <div style="background:#fff; border:1px solid #d0d7de; border-radius:6px; padding:10px 14px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
-              <div>
-                <div style="font-size:14px; font-weight:bold; color:#111; margin-bottom:2px;">${xe.bks}</div>
-                <div style="font-size:11px; color:#555;">${xe.nhanHieu || ''} ${xe.chungLoai || ''} ${xe.sucChua ? '(' + xe.sucChua + ')' : ''}</div>
-              </div>
-              <div>
-                <button class="btn btn-primary" style="padding:5px 10px; font-size:11px;" onclick="batModalDieuChuyenTuModalXe('${xe.bks}')">
-                  <i class="fa fa-random"></i> Chuyển tuyến
-                </button>
-              </div>
-            </div>
-          `;
-        });
-
-        $('#modalBodyXe').html(html);
-        $('#modalDanhSachXe').css('display', 'flex');
-      } catch (err) {
-        alert("Lỗi lấy danh sách xe: " + err);
-      }
-    }
-
-    function batModalDieuChuyenTuModalXe(bks) {
-      $('#modalDanhSachXe').css('display', 'none');
-      batModalDieuChuyen(bks);
     }
 
     function batModalDieuChuyen(bks) {
