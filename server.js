@@ -247,7 +247,7 @@ app.post('/api/toggle-status-tuyen', async (req, res) => {
   }
 });
 
-// 7. API LƯU BIỂU ĐỒ (TỰ ĐỘNG QUÉT NỐT CUỐI CÙNG LÀM SỐ XE VẬN DOANH soXeVd)
+// 7. API LƯU BIỂU ĐỒ (QUÉT NỐT CUỐI CÙNG LÀM SOXEVĐ VÀ KHỚP CHUẨN THEO MÃ TUYẾN)
 app.post('/api/luu-bieu-do', async (req, res) => {
   try {
     const { xn, tuyen, bieuDo, tenTab, rawData } = req.body;
@@ -273,6 +273,7 @@ app.post('/api/luu-bieu-do', async (req, res) => {
       raw.bieuDoList.push(newTabObj);
     }
 
+    // Quét số nốt lớn nhất
     let maxNot = 0;
     if (Array.isArray(rawData)) {
       rawData.forEach(row => {
@@ -283,10 +284,17 @@ app.post('/api/luu-bieu-do', async (req, res) => {
       });
     }
 
+    // Lấy mã tuyến từ tên tuyến hoặc tên tab (ví dụ "E05. Long Biên..." -> mã tuyến là "E05")
+    let matchMa = String(tuyen || '').match(/^([A-Za-z0-9]+)/);
+    let maTuyenTarget = matchMa ? matchMa[1].toUpperCase() : '';
+
     if (maxNot > 0 && raw.tuyenList) {
       for (let k in raw.tuyenList) {
         const tObj = raw.tuyenList[k];
-        if (tObj.tenTuyen === tuyen || tObj.maTuyen.toUpperCase() === tuyen.toUpperCase()) {
+        const kUpper = k.toUpperCase();
+        const tMaUpper = (tObj.maTuyen || '').toUpperCase();
+        
+        if (kUpper === maTuyenTarget || tMaUpper === maTuyenTarget || tObj.tenTuyen === tuyen) {
           raw.tuyenList[k].soXeVd = maxNot;
           break;
         }
@@ -326,17 +334,17 @@ app.post('/api/xoa-bieu-do', async (req, res) => {
   }
 });
 
-// 9. API TRA CỨU XE / TÌM KIẾM ĐỊNH DANH (CÓ TRẢ VỀ ĐỦ SỐ XE VẬN DOANH VÀ KẾ HOẠCH)
+// 9. API TRA CỨU XE / TÌM KIẾM ĐỊNH DANH (DÒ CHUẨN THEO MÃ TUYẾN)
 app.get('/api/tim-kiem-xe', async (req, res) => {
   try {
     const q = (req.query.q || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-    const maTuyen = (req.query.tuyen || '').trim().toUpperCase();
+    const maTuyenQuery = (req.query.tuyen || '').trim().toUpperCase();
     const raw = await getRawData();
     let xeList = Array.isArray(raw.xeList) ? raw.xeList : [];
 
     let ketQua = [];
-    if (maTuyen) {
-      ketQua = xeList.filter(x => (x.maTuyen || '').toUpperCase() === maTuyen);
+    if (maTuyenQuery) {
+      ketQua = xeList.filter(x => (x.maTuyen || '').toUpperCase() === maTuyenQuery);
     } else if (q) {
       ketQua = xeList.filter(x => {
         const cleanBks = (x.bks || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -348,13 +356,16 @@ app.get('/api/tim-kiem-xe', async (req, res) => {
 
     const tuyenMap = raw.tuyenList || {};
     ketQua = ketQua.map(x => {
-      const t = tuyenMap[x.maTuyen];
+      const maXe = (x.maTuyen || '').toUpperCase();
+      // Dò chính xác theo mã tuyến
+      let foundTuyen = tuyenMap[maXe] || Object.values(tuyenMap).find(t => (t.maTuyen || '').toUpperCase() === maXe);
+
       return {
         ...x,
-        tenTuyen: t ? t.tenTuyen : `Tuyến ${x.maTuyen}`,
-        xn: t ? t.xn : (x.donVi || ''),
-        soXeVd: t ? (t.soXeVd || 0) : 0,
-        soXeKh: t ? (t.soXeKh || t.soXe || 0) : 0
+        tenTuyen: foundTuyen ? foundTuyen.tenTuyen : `Tuyến ${x.maTuyen}`,
+        xn: foundTuyen ? foundTuyen.xn : (x.donVi || ''),
+        soXeVd: foundTuyen ? (foundTuyen.soXeVd || 0) : 0,
+        soXeKh: foundTuyen ? (foundTuyen.soXeKh || foundTuyen.soXe || 0) : 0
       };
     });
 
