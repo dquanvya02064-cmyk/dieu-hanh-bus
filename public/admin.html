@@ -520,9 +520,14 @@
         doVaoSelect2("selDauA", dsDauBen, "đầu bến A");
         doVaoSelect2("selDauB", dsDauBen, "đầu bến B");
 
+        // Sắp xếp tự nhiên danh sách tuyến theo mã tuyến (01 -> 02 -> ... -> 14 -> 14CT...)
+        const sortedRoutes = Array.from(mapTuyenChiTiet.values()).sort((a, b) => {
+          return (a.maTuyen || '').localeCompare(b.maTuyen || '', undefined, { numeric: true, sensitivity: 'base' });
+        });
+
         const $selSua =$('#selChonTuyenDeSua');
         $selSua.empty().append('<option value="">[+ Tạo mới một tuyến hoàn toàn]</option>');
-        mapTuyenChiTiet.forEach(t => {
+        sortedRoutes.forEach(t => {
           const lockText = t.status === 'locked' ? ' [ĐÃ KHÓA]' : '';
           $selSua.append(new Option(`${t.maTuyen} - ${t.tenTuyen}${lockText}`, t.maTuyen));
         });
@@ -532,7 +537,7 @@
         $selTuyen.empty().append('<option value="">Chọn tuyến</option>');
         
         let selectedVal = "";
-        mapTuyenChiTiet.forEach(t => {
+        sortedRoutes.forEach(t => {
           const isSelected = chonMaTuyenMoi && (t.maTuyen === chonMaTuyenMoi);
           if (isSelected) selectedVal = t.tenTuyen;
           const opt = new Option(t.tenTuyen, t.tenTuyen, false, false);
@@ -541,7 +546,7 @@
 
         if (selectedVal) $selTuyen.val(selectedVal);$selTuyen.trigger('change.select2');
 
-        veBangDanhSachTuyen();
+        veBangDanhSachTuyen(sortedRoutes);
         capNhatThongKe();
       } catch (err) {
         console.error("Lỗi nạp dữ liệu:", err);
@@ -578,12 +583,16 @@
       $('#statXeLocked').text(`${tongXeLocked} xe tạm dừng hoạt động`);
     }
 
-    function veBangDanhSachTuyen() {
+    function veBangDanhSachTuyen(sortedList) {
       let html = '';
-      if (mapTuyenChiTiet.size === 0) {
+      const listToRender = sortedList || Array.from(mapTuyenChiTiet.values()).sort((a, b) => {
+        return (a.maTuyen || '').localeCompare(b.maTuyen || '', undefined, { numeric: true, sensitivity: 'base' });
+      });
+
+      if (listToRender.length === 0) {
         html = '<tr><td colspan="6" style="text-align:center; color:#999; padding:15px;">Chưa có tuyến xe nào trong hệ thống!</td></tr>';
       } else {
-        mapTuyenChiTiet.forEach(t => {
+        listToRender.forEach(t => {
           const isLocked = t.status === 'locked';
           const badge = isLocked 
             ? '<span class="status-badge status-locked"><i class="fa fa-lock"></i> Đã khóa / Dừng</span>' 
