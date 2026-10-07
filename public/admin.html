@@ -132,9 +132,12 @@
     .table-custom th, .table-custom td { border: 1px solid #D0D7DE; padding: 6px 10px; text-align: left; }
     .table-custom th { background-color: #F1F4F9; font-weight: bold; color: #333; }
     .table-custom tr:hover { background-color: #F8FAFC; }
+    
     .status-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-weight: bold; font-size: 11px; }
     .status-active { background-color: #E6F4EA; color: #137333; }
     .status-locked { background-color: #FCE8E6; color: #C5221F; }
+    .status-has-chart { background-color: #E6F4EA; color: #137333; }
+    .status-missing-chart { background-color: #FCE8E6; color: #C5221F; }
 
     .filter-box {
       background: #F8FAFC;
@@ -254,11 +257,11 @@
         <div class="input-combo">
           <div style="display:flex; align-items:center; gap:4px;">
             <span>Xe VD:</span>
-            <input type="number" id="txtSoXeVd" class="form-control" placeholder="VD: 12" style="width: 75px;" title="Số xe vận doanh (tự đếm theo nốt biểu đồ)">
+            <input type="number" id="txtSoXeVd" class="form-control" placeholder="VD: 12" style="width: 75px;">
           </div>
           <div style="display:flex; align-items:center; gap:4px;">
             <span>Xe KH:</span>
-            <input type="number" id="txtSoXeKh" class="form-control" placeholder="VD: 15" style="width: 75px;" title="Số xe kế hoạch (tự tính từ danh sách xe)">
+            <input type="number" id="txtSoXeKh" class="form-control" placeholder="VD: 15" style="width: 75px;">
           </div>
           <input type="text" id="txtLoaiXe" class="form-control" placeholder="Loại xe (VD: Daewoo BC095)" style="flex: 1; min-width: 150px;">
           <input type="text" id="txtSucChua" class="form-control" placeholder="Sức chứa (VD: 60 chỗ)" style="width: 130px;">
@@ -266,8 +269,8 @@
 
         <label style="color:#e67e22; font-weight:bold;">Trạng thái hoạt động:</label>
         <div class="radio-group">
-          <label class="radio-item"><input type="radio" name="rdStatus" value="active" checked> <strong style="color:#137333;"><i class="fa fa-check-circle"></i> Đang hoạt động</strong> (Hiện trên tra cứu)</label>
-          <label class="radio-item"><input type="radio" name="rdStatus" value="locked"> <strong style="color:#c5221f;"><i class="fa fa-lock"></i> Tạm dừng / Khóa tuyến</strong> (Ẩn khỏi tra cứu)</label>
+          <label class="radio-item"><input type="radio" name="rdStatus" value="active" checked> <strong style="color:#137333;"><i class="fa fa-check-circle"></i> Đang hoạt động</strong></label>
+          <label class="radio-item"><input type="radio" name="rdStatus" value="locked"> <strong style="color:#c5221f;"><i class="fa fa-lock"></i> Tạm dừng / Khóa tuyến</strong></label>
         </div>
 
         <div></div>
@@ -281,12 +284,10 @@
   <!-- PHẦN 2: NẠP DANH SÁCH XE TỪ EXCEL -->
   <div class="panel-custom">
     <div class="panel-heading">
-      <div><i class="fa fa-file-excel-o"></i> 2. Nạp Danh sách xe từ Excel (Tự động mở tuyến mới & Tự tính xe KH)</div>
+      <div><i class="fa fa-file-excel-o"></i> 2. Nạp Danh sách xe từ Excel</div>
     </div>
     <div class="panel-body">
-      <p style="margin-bottom:8px; color:#555;">
-        Copy toàn bộ danh sách xe từ Google Sheets/Excel rồi dán vào đây:
-      </p>
+      <p style="margin-bottom:8px; color:#555;">Copy toàn bộ danh sách xe từ Google Sheets/Excel rồi dán vào đây:</p>
       <textarea id="txtExcelXe" class="form-control" style="height:120px;" placeholder="Dán danh sách xe từ Excel vào đây..."></textarea>
       <div style="margin-top:10px;">
         <button class="btn btn-success" onclick="napDanhSachXeExcel()"><i class="fa fa-upload"></i> Bóc tách & Tự động cập nhật số xe KH</button>
@@ -319,7 +320,7 @@
         </div>
       </div>
 
-      <div style="overflow-x: auto; max-height: 500px;">
+      <div style="overflow-x: auto; max-height: 400px;">
         <table class="table-custom">
           <thead>
             <tr>
@@ -337,10 +338,10 @@
     </div>
   </div>
 
-  <!-- PHẦN 4: NHẬP / CẬP NHẬT / XÓA BIỂU ĐỒ CHẠY XE -->
+  <!-- PHẦN 4: NHẬP / CẬP NHẬT / XÓA BIỂU ĐỒ CHẠY XE & THEO DÕI THẤT LẠC -->
   <div class="panel-custom">
     <div class="panel-heading">
-      <div><i class="fa fa-calendar-plus-o"></i> 4. Nhập / Cập nhật / Xóa Biểu đồ chạy xe</div>
+      <div><i class="fa fa-calendar-plus-o"></i> 4. Nhập / Cập nhật / Xóa Biểu đồ chạy xe & Theo dõi Biểu đồ thiếu</div>
     </div>
     <div class="panel-body">
       <div class="form-grid">
@@ -380,6 +381,23 @@
         <div style="display: flex; gap: 12px; align-items: center;">
           <button class="btn btn-primary" onclick="luuBieuDo()"><i class="fa fa-upload"></i> Lưu biểu đồ vào hệ thống</button>
           <button class="btn btn-danger" type="button" onclick="xoaBieuDo()"><i class="fa fa-trash"></i> Xóa biểu đồ này</button>
+        </div>
+      </div>
+
+      <!-- BẢNG THEO DÕI TRẠNG THÁI BIỂU ĐỒ (BIẾT NGAY TUYẾN NÀO CÓ / THIẾU BIỂU ĐỒ) -->
+      <div style="margin-top: 25px; border-top: 1px solid #D0D7DE; padding-top: 15px;">
+        <h4 style="font-size: 13px; color: #2C3E50; margin-bottom: 10px;"><i class="fa fa-exclamation-triangle" style="color:#e67e22;"></i> Kiểm tra trạng thái Biểu đồ các tuyến trong hệ thống:</h4>
+        <div style="overflow-x: auto; max-height: 250px;">
+          <table class="table-custom">
+            <thead>
+              <tr>
+                <th style="width: 70px; text-align: center;">Mã tuyến</th>
+                <th>Tên Tuyến</th>
+                <th style="width: 160px; text-align: center;">Trạng thái Biểu đồ</th>
+              </tr>
+            </thead>
+            <tbody id="tblTrangThaiBieuDo"></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -436,6 +454,7 @@
     let dsDauBen = new Set();
     let mapTuyenChiTiet = new Map();
     let tatCaXeHeThong = [];
+    let dsBieuDoLuu = [];
     let dangLamMoi = false;
 
     $(document).ready(function() {
@@ -517,6 +536,7 @@
         const data = await res.json();
         rawDanhMuc = data.data || [];
         const allRoutes = data.allRoutes || [];
+        dsBieuDoLuu = data.bieuDoList || [];
 
         dsXn.clear();
         dsDauBen.clear();
@@ -543,7 +563,6 @@
         doVaoSelect2("selXn", dsXn, "xí nghiệp");
         doVaoSelect2("selDauA", dsDauBen, "đầu bến A");
         doVaoSelect2("selDauB", dsDauBen, "đầu bến B");
-
         doVaoSelect2ThongThuong("filterXnXe", dsXn, "-- Tất cả xí nghiệp --");
         
         const sortedRoutes = Array.from(mapTuyenChiTiet.values()).sort((a, b) => {
@@ -579,12 +598,44 @@
         if (selectedVal) $selTuyen.val(selectedVal);$selTuyen.trigger('change.select2');
 
         veBangDanhSachTuyen(sortedRoutes);
+        veBangTrangThaiBieuDo(sortedRoutes);
         capNhatThongKe();
 
         await taiToanBoXeAdmin();
       } catch (err) {
         console.error("Lỗi nạp dữ liệu:", err);
       }
+    }
+
+    // VẼ BẢNG KIỂM TRA TRẠNG THÁI BIỂU ĐỒ (BIẾT TUYẾN NÀO CÓ / THIẾU)
+    function veBangTrangThaiBieuDo(sortedRoutes) {
+      let html = '';
+      if (!sortedRoutes || sortedRoutes.length === 0) {
+        html = '<tr><td colspan="3" style="text-align:center; color:#999; padding:15px;">Chưa có tuyến nào!</td></tr>';
+      } else {
+        sortedRoutes.forEach(t => {
+          // Kiểm tra xem bieuDoList có chứa biểu đồ của tuyến này không
+          const hasChart = dsBieuDoLuu.some(b => {
+            let bTuyen = String(b.tuyen || '').toUpperCase();
+            let tMa = String(t.maTuyen || '').toUpperCase();
+            let tTen = String(t.tenTuyen || '').toUpperCase();
+            return bTuyen.includes(tMa) || tTen.includes(bTuyen);
+          });
+
+          const badge = hasChart
+            ? '<span class="status-badge status-has-chart"><i class="fa fa-check-circle"></i> Đã có biểu đồ</span>'
+            : '<span class="status-badge status-missing-chart"><i class="fa fa-exclamation-circle"></i> Thiếu / Thất lạc biểu đồ</span>';
+
+          html += `
+            <tr>
+              <td style="text-align:center; font-weight:bold; color:#3B86C4;">${t.maTuyen}</td>
+              <td><strong>${t.tenTuyen}</strong></td>
+              <td style="text-align:center;">${badge}</td>
+            </tr>
+          `;
+        });
+      }
+      $('#tblTrangThaiBieuDo').html(html);
     }
 
     async function taiToanBoXeAdmin() {
