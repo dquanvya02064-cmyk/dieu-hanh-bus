@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Tra cứu Biểu đồ Chạy xe - Transerco</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 
@@ -17,7 +17,7 @@
       font-size: 12px;
       background-color: #F1F4F9;
       color: #333;
-      padding: 15px;
+      padding: 10px;
     }
 
     .panel-custom {
@@ -27,7 +27,7 @@
       box-shadow: 0 1px 4px rgba(0,0,0,0.08);
       max-width: 1400px;
       margin: 0 auto;
-      overflow: hidden;
+      overflow-x: auto;
     }
 
     .panel-heading {
@@ -40,9 +40,10 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 10px;
     }
 
-    .panel-body { padding: 18px 20px; }
+    .panel-body { padding: 15px; }
 
     .form-grid {
       display: grid;
@@ -54,7 +55,7 @@
     }
 
     .form-control {
-      height: 32px;
+      height: 34px;
       padding: 3px 8px;
       font-size: 12px;
       border: 1px solid #CCCCCC;
@@ -62,21 +63,20 @@
       outline: none;
       background-color: #FFFFFF;
       width: 100%;
-      max-width: 500px;
     }
     .form-control:focus { border-color: #3B86C4; }
 
     .days-row {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
       flex-wrap: wrap;
       margin-top: 3px;
     }
     .day-item {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: 4px;
       cursor: pointer;
       font-size: 12px;
       user-select: none;
@@ -86,8 +86,8 @@
       background-color: #337AB7;
       color: #FFFFFF;
       border: 1px solid #2E6DA4;
-      padding: 7px 18px;
-      font-size: 12px;
+      padding: 8px 18px;
+      font-size: 13px;
       font-weight: bold;
       border-radius: 3px;
       cursor: pointer;
@@ -109,6 +109,7 @@
       overflow-x: auto;
       background: #FFFFFF;
       border: 1px solid #CCCCCC;
+      -webkit-overflow-scrolling: touch;
     }
 
     .table-schedule {
@@ -148,24 +149,54 @@
     .colsa { display: block; color: #555555; font-weight: bold; line-height: 1.3; text-align: left; }
     .colsb { display: block; color: #777777; font-style: italic; line-height: 1.3; text-align: left; }
 
+    .select2-container { width: 100% !important; max-width: 100% !important; }
     .select2-container .select2-selection--single {
-      height: 32px !important;
+      height: 34px !important;
       border: 1px solid #ccc !important;
       border-radius: 3px !important;
       display: flex;
       align-items: center;
     }
     .select2-container--default .select2-selection--single .select2-selection__rendered {
-      line-height: 30px !important;
+      line-height: 32px !important;
       font-size: 12px !important;
       color: #333 !important;
+      padding-left: 8px !important;
+      padding-right: 20px !important;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .select2-container--default .select2-selection--single .select2-selection__arrow {
-      height: 30px !important;
+      height: 32px !important;
     }
     .select2-dropdown {
       font-size: 12px !important;
       border: 1px solid #3B86C4 !important;
+    }
+
+    /* RESPONSIVE CHO ĐIỆN THOẠI */
+    @media (max-width: 768px) {
+      body { padding: 5px; }
+      .panel-body { padding: 12px 10px; }
+      .form-grid {
+        grid-template-columns: 1fr;
+        row-gap: 8px;
+      }
+      .form-grid label {
+        font-weight: bold;
+        margin-top: 4px;
+      }
+      .form-grid div {
+        max-width: 100% !important;
+        width: 100% !important;
+      }
+      .btn-view {
+        width: 100%;
+        justify-content: center;
+        padding: 10px;
+        margin-top: 5px;
+      }
     }
   </style>
 </head>
@@ -185,21 +216,21 @@
     <div class="panel-body">
       <div class="form-grid">
         <label>Đơn vị chủ quản:</label>
-        <div style="max-width: 500px;">
+        <div>
           <select id="selXn" class="form-control select2-search" style="width: 100%;">
             <option value="">Chọn xí nghiệp</option>
           </select>
         </div>
 
         <label>Tuyến xe buýt:</label>
-        <div style="max-width: 500px;">
+        <div>
           <select id="selTuyen" class="form-control select2-search" style="width: 100%;">
             <option value="">Chọn xí nghiệp trước</option>
           </select>
         </div>
 
         <label>Ngày áp dụng:</label>
-        <div style="max-width: 500px;">
+        <div>
           <select id="selNgayApDung" class="form-control select2-search" style="width: 100%;">
             <option value="">Chọn tuyến trước</option>
           </select>
@@ -216,7 +247,6 @@
           <label class="day-item"><input type="radio" name="rdDay" value="CN" onchange="onDayChange()"> Chủ nhật</label>
         </div>
 
-        <div></div>
         <div>
           <button class="btn-view" onclick="xemBieuDo()"><i class="fa fa-eye"></i> Xem Biểu Đồ</button>
         </div>
@@ -234,8 +264,7 @@
     let danhMucData = [];
     let allRoutes = [];
 
-    $(document).ready(function() {
-      $('.select2-search').select2({
+    $(document).ready(function() {$('.select2-search').select2({
         language: {
           noResults: function() { return "Không tìm thấy kết quả phù hợp"; }
         }
@@ -254,7 +283,6 @@
 
     async function napDanhMuc() {
       try {
-        // Chỉ lấy các tuyến ĐANG HOẠT ĐỘNG
         const response = await fetch('/api/danh-muc');
         const res = await response.json();
         if (!res || !res.success) return;
@@ -266,7 +294,7 @@
         allRoutes.forEach(r => { if (r.xn) xnSet.add(r.xn); });
         danhMucData.forEach(item => { if (item.xn) xnSet.add(item.xn); });
 
-        const $selXn = $('#selXn');
+        const $selXn =$('#selXn');
         $selXn.empty().append('<option value="">Chọn xí nghiệp</option>');
         Array.from(xnSet).sort().forEach(xn => {
           $selXn.append(new Option(xn, xn));
@@ -279,15 +307,14 @@
 
     function onXnChange() {
       const xn = $('#selXn').val();
-      const $selTuyen = $('#selTuyen');
-      const $selNgay = $('#selNgayApDung');
+      const $selTuyen =$('#selTuyen');
+      const $selNgay =$('#selNgayApDung');
 
       $selTuyen.empty().append('<option value="">Chọn tuyến</option>');
       $selNgay.empty().append('<option value="">Chọn tuyến trước</option>');
 
       if (!xn) {
-        $selTuyen.trigger('change');
-        $selNgay.trigger('change');
+        $selTuyen.trigger('change');$selNgay.trigger('change');
         return;
       }
 
@@ -303,8 +330,7 @@
         $selTuyen.append(new Option(tuyen, tuyen));
       });
 
-      $selTuyen.trigger('change');
-      $selNgay.trigger('change');
+      $selTuyen.trigger('change');$selNgay.trigger('change');
     }
 
     function trichXuatNgayThuan(str) {
@@ -316,7 +342,7 @@
     function onTuyenChange() {
       const xn = $('#selXn').val();
       const tuyen = $('#selTuyen').val();
-      const $selNgay = $('#selNgayApDung');
+      const $selNgay =$('#selNgayApDung');
 
       $selNgay.empty().append('<option value="">Chọn ngày áp dụng</option>');
       if (!xn || !tuyen) {
@@ -401,8 +427,7 @@
         return;
       }
 
-      const $btn = $('.btn-view');
-      $btn.html('<i class="fa fa-spinner fa-spin"></i> Đang tải...').prop('disabled', true);
+      const $btn = $('.btn-view');$btn.html('<i class="fa fa-spinner fa-spin"></i> Đang tải...').prop('disabled', true);
       $('#viewerWrapper').show();
 
       try {
