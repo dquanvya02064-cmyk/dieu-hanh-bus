@@ -23,18 +23,100 @@ const busDataSchema = new mongoose.Schema({
 });
 const BusModel = mongoose.model('BusData', busDataSchema);
 
+// HÀM LÀM SẠCH VÀ ĐỒNG BỘ DỮ LIỆU TỰ ĐỘNG
+async function cleanAndSyncData(data) {
+  if (!data) return data;
+  if (!Array.isArray(data.xeList)) data.xeList = [];
+  if (!data.tuyenList) data.tuyenList = {};
+
+  // 1. Loại bỏ các xe trùng lặp biển số trong xeList (Khắc phục lỗi phình to số lượng xe)
+  const uniqueXeMap = new Map();
+  data.xeList.forEach(x => {
+    if (x && x.bks) {
+      uniqueXeMap.set(x.bks.trim().toUpperCase(), {
+        ...x,
+        bks: x.bks.trim().toUpperCase(),
+        maTuyen: String(x.maTuyen || '').trim().toUpperCase()
+      });
+    }
+  });
+  data.xeList = Array.from(uniqueXeMap.values());
+
+  // 2. Tính lại số xe kế hoạch chuẩn xác từ xeList cho từng tuyến
+  const realKhCounts = {};
+  data.xeList.forEach(x => {
+    if (x.maTuyen) {
+      realKhCounts[x.maTuyen] = (realKhCounts[x.maTuyen] || 0) + 1;
+    }
+  });
+
+  // 3. Quét nốt lớn nhất từ bieuDoList để làm số xe Vận doanh chuẩn
+  const maxNotMap = {};
+  if (Array.isArray(data.bieuDoList)) {
+    data.bieuDoList.forEach(item => {
+      const rawData = item.rawData;
+      if (Array.isArray(rawData)) {
+        let maxNot = 0;
+        rawData.forEach(row => {
+          let val = parseInt(String(row[0] || '').trim(), 10);
+          if (!isNaN(val) && val > maxNot) maxNot = val;
+        });
+
+        if (maxNot > 0 && item.tuyen) {
+          let tuyenStr = String(item.tuyen).trim();
+          let matchMa = tuyenStr.match(/^([A-Za-z0-9]+)/);
+          if (matchMa) {
+            let ma = matchMa[1].toUpperCase();
+            if (!maxNotMap[ma] || maxNot > maxNotMap[ma]) {
+              maxNotMap[ma] = maxNot;
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // 4. Đồng bộ lại vào tuyenList
+  for (let k in data.tuyenList) {
+    let tObj = data.tuyenList[k];
+    let maT = (tObj.maTuyen || k).toUpperCase();
+
+    // Gán lại số xe kế hoạch đúng thực tế
+    let realKh = realKhCounts[maT] || 0;
+    if (realKh > 0) {
+      tObj.soXeKh = realKh;
+      tObj.soXe = realKh;
+    }
+
+    // Gán số vận doanh từ nốt biểu đồ, nếu không có thì lấy số kế hoạch đắp vào
+    let foundVd = maxNotMap[maT];
+    if (foundVd && foundVd > 0) {
+      tObj.soXeVd = foundVd;
+    } else {
+      tObj.soXeVd = tObj.soXeVd && tObj.soXeVd > 0 ? tObj.soXeVd : (tObj.soXeKh || 0);
+    }
+  }
+
+  return data;
+}
+
 mongoose.connect(MONGO_URI)
   .then(async () => {
     console.log('>>> Ket noi thanh cong MongoDB Atlas!');
+    const doc = await BusModel.findOne({ key: 'main_data' });
+    if (doc && doc.data) {
+      const cleanedData = await cleanAndSyncData(doc.data);
+      await BusModel.findOneAndUpdate({ key: 'main_data' }, { key: 'main_data', data: cleanedData }, { upsert: true });
+      console.log('>>> Đã tự động làm sạch và đồng bộ dữ liệu thành công!');
+    }
   })
   .catch(err => console.error('>>> Loi ket noi MongoDB:', err));
 
 async function getRawData() {
   try {
     const doc = await BusModel.findOne({ key: 'main_data' });
-    if (doc && doc.data && doc.data.tuyenList) {
-      if (!Array.isArray(doc.data.xeList)) doc.data.xeList = [];
-      return doc.data;
+    if (doc && doc.data) {
+      return await cleanAndSyncData(doc.data);
     }
   } catch (err) {
     console.error('Loi doc db:', err);
@@ -43,22 +125,21 @@ async function getRawData() {
   const localPath = path.join(__dirname, 'bus_full_data.json');
   if (fs.existsSync(localPath)) {
     const fileData = JSON.parse(fs.readFileSync(localPath, 'utf8'));
-    if (!Array.isArray(fileData.xeList)) fileData.xeList = [];
-    return fileData;
+    return await cleanAndSyncData(fileData);
   }
   return { tuyenList: {}, bieuDoList: [], xeList: [] };
 }
 
 async function saveRawData(data) {
-  if (!Array.isArray(data.xeList)) data.xeList = [];
+  const cleaned = await cleanAndSyncData(data);
   await BusModel.findOneAndUpdate(
     { key: 'main_data' },
-    { key: 'main_data', data: data },
+    { key: 'main_data', data: cleaned },
     { upsert: true, returnDocument: 'after' }
   );
 }
 
-// 1. API LẤY DANH MỤC TUYẾN & TRẠNG THÁI BIỂU ĐỒ
+// 1. API LẤY DANH MỤC
 app.get('/api/danh-muc', async (req, res) => {
   try {
     const isAdmin = req.query.admin === 'true';
@@ -67,25 +148,11 @@ app.get('/api/danh-muc', async (req, res) => {
     let allRoutesList = [];
     const activeRouteNames = new Set();
 
-    // Lập danh sách các tuyến đã có biểu đồ lưu trong bieuDoList để kiểm tra thất lạc
-    const bieuDoTuyenSet = new Set();
-    if (Array.isArray(raw.bieuDoList)) {
-      raw.bieuDoList.forEach(b => {
-        if (b.tuyen) bieuDoTuyenSet.add(String(b.tuyen).trim().toUpperCase());
-      });
-    }
-
     if (raw.tuyenList && typeof raw.tuyenList === 'object') {
       for (let k in raw.tuyenList) {
         const item = raw.tuyenList[k];
         if (isAdmin || item.status !== 'locked') {
           activeRouteNames.add(item.tenTuyen || k);
-
-          const maT = (item.maTuyen || k).toUpperCase();
-          const tenT = (item.tenTuyen || "").toUpperCase();
-          
-          // Kiểm tra xem tuyến này đã có biểu đồ chưa
-          const hasBieuDo = Array.from(bieuDoTuyenSet).some(t => t.includes(maT) || tenT.includes(t));
 
           allRoutesList.push({
             maTuyen: item.maTuyen || k,
@@ -97,8 +164,7 @@ app.get('/api/danh-muc', async (req, res) => {
             soXeKh: item.soXeKh || item.soXe || 0,
             loaiXe: item.loaiXe || "",
             sucChua: item.sucChua || "",
-            status: item.status || "active",
-            hasBieuDo: hasBieuDo // Cờ báo tuyến có hay mất biểu đồ
+            status: item.status || "active"
           });
         }
       }
@@ -111,22 +177,11 @@ app.get('/api/danh-muc', async (req, res) => {
           xn: item.xn || "",
           tuyen: item.tuyen || "",
           bieuDo: item.bieuDo || "",
-          tenTab: item.tenTab || "",
-          // Quét trực tiếp số nốt lớn nhất trong rawData của tab này làm số xe vận doanh chuẩn
-          soNot: (() => {
-            let maxN = 0;
-            if (Array.isArray(item.rawData)) {
-              item.rawData.forEach(r => {
-                let v = parseInt(String(r[0] || '').trim(), 10);
-                if (!isNaN(v) && v > maxN) maxN = v;
-              });
-            }
-            return maxN;
-          })()
+          tenTab: item.tenTab || ""
         }));
     }
 
-    res.json({ success: true, data: danhMucList, allRoutes: allRoutesList, bieuDoList: raw.bieuDoList || [] });
+    res.json({ success: true, data: danhMucList, allRoutes: allRoutesList });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -172,7 +227,7 @@ app.post(['/api/bus-data', '/api/save-data'], async (req, res) => {
     await saveRawData(req.body);
     res.json({ success: true, message: 'Lưu thành công!' });
   } catch (err) {
-    res.status(500).json({ success: false, error: 'Lỗi ghi database' });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -223,7 +278,7 @@ app.post('/api/toggle-status-tuyen', async (req, res) => {
   }
 });
 
-// 7. API LƯU BIỂU ĐỒ (QUÉT NỐT LỚN NHẤT GÁN VẬN DOANH TỰ ĐỘNG)
+// 7. API LƯU BIỂU ĐỒ (TỰ ĐỘNG TÍNH NỐT LỚN NHẤT LÀM SỐ XE VẬN DOANH)
 app.post('/api/luu-bieu-do', async (req, res) => {
   try {
     const { xn, tuyen, bieuDo, tenTab, rawData } = req.body;
@@ -237,30 +292,8 @@ app.post('/api/luu-bieu-do', async (req, res) => {
     if (idx >= 0) raw.bieuDoList[idx] = newTabObj;
     else raw.bieuDoList.push(newTabObj);
 
-    // Quét nốt lớn nhất từ cột 0 của bảng biểu đồ
-    let maxNot = 0;
-    if (Array.isArray(rawData)) {
-      rawData.forEach(row => {
-        let val = parseInt(String(row[0] || '').trim(), 10);
-        if (!isNaN(val) && val > maxNot) maxNot = val;
-      });
-    }
-
-    let matchMa = String(tuyen || '').match(/^([A-Za-z0-9]+)/);
-    let maTuyenTarget = matchMa ? matchMa[1].toUpperCase() : '';
-
-    if (maxNot > 0 && raw.tuyenList) {
-      for (let k in raw.tuyenList) {
-        const tObj = raw.tuyenList[k];
-        if (k.toUpperCase() === maTuyenTarget || (tObj.maTuyen || '').toUpperCase() === maTuyenTarget || tObj.tenTuyen === tuyen) {
-          raw.tuyenList[k].soXeVd = maxNot;
-          break;
-        }
-      }
-    }
-
     await saveRawData(raw);
-    res.json({ success: true, message: `Lưu biểu đồ thành công! Vận doanh tự động = ${maxNot}` });
+    res.json({ success: true, message: 'Lưu biểu đồ và tự động cập nhật số xe vận doanh thành công!' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -364,33 +397,19 @@ app.post(['/api/import-xe-excel', '/api/import-danh-sach-xe'], async (req, res) 
           sucChua: parts[4] || '',
           donVi: parts[5] || ''
         });
-
-        if (raw.tuyenList[currentMaTuyen] && !raw.tuyenList[currentMaTuyen].loaiXe) {
-          raw.tuyenList[currentMaTuyen].loaiXe = `${parts[1] || ''} ${parts[2] || ''}`.trim();
-          raw.tuyenList[currentMaTuyen].sucChua = parts[4] ? `${parts[4]} chỗ` : '';
-        }
       }
     });
 
-    const existingMap = new Map();
-    raw.xeList.forEach(x => existingMap.set(x.bks.toUpperCase(), x));
-    importedCars.forEach(x => existingMap.set(x.bks, x));
-    raw.xeList = Array.from(existingMap.values());
-
-    const finalCounts = {};
-    raw.xeList.forEach(x => {
-      finalCounts[x.maTuyen] = (finalCounts[x.maTuyen] || 0) + 1;
-    });
-
-    for (let k in raw.tuyenList) {
-      if (finalCounts[k] !== undefined) {
-        raw.tuyenList[k].soXeKh = finalCounts[k];
-        raw.tuyenList[k].soXe = finalCounts[k];
-      }
+    if (importedCars.length > 0) {
+      // Gộp và loại bỏ xe trùng bks
+      const existingMap = new Map();
+      raw.xeList.forEach(x => existingMap.set(x.bks.toUpperCase(), x));
+      importedCars.forEach(x => existingMap.set(x.bks, x));
+      raw.xeList = Array.from(existingMap.values());
     }
 
     await saveRawData(raw);
-    res.json({ success: true, message: `Đã xử lý ${importedCars.length} xe thành công!` });
+    res.json({ success: true, message: `Đã nhập xe và làm sạch dữ liệu thành công!` });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
