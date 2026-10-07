@@ -17,7 +17,6 @@
       background-color: #F1F4F9;
       color: #333;
       padding: 12px;
-      padding-bottom: 75px;
     }
 
     .panel-custom {
@@ -27,7 +26,6 @@
       box-shadow: 0 1px 4px rgba(0,0,0,0.08);
       max-width: 1400px;
       margin: 0 auto;
-      overflow: hidden;
     }
 
     .panel-heading {
@@ -40,6 +38,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 10px;
     }
 
     .panel-body { padding: 16px; }
@@ -53,10 +52,11 @@
       margin-bottom: 15px;
     }
 
-    .form-label {
+    .form-grid label {
       font-weight: bold;
       color: #333;
       font-size: 12px;
+      display: block;
     }
 
     .form-control {
@@ -108,6 +108,7 @@
       padding-top: 15px;
       display: none;
       width: 100%;
+      overflow: hidden;
     }
 
     .table-scroll {
@@ -116,6 +117,7 @@
       background: #FFFFFF;
       border: 1px solid #CCCCCC;
       -webkit-overflow-scrolling: touch;
+      display: block;
     }
 
     .table-schedule {
@@ -136,24 +138,40 @@
       color: #111;
       font-weight: bold;
       height: 28px;
+      text-align: center !important;
     }
     .table-schedule tbody tr:hover { background-color: #F5F9FD; }
 
-    .colstt { width: 45px; font-weight: bold; }
+    .colstt { width: 45px; font-weight: bold; text-align: center !important; }
     .coldau { width: 170px; text-align: left !important; padding-left: 10px !important; }
-    .colflight { width: 52px; }
-    .colthayca { background-color: #FFFF99 !important; font-weight: bold; color: #000; width: 52px !important; min-width: 52px !important; text-align: center; }
-    .coldiemdanh { font-style: italic; font-weight: bold; background-color: #FFF; }
+    .colflight { width: 52px; min-width: 52px; }
+    
+    /* Ép cứng kích thước ô "Thay ca" nhỏ gọn, không bị bè ngang */
+    .colthayca { 
+      background-color: #FFFF99 !important; 
+      font-weight: bold; 
+      color: #000; 
+      width: 52px !important; 
+      min-width: 52px !important; 
+      max-width: 52px !important;
+      white-space: normal !important; 
+      word-break: break-word;
+      line-height: 1.1;
+      padding: 2px !important;
+    }
+
+    .coldiemdanh { font-style: italic; font-weight: bold; color: #000; background-color: #FFFFFF; width: 52px; min-width: 52px; }
     .coltotal { width: 50px; font-weight: bold; text-align: center !important; }
 
     .cold1a { display: block; color: #0F86DB; font-weight: bold; line-height: 1.3; }
     .cold1b { display: block; text-decoration: underline; color: #333; line-height: 1.3; }
     .cold2a { display: block; text-decoration: underline; color: #333; line-height: 1.3; }
     .cold2b { display: block; color: #FF0000; font-weight: bold; line-height: 1.3; }
+
     .colsa { display: block; color: #555555; font-weight: bold; line-height: 1.3; text-align: left; }
     .colsb { display: block; color: #777777; font-style: italic; line-height: 1.3; text-align: left; }
 
-    .select2-container { width: 100% !important; }
+    .select2-container { width: 100% !important; max-width: 100% !important; }
     .select2-container .select2-selection--single {
       height: 34px !important;
       border: 1px solid #ccc !important;
@@ -166,60 +184,39 @@
       font-size: 12px !important;
       color: #333 !important;
       padding-left: 8px !important;
+      padding-right: 20px !important;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .select2-container--default .select2-selection--single .select2-selection__arrow {
       height: 32px !important;
     }
-
-    .bus-card-custom {
-      background: #FFFFFF;
-      border: 1px solid #D0D7DE;
-      border-radius: 6px;
-      margin-top: 12px;
-      padding: 14px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    .select2-dropdown {
+      font-size: 12px !important;
+      border: 1px solid #3B86C4 !important;
     }
-
-    .bottom-nav {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      height: 58px;
-      background: #FFFFFF;
-      border-top: 1px solid #D0D7DE;
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      z-index: 9999;
-      box-shadow: 0 -2px 6px rgba(0,0,0,0.06);
-    }
-    .nav-btn {
-      flex: 1;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: none;
-      border: none;
-      color: #7F8C8D;
-      font-size: 11px;
-      font-weight: bold;
-      gap: 3px;
-      text-decoration: none;
-      cursor: pointer;
-    }
-    .nav-btn i { font-size: 18px; }
-    .nav-btn.active { color: #3B86C4; }
-
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
 
     @media (max-width: 768px) {
+      body { padding: 6px; }
+      .panel-body { padding: 12px 10px; }
       .form-grid {
         grid-template-columns: 1fr;
         row-gap: 6px;
+      }
+      .form-grid label {
+        font-weight: bold;
+        margin-top: 5px;
+      }
+      .form-grid > div {
+        max-width: 100% !important;
+        width: 100% !important;
+      }
+      .btn-view {
+        width: 100%;
+        justify-content: center;
+        padding: 10px;
+        margin-top: 8px;
       }
     }
   </style>
@@ -230,103 +227,68 @@
     <div class="panel-heading">
       <div>
         <i class="fa fa-bus"></i>
-        <span>HỆ THỐNG TRA CỨU BIỂU ĐỒ & PHƯƠNG TIỆN</span>
+        <span>HỆ THỐNG TRA CỨU BIỂU ĐỒ CHẠY XE</span>
       </div>
     </div>
 
     <div class="panel-body">
-      <!-- TAB 1: BIỂU ĐỒ CHẠY XE -->
-      <div id="tab-bieudo" class="tab-content active">
-        <div class="form-grid">
-          <label class="form-label">Đơn vị chủ quản:</label>
-          <div>
-            <select id="selXn" class="form-control select2-search" style="width: 100%;">
-              <option value="">-- Đang nạp đơn vị... --</option>
-            </select>
-          </div>
-
-          <label class="form-label">Tuyến xe buýt:</label>
-          <div>
-            <select id="selTuyen" class="form-control select2-search" style="width: 100%;">
-              <option value="">-- Chọn đơn vị chủ quản trước --</option>
-            </select>
-          </div>
-
-          <label class="form-label">Ngày áp dụng:</label>
-          <div>
-            <select id="selNgayApDung" class="form-control select2-search" style="width: 100%;">
-              <option value="">-- Chọn tuyến trước --</option>
-            </select>
-          </div>
-
-          <label class="form-label">Ngày trong tuần:</label>
-          <div class="days-row">
-            <label class="day-item"><input type="radio" name="rdDay" value="T2" checked onchange="onDayChange()"> Thứ 2</label>
-            <label class="day-item"><input type="radio" name="rdDay" value="T3" onchange="onDayChange()"> Thứ 3</label>
-            <label class="day-item"><input type="radio" name="rdDay" value="T4" onchange="onDayChange()"> Thứ 4</label>
-            <label class="day-item"><input type="radio" name="rdDay" value="T5" onchange="onDayChange()"> Thứ 5</label>
-            <label class="day-item"><input type="radio" name="rdDay" value="T6" onchange="onDayChange()"> Thứ 6</label>
-            <label class="day-item"><input type="radio" name="rdDay" value="T7" onchange="onDayChange()"> Thứ 7</label>
-            <label class="day-item"><input type="radio" name="rdDay" value="CN" onchange="onDayChange()"> Chủ nhật</label>
-          </div>
-
-          <div></div>
-          <div>
-            <button class="btn-view" onclick="xemBieuDo()"><i class="fa fa-eye"></i> Xem Biểu Đồ</button>
-          </div>
+      <div class="form-grid">
+        <label>Đơn vị chủ quản:</label>
+        <div>
+          <select id="selXn" class="form-control select2-search" style="width: 100%;">
+            <option value="">Chọn xí nghiệp</option>
+          </select>
         </div>
 
-        <div id="viewerWrapper" class="viewer-wrapper">
-          <div class="table-scroll">
-            <table id="mainScheduleTable" class="table-schedule"></table>
-          </div>
+        <label>Tuyến xe buýt:</label>
+        <div>
+          <select id="selTuyen" class="form-control select2-search" style="width: 100%;">
+            <option value="">Chọn xí nghiệp trước</option>
+          </select>
+        </div>
+
+        <label>Ngày áp dụng:</label>
+        <div>
+          <select id="selNgayApDung" class="form-control select2-search" style="width: 100%;">
+            <option value="">Chọn tuyến trước</option>
+          </select>
+        </div>
+
+        <label>Ngày trong tuần:</label>
+        <div class="days-row">
+          <label class="day-item"><input type="radio" name="rdDay" value="T2" checked onchange="onDayChange()"> Thứ 2</label>
+          <label class="day-item"><input type="radio" name="rdDay" value="T3" onchange="onDayChange()"> Thứ 3</label>
+          <label class="day-item"><input type="radio" name="rdDay" value="T4" onchange="onDayChange()"> Thứ 4</label>
+          <label class="day-item"><input type="radio" name="rdDay" value="T5" onchange="onDayChange()"> Thứ 5</label>
+          <label class="day-item"><input type="radio" name="rdDay" value="T6" onchange="onDayChange()"> Thứ 6</label>
+          <label class="day-item"><input type="radio" name="rdDay" value="T7" onchange="onDayChange()"> Thứ 7</label>
+          <label class="day-item"><input type="radio" name="rdDay" value="CN" onchange="onDayChange()"> Chủ nhật</label>
+        </div>
+
+        <div></div>
+        <div>
+          <button class="btn-view" onclick="xemBieuDo()"><i class="fa fa-eye"></i> Xem Biểu Đồ</button>
         </div>
       </div>
 
-      <!-- TAB 2: TRA CỨU XE -->
-      <div id="tab-xe" class="tab-content">
-        <div class="form-label" style="margin-bottom: 6px;">Nhập biển kiểm soát cần tra cứu (gõ đến đâu hiện kết quả tới đó):</div>
-        <div style="margin-bottom: 12px;">
-          <input type="text" id="txtSearchBks" class="form-control" style="font-size: 14px; font-weight: bold; text-transform: uppercase; height: 34px;" placeholder="VD: 153.49 hoặc 29B..." oninput="timKiemXeLive()">
+      <div id="viewerWrapper" class="viewer-wrapper">
+        <div class="table-scroll">
+          <table id="mainScheduleTable" class="table-schedule"></table>
         </div>
-        <div id="ketQuaTraCuuXe"></div>
       </div>
     </div>
   </div>
-
-  <nav class="bottom-nav">
-    <button class="nav-btn active" id="btnNavBieuDo" onclick="chuyenTab('tab-bieudo')">
-      <i class="fa fa-calendar"></i>
-      <span>Biểu đồ</span>
-    </button>
-    <button class="nav-btn" id="btnNavXe" onclick="chuyenTab('tab-xe')">
-      <i class="fa fa-id-card-o"></i>
-      <span>Tra cứu xe</span>
-    </button>
-    <a href="admin.html" class="nav-btn">
-      <i class="fa fa-cogs"></i>
-      <span>Quản trị</span>
-    </a>
-  </nav>
 
   <script>
     const API_BASE = "https://dieu-hanh-bus.onrender.com";
 
     let danhMucData = [];
     let allRoutes = [];
-    let timeoutSearch = null;
-
-    function chuyenTab(tabId) {
-      $('.tab-content').removeClass('active');
-      $('.nav-btn').removeClass('active');$('#' + tabId).addClass('active');
-
-      if (tabId === 'tab-bieudo') $('#btnNavBieuDo').addClass('active');
-      else if (tabId === 'tab-xe') $('#btnNavXe').addClass('active');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
 
     $(document).ready(function() {$('.select2-search').select2({
-        language: { noResults: () => "Không tìm thấy dữ liệu phù hợp" }
+        language: {
+          noResults: function() { return "Không tìm thấy kết quả phù hợp"; }
+        }
       });
 
       $('#selXn').on('change', onXnChange);
@@ -339,53 +301,6 @@
 
       napDanhMuc();
     });
-
-    function timKiemXeLive() {
-      clearTimeout(timeoutSearch);
-      const q = $('#txtSearchBks').val().trim();
-      const $box =$('#ketQuaTraCuuXe');
-
-      if (!q) { $box.html(''); return; }
-
-      timeoutSearch = setTimeout(async () => {
-        $box.html('<p style="text-align:center; padding:15px; color:#777;"><i class="fa fa-spinner fa-spin"></i> Đang tìm kiếm...</p>');
-        try {
-          const res = await fetch(`${API_BASE}/api/tim-kiem-xe?q=${encodeURIComponent(q)}`).then(r => r.json());
-          if (!res.success || !res.data || res.data.length === 0) {
-            $box.html('<p style="text-align:center; color:#d9534f; padding:15px; font-weight:bold;">Không tìm thấy biển số phù hợp!</p>');
-            return;
-          }
-
-          let html = '';
-          res.data.forEach(xe => {
-            html += `
-              <div class="bus-card-custom">
-                <div style="font-size: 20px; font-weight: 800; color: #111; margin-bottom: 2px;">${xe.bks}</div>
-                <div style="font-size: 13px; font-weight: bold; color: #2C3E50; margin-bottom: 8px;">${xe.tenTuyen || 'Tuyến ' + xe.maTuyen}</div>
-                <hr style="border: none; border-top: 1px solid #E1E4E8; margin: 8px 0;">
-                <div style="font-size: 12px; color: #333; line-height: 1.5;">
-                  <div><strong>Chủng loại:</strong> ${xe.nhanHieu || ''} ${xe.chungLoai || ''}</div>
-                  <div><strong>Sức chứa:</strong> ${xe.sucChua ? xe.sucChua + ' chỗ' : '-'}</div>
-                  <div><strong>Năm sản xuất:</strong> ${xe.namSx || '-'}</div>
-                  <div><strong>Đơn vị:</strong> ${xe.xn || 'Transerco'}</div>
-                  <div style="color: #0F86DB; font-weight: bold; margin-top: 4px;">
-                    <i class="fa fa-bus"></i> Tổng số xe tuyến (Vận doanh / Kế hoạch): ${xe.soXeVd || 0} / ${xe.soXeKh || 0} xe
-                  </div>
-                </div>
-                <div style="margin-top: 10px; border-top: 1px dashed #E1E4E8; padding-top: 8px; text-align: right;">
-                  <button onclick="chuyenNhanhSangBieuDo('${xe.xn}', '${xe.tenTuyen}')" style="background: #27AE60; color: #FFF; border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; width: 100%;">
-                    <i class="fa fa-calendar"></i> Xem biểu đồ Tuyến ${xe.maTuyen}
-                  </button>
-                </div>
-              </div>
-            `;
-          });
-          $box.html(html);
-        } catch (err) {
-          $box.html('<p style="text-align:center; color:red;">Lỗi kết nối máy chủ!</p>');
-        }
-      }, 300);
-    }
 
     async function napDanhMuc() {
       try {
@@ -401,10 +316,13 @@
         danhMucData.forEach(item => { if (item.xn) xnSet.add(item.xn); });
 
         const $selXn =$('#selXn');
-        $selXn.empty().append('<option value="">-- Chọn đơn vị chủ quản --</option>');
-        Array.from(xnSet).sort().forEach(xn => $selXn.append(new Option(xn, xn)));$selXn.trigger('change.select2');
+        $selXn.empty().append('<option value="">Chọn xí nghiệp</option>');
+        Array.from(xnSet).sort().forEach(xn => {
+          $selXn.append(new Option(xn, xn));
+        });
+        $selXn.trigger('change');
       } catch (err) {
-        console.error("Lỗi nạp danh mục:", err);
+        console.error("Lỗi khi tải danh mục:", err);
       }
     }
 
@@ -413,36 +331,63 @@
       const $selTuyen =$('#selTuyen');
       const $selNgay =$('#selNgayApDung');
 
-      $selTuyen.empty().append('<option value="">-- Chọn tuyến --</option>');
-      $selNgay.empty().append('<option value="">-- Chọn tuyến trước --</option>');
+      $selTuyen.empty().append('<option value="">Chọn tuyến</option>');
+      $selNgay.empty().append('<option value="">Chọn tuyến trước</option>');
 
       if (!xn) {
-        $selTuyen.trigger('change.select2');$selNgay.trigger('change.select2');
+        $selTuyen.trigger('change');$selNgay.trigger('change');
         return;
       }
 
       const tuyenSet = new Set();
-      allRoutes.forEach(r => { if (r.xn === xn && r.tenTuyen) tuyenSet.add(r.tenTuyen); });
-      danhMucData.forEach(item => { if (item.xn === xn && item.tuyen) tuyenSet.add(item.tuyen); });
+      allRoutes.forEach(r => {
+        if (r.xn === xn && r.tenTuyen) tuyenSet.add(r.tenTuyen);
+      });
+      danhMucData.forEach(item => {
+        if (item.xn === xn && item.tuyen) tuyenSet.add(item.tuyen);
+      });
 
-      Array.from(tuyenSet).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })).forEach(tuyen => {
+      const sortedTuyen = Array.from(tuyenSet).sort((a, b) => {
+        return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+      });
+
+      sortedTuyen.forEach(tuyen => {
         $selTuyen.append(new Option(tuyen, tuyen));
       });
 
-      $selTuyen.trigger('change.select2');$selNgay.trigger('change.select2');
+      $selTuyen.trigger('change');$selNgay.trigger('change');
     }
 
     function parseDateInfo(str) {
       if (!str) return { label: "Hiện hành", sortKey: "00000000" };
       str = String(str).trim();
+
       const matchFull = str.match(/(\d{1,2})[\/\.](\d{1,2})[\/\.](\d{2,4})/);
       if (matchFull) {
         let d = parseInt(matchFull[1], 10);
         let m = parseInt(matchFull[2], 10);
         let y = parseInt(matchFull[3], 10);
         if (y < 100) y += 2000;
-        return { label: `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`, sortKey: `${y}${String(m).padStart(2,'0')}${String(d).padStart(2,'0')}` };
+        const dStr = String(d).padStart(2, '0');
+        const mStr = String(m).padStart(2, '0');
+        return {
+          label: `${dStr}/${mStr}/${y}`,
+          sortKey: `${y}${mStr}${dStr}`
+        };
       }
+
+      const matchMonthYear = str.match(/(\d{1,2})[\/\.](\d{2,4})/);
+      if (matchMonthYear) {
+        let m = parseInt(matchMonthYear[1], 10);
+        let y = parseInt(matchMonthYear[2], 10);
+        if (y < 100) y += 2000;
+        const mStr = String(m).padStart(2, '0');
+        return {
+          label: `Tháng ${mStr}/${y}`,
+          sortKey: `${y}${mStr}01`
+        };
+      }
+
       return { label: "Hiện hành", sortKey: "00000000" };
     }
 
@@ -458,10 +403,14 @@
       const tuyen = $('#selTuyen').val();
       const $selNgay =$('#selNgayApDung');
 
-      $selNgay.empty().append('<option value="">-- Chọn ngày áp dụng --</option>');
-      if (!xn || !tuyen) { $selNgay.trigger('change.select2'); return; }
+      $selNgay.empty().append('<option value="">Chọn ngày áp dụng</option>');
+      if (!xn || !tuyen) {
+        $selNgay.trigger('change');
+        return;
+      }
 
       const bieuDoCuaTuyen = danhMucData.filter(item => item.xn === xn && item.tuyen === tuyen);
+
       const parsedTabs = bieuDoCuaTuyen.map(item => ({
         ...item,
         tabType: detectTabType(item),
@@ -478,7 +427,8 @@
       if (bestDate) {
         $selNgay.append(new Option(bestDate.label, bestDate.label));$selNgay.val(bestDate.label);
       }
-      $selNgay.trigger('change.select2');
+
+      $selNgay.trigger('change');
     }
 
     function onDayChange() {
@@ -499,6 +449,7 @@
       }));
 
       const isChuNhat = (thuDaChon === "CN");
+
       if (isChuNhat) {
         const sundayTabs = parsedTabs.filter(t => t.tabType === "sunday");
         if (sundayTabs.length > 0) {
@@ -524,6 +475,7 @@
         allWeekTabs.sort((a, b) => b.dateInfo.sortKey.localeCompare(a.dateInfo.sortKey));
         return allWeekTabs[0].tenTab;
       }
+
       return bieuDoList[0].tenTab;
     }
 
@@ -534,13 +486,13 @@
       const thuDaChon = $('input[name="rdDay"]:checked').val() || "T2";
 
       if (!xn || !tuyen || !ngayApDung) {
-        alert("Vui lòng chọn đầy đủ Xí nghiệp, Tuyến và Ngày áp dụng!");
+        alert("Vui lòng chọn đầy đủ Đơn vị chủ quản, Tuyến xe và Ngày áp dụng!");
         return;
       }
 
       const tabName = timTabPhuHop(xn, tuyen, ngayApDung, thuDaChon);
       if (!tabName) {
-        alert("Không tìm thấy biểu đồ chạy xe phù hợp!");
+        alert("Không tìm thấy biểu đồ chạy xe phù hợp cho ngày đã chọn!");
         return;
       }
 
@@ -560,11 +512,21 @@
     function chuanHoaGio(str) {
       if (!str) return "";
       str = String(str).trim();
+      if (str.includes("T") && str.includes("Z")) {
+        const d = new Date(str);
+        if (!isNaN(d.getTime())) {
+          const h = String(d.getUTCHours());
+          const m = String(d.getUTCMinutes());
+          return h + ":" + (m.length < 2 ? "0" + m : m);
+        }
+      }
       const parts = str.split(":");
       if (parts.length >= 2) {
         const h = parseInt(parts[0], 10);
         const m = parseInt(parts[1], 10);
-        if (!isNaN(h) && !isNaN(m)) return h + ":" + (m < 10 ? "0" + m : m);
+        if (!isNaN(h) && !isNaN(m)) {
+          return h + ":" + (m < 10 ? "0" + m : m);
+        }
       }
       return str;
     }
@@ -576,13 +538,18 @@
     }
 
     function hienThiBangHTML(res) {
-      if (!res || !res.success || !res.rawData) {
-        alert("Không có dữ liệu biểu đồ!");
+      if (!res || !res.success) {
+        alert("Không tải được dữ liệu: " + (res.message || "Lỗi không xác định"));
         $('#viewerWrapper').hide();
         return;
       }
 
       const rawData = res.rawData;
+      if (!rawData || rawData.length === 0) {
+        alert("Tab này không có dữ liệu!");
+        return;
+      }
+
       const customDauA = res.dauA || "";
       const customDauB = res.dauB || "";
       const bannerLines = [];
@@ -591,16 +558,25 @@
 
       for (let i = 0; i < rawData.length; i++) {
         const valCol0 = String(rawData[i][0] || "").trim();
-        if (valCol0 === "1" || valCol0 === "01") { startRow = i; break; }
+        if (valCol0 === "1" || valCol0 === "01") {
+          startRow = i;
+          break;
+        }
 
         for (let col = 0; col < rawData[i].length; col++) {
-          if (String(rawData[i][col] || "").toLowerCase().includes("điểm danh") && !diemDanhCols.includes(col)) {
+          const cellStr = String(rawData[i][col] || "").toLowerCase();
+          if (cellStr.includes("điểm danh") && !diemDanhCols.includes(col)) {
             diemDanhCols.push(col);
           }
         }
 
         const rowString = rawData[i].join(" ");
-        if ((valCol0 === "" && rowString.includes(":")) || rowString.toLowerCase().includes("giờ gạch chân")) continue;
+        const hasColon = rowString.includes(":");
+        const isFirstColEmpty = (valCol0 === "");
+
+        if ((isFirstColEmpty && hasColon) || rowString.toLowerCase().includes("giờ gạch chân")) {
+          continue;
+        }
 
         const fullText = rawData[i].filter(c => c && c.trim() !== "").join(" - ").trim();
         if (fullText.length > 3 && !fullText.toLowerCase().includes("đầu a-b") && fullText.toLowerCase() !== "nốt" && !fullText.toLowerCase().includes("điểm danh")) {
@@ -610,13 +586,15 @@
 
       if (startRow === -1) startRow = 0;
       const tableData = rawData.slice(startRow);
-      const cleanTableData = [];
 
+      const cleanTableData = [];
       for (let j = 0; j < tableData.length; j++) {
         const col0 = String(tableData[j][0] || "").trim();
         if (col0 !== "" && !isNaN(col0)) {
-          cleanTableData.push(tableData[j]);
-          if (j + 1 < tableData.length) cleanTableData.push(tableData[j + 1]);
+          cleanTableData.push(tableData[j]); 
+          if (j + 1 < tableData.length) {
+            cleanTableData.push(tableData[j + 1]); 
+          }
         }
       }
 
@@ -624,18 +602,21 @@
       for (let r = 0; r < cleanTableData.length; r += 2) {
         const rowA = cleanTableData[r];
         const rowB = cleanTableData[r + 1] || [];
+
         const notVal = rowA[0] ? String(rowA[0]).trim() : "";
         if (!notVal && (!rowA[1] || rowA[1].trim() === "")) continue;
 
         const dauA = customDauA || (rowA[1] ? rowA[1].trim() : "");
         const dauB = customDauB || (rowB[1] ? rowB[1].trim() : "");
+
         const cells = [];
         let totalTrips = 0;
         let endC = Math.max(rowA.length, rowB.length);
 
         const lastA = String(rowA[endC - 1] || "").trim();
         const lastB = String(rowB[endC - 1] || "").trim();
-        if ((lastA !== "" && !isNaN(lastA) && !lastA.includes(":")) || (lastB !== "" && !isNaN(lastB) && !lastB.includes(":"))) {
+        if ((lastA !== "" && !isNaN(lastA) && !lastA.includes(":")) ||
+            (lastB !== "" && !isNaN(lastB) && !lastB.includes(":"))) {
           endC = endC - 1;
         }
 
@@ -648,25 +629,33 @@
             cells.push(valDD ? { type: "diemdanh", val: valDD } : { type: "empty" });
             continue;
           }
+
           if (valA.toLowerCase().includes("thay ca") || valB.toLowerCase().includes("thay ca")) {
             cells.push({ type: "thayca" });
             continue;
           }
-          if (!valA && !valB) { cells.push({ type: "empty" }); continue; }
+          if (!valA && !valB) {
+            cells.push({ type: "empty" });
+            continue;
+          }
 
           totalTrips++;
           const pA = chuyenPhut(valA);
           const pB = chuyenPhut(valB);
 
           if (valA && valB) {
-            if (pA < pB) cells.push({ type: "flight", top: valA, topCls: "cold1a", btm: valB, btmCls: "cold1b" });
-            else cells.push({ type: "flight", top: valA, topCls: "cold2a", btm: valB, btmCls: "cold2b" });
+            if (pA < pB) {
+              cells.push({ type: "flight", top: valA, topCls: "cold1a", btm: valB, btmCls: "cold1b" });
+            } else {
+              cells.push({ type: "flight", top: valA, topCls: "cold2a", btm: valB, btmCls: "cold2b" });
+            }
           } else if (valA) {
             cells.push({ type: "flight", top: valA, topCls: "cold1a", btm: "", btmCls: "" });
           } else {
             cells.push({ type: "flight", top: "", topCls: "", btm: valB, btmCls: "cold2b" });
           }
         }
+
         notList.push({ not: notVal || (r / 2 + 1), dauA, dauB, cells, totalTrips });
       }
 
@@ -676,46 +665,57 @@
         if (item.cells.length > maxCols) maxCols = item.cells.length;
       });
 
-      const totalCols = maxCols + 3;
+      const totalTableWidthCols = maxCols + 3;
       let html = '<thead>';
 
       if (bannerLines.length > 0) {
-        bannerLines.forEach((line) => {
-          html += `<tr><th colspan="${totalCols}" style="font-size:12px; font-weight:bold; padding:6px; background:#FFF; color:#111;">${line}</th></tr>`;
+        bannerLines.forEach((line, idx) => {
+          html += `<tr><th colspan="${totalTableWidthCols}" style="font-size:${idx === 0 ? '13px' : '12px'}; font-weight:bold; padding:8px 6px; background:#FFFFFF; border:1px solid #CCCCCC; text-align:center; color:#111;">${line}</th></tr>`;
         });
       }
 
-      html += '<tr><th class="colstt">Nốt</th><th class="coldau">Đầu A-B</th><th colspan="' + maxCols + '">GIỜ XE XUẤT BẾN / VỀ BẾN</th><th class="coltotal">LƯỢT</th></tr></thead><tbody>';
+      html += '<tr>';
+      html += '<th class="colstt">Nốt</th>';
+      html += '<th class="coldau">Đầu A-B</th>';
+      html += `<th colspan="${maxCols}">GIỜ XE XUẤT BẾN/ VỀ BẾN</th>`;
+      html += '<th class="coltotal" style="background-color: #EBF2F8 !important; color: #111 !important;">LƯỢT</th>';
+      html += '</tr></thead><tbody>';
 
-      let tongLuot = 0;
+      let tongLuotToanTuyen = 0;
+
       notList.forEach(item => {
-        tongLuot += item.totalTrips;
-        html += `<tr><td class="colstt">${item.not}</td><td class="coldau"><span class="colsa">${item.dauA}</span><span class="colsb">${item.dauB}</span></td>`;
+        tongLuotToanTuyen += item.totalTrips;
+        html += '<tr>';
+        html += `<td class="colstt">${item.not}</td>`;
+        html += `<td class="coldau"><span class="colsa">${item.dauA}</span><span class="colsb">${item.dauB}</span></td>`;
+        
         let cnt = 0;
         item.cells.forEach(c => {
-          if (c.type === "thayca") html += '<td class="colthayca">Thay ca</td>';
-          else if (c.type === "diemdanh") html += `<td class="coldiemdanh">${c.val}</td>`;
-          else if (c.type === "flight") html += `<td class="colflight"><span class="${c.topCls}">${c.top}</span><span class="${c.btmCls}">${c.btm}</span></td>`;
-          else html += '<td></td>';
+          if (c.type === "thayca") {
+            html += '<td class="colthayca">Thay ca</td>';
+          } else if (c.type === "diemdanh") {
+            html += `<td class="coldiemdanh">${c.val}</td>`;
+          } else if (c.type === "flight") {
+            html += `<td class="colflight"><span class="${c.topCls}">${c.top}</span><span class="${c.btmCls}">${c.btm}</span></td>`;
+          } else {
+            html += '<td></td>';
+          }
           cnt++;
         });
         while (cnt < maxCols) { html += '<td></td>'; cnt++; }
-        html += `<td class="coltotal">${item.totalTrips}</td></tr>`;
+        html += `<td class="coltotal">${item.totalTrips}</td>`;
+        html += '</tr>';
       });
 
-      html += `<tr style="font-weight:bold; background:#FAFAFA;"><td colspan="2" style="text-align:center;">Tổng lượt</td><td colspan="${maxCols}"></td><td class="coltotal" style="color:#0F86DB;">${tongLuot}</td></tr></tbody>`;
+      html += '<tr style="font-weight:bold; background:#FAFAFA;">';
+      html += '<td colspan="2" style="text-align:center;">Tổng lượt</td>';
+      html += `<td colspan="${maxCols}"></td>`;
+      html += `<td class="coltotal" style="background-color: #FAFAFA !important; color: #0F86DB;">${tongLuotToanTuyen}</td>`;
+      html += '</tr></tbody>';
 
       $('#mainScheduleTable').html(html);
       $('#viewerWrapper').show();
-      $('html, body').animate({ scrollTop:$('#viewerWrapper').offset().top - 15 }, 300);
-    }
-
-    function chuyenNhanhSangBieuDo(xn, tenTuyen) {
-      chuyenTab('tab-bieudo');
-      if (xn) $('#selXn').val(xn).trigger('change');
-      setTimeout(() => {
-        if (tenTuyen) $('#selTuyen').val(tenTuyen).trigger('change');
-      }, 350);
+      $('html, body').animate({ scrollTop:$('#viewerWrapper').offset().top - 20 }, 300);
     }
   </script>
 </body>
