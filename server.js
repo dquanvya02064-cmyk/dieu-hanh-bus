@@ -10,7 +10,6 @@ const mongoose = require('mongoose');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Sử dụng biến môi trường hoặc fallback trực tiếp để server không bị crash
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://dquan4701_db_user:Quanbus123456@cluster0.sur3koa.mongodb.net/dieuhanhbus?retryWrites=true&w=majority';
 
 app.use(cors());
@@ -130,6 +129,26 @@ app.get('/api/table-data', async (req, res) => {
   }
 });
 
+// 3. API ĐỌC TOÀN BỘ DỮ LIỆU (PHỤC VỤ TRANG QUẢN TRỊ)
+app.get('/api/bus-data', async (req, res) => {
+  try {
+    const data = await getRawData();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 4. API LƯU TOÀN BỘ DỮ LIỆU (PHỤC VỤ TRANG QUẢN TRỊ)
+app.post(['/api/bus-data', '/api/save-data'], async (req, res) => {
+  try {
+    await saveRawData(req.body);
+    res.json({ success: true, message: 'Lưu thành công!' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Lỗi ghi database' });
+  }
+});
+
 // 5. API LƯU TUYẾN
 app.post(['/api/save-tuyen', '/api/tuyen-moi'], async (req, res) => {
   try {
@@ -155,6 +174,23 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], async (req, res) => {
 
     await saveRawData(raw);
     res.json({ success: true, message: 'Lưu tuyến thành công!' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 6. API KHÓA / MỞ LẠI TUYẾN
+app.post('/api/toggle-status-tuyen', async (req, res) => {
+  try {
+    const { maTuyen, status } = req.body;
+    const raw = await getRawData();
+    if (!raw.tuyenList || !raw.tuyenList[maTuyen]) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy mã tuyến!' });
+    }
+
+    raw.tuyenList[maTuyen].status = status;
+    await saveRawData(raw);
+    res.json({ success: true, message: 'Cập nhật trạng thái thành công!' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
