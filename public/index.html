@@ -139,6 +139,7 @@
       width: 100%;
       white-space: nowrap;
     }
+    /* ĐÃ SẢU: CHỈNH KÍCH CƯỚC CHỮ TIÊU ĐỀ BIỂU ĐỒ GỌN GÀNG, KHÔNG BỊ TO THỒ */
     .table-schedule th, .table-schedule td {
       border: 1px solid #CCC;
       padding: 5px 6px;
@@ -148,6 +149,7 @@
     .table-schedule thead th {
       background-color: #EBF2F8;
       font-weight: bold;
+      font-size: 11px !important; 
     }
     .colstt { width: 40px; font-weight: bold; }
     .coldau { width: 160px; text-align: left !important; padding-left: 8px !important; }
@@ -162,7 +164,6 @@
     .colsa { display: block; color: #333; font-weight: bold; }
     .colsb { display: block; color: #777; font-style: italic; }
 
-    /* KHUNG THẺ KẾT QUẢ TRA CỨU XE THEO MẪU MỚI */
     .bus-card-custom {
       background: #FFFFFF;
       border: 1px solid #D0D7DE;
@@ -720,9 +721,10 @@
       const totalCols = maxCols + 3;
       let html = '<thead>';
 
+      // THU NHỎ FONT CHỮ CỦA CÁC DÒNG TIÊU ĐỀ BIỂU ĐỒ TRÊN CÙNG
       if (bannerLines.length > 0) {
         bannerLines.forEach((line, idx) => {
-          html += `<tr><th colspan="${totalCols}" style="font-size:12px; font-weight:bold; padding:6px; background:#FFF; color:#111;">${line}</th></tr>`;
+          html += `<tr><th colspan="${totalCols}" style="font-size:11px; font-weight:bold; padding:4px 6px; background:#FFF; color:#333;">${line}</th></tr>`;
         });
       }
 
