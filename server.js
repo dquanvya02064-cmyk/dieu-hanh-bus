@@ -52,7 +52,7 @@ async function getRawData() {
   if (fs.existsSync(localPath)) {
     return JSON.parse(fs.readFileSync(localPath, 'utf8'));
   }
-  return { tuyenList: {}, bieuDoList: [] };
+  return { tuyenList: {}, bieuDoList: [], xeList: [] };
 }
 
 async function saveRawData(data) {
@@ -188,7 +188,7 @@ app.post(['/api/bus-data', '/api/save-data'], async (req, res) => {
   }
 });
 
-// 5. API LƯU THÔNG TIN TUYẾN TỪ ADMIN (LƯU RÕ XE VD VÀ XE KH)
+// 5. API LƯU THÔNG TIN TUYẾN TỪ ADMIN
 app.post(['/api/save-tuyen', '/api/tuyen-moi'], async (req, res) => {
   try {
     const { maTuyen, tenTuyen, xn, dauA, dauB, soXeVd, soXeKh, soXe, loaiXe, sucChua, status } = req.body;
@@ -243,7 +243,7 @@ app.post('/api/toggle-status-tuyen', async (req, res) => {
   }
 });
 
-// 7. API LƯU BIỂU ĐỒ
+// 7. API LƯU BIỂU ĐỒ (Tự động tính và gán số xe vận doanh = số nốt tối đa)
 app.post('/api/luu-bieu-do', async (req, res) => {
   try {
     const { xn, tuyen, bieuDo, tenTab, rawData } = req.body;
@@ -269,8 +269,26 @@ app.post('/api/luu-bieu-do', async (req, res) => {
       raw.bieuDoList.push(newTabObj);
     }
 
+    // Tự động quét số nốt lớn nhất trong biểu đồ để gán số xe vận doanh (soXeVd)
+    let maxNot = 0;
+    if (Array.isArray(rawData)) {
+      rawData.forEach(row => {
+        const val0 = parseInt(row[0], 10);
+        if (!isNaN(val0) && val0 > maxNot) maxNot = val0;
+      });
+    }
+
+    if (maxNot > 0 && raw.tuyenList) {
+      for (let k in raw.tuyenList) {
+        if (raw.tuyenList[k].tenTuyen === tuyen) {
+          raw.tuyenList[k].soXeVd = maxNot;
+          break;
+        }
+      }
+    }
+
     await saveRawData(raw);
-    res.json({ success: true, message: `Lưu biểu đồ [${tenTab}] thành công!` });
+    res.json({ success: true, message: `Lưu biểu đồ [${tenTab}] thành công! (Xe vận doanh: ${maxNot || 'giữ nguyên'})` });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Lỗi lưu biểu đồ: ' + err.message });
@@ -299,7 +317,205 @@ app.post('/api/xoa-bieu-do', async (req, res) => {
   }
 });
 
-// 9. API CỨU HỘ
+// 9. API TRA CỨU XE / TÌM KIẾM ĐỊNH DANH (Dùng cho cả Vercel và hệ thống nội bộ)
+app.get('/api/tim-kiem-xe', async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    const maTuyen = (req.query.tuyen || '').trim().toUpperCase();
+    const raw = await getRawData();
+    let xeList = Array.isArray(raw.xeList) ? raw.xeList : [];
+
+    let ketQua = [];
+    if (maTuyen) {
+      ketQua = xeList.filter(x => (x.maTuyen || '').toUpperCase() === maTuyen);
+    } else if (q) {
+      ketQua = xeList.filter(x => {
+        const cleanBks = (x.bks || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        return cleanBks.includes(q);
+      });
+    } else {
+      ketQua = xeList;
+    }
+
+    // Ghép tên tuyến đầy đủ và đơn vị quản lý vào kết quả
+    const tuyenMap = raw.tuyenList || {};
+    ketQua = ketQua.map(x => {
+      const t = tuyenMap[x.maTuyen];
+      return {
+        ...x,
+        tenTuyen: t ? t.tenTuyen : `Tuyến ${x.maTuyen}`,
+        xn: t ? t.xn : (x.donVi || '')
+      };
+    });
+
+    res.json({ success: true, data: ketQua });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Lỗi tra cứu xe: ' + err.message });
+  }
+});
+
+// 10. API IMPORT DANH SÁCH XE EXCEL (Tự động mở tuyến mới & tự tính số xe KH)
+app.post('/api/import-xe-excel', async (req, res) => {
+  try {
+    const { rawText } = req.body;
+    if (!rawText) return res.status(400).json({ success: false, message: 'Vui lòng dán dữ liệu bảng xe!' });
+
+    const raw = await getRawData();
+    if (!raw.tuyenList) raw.tuyenList = {};
+    if (!Array.isArray(raw.xeList)) raw.xeList = [];
+
+    const lines = rawText.split('\n');
+    let currentMaTuyen = '';
+    let currentTenLoTrinh = '';
+    const importedCars = [];
+    const countMap = {};
+
+    lines.forEach(line => {
+      const fullLine = line.trim();
+      if (!fullLine) return;
+      const parts = line.split('\t').map(p => p.trim());
+
+      // Nhận diện tiêu đề: Tuyến 22B: BẾN XE GIÁP BÁT - ĐÔ NGHĨA...
+      const matchTuyen = fullLine.match(/^Tuyến\s+([0-9A-Za-z]+)\s*:\s*(.*)/i);
+      if (matchTuyen) {
+        currentMaTuyen = matchTuyen[1].toUpperCase();
+        currentTenLoTrinh = matchTuyen[2] ? matchTuyen[2].trim() : '';
+        // Bỏ số lượng ở cuối chuỗi nếu có
+        currentTenLoTrinh = currentTenLoTrinh.replace(/\t.*$/, '').trim();
+
+        // NẾU LÀ TUYẾN MỚI CHƯA CÓ TRONG HỆ THỐNG: TỰ ĐỘNG KHỞI TẠO
+        if (!raw.tuyenList[currentMaTuyen]) {
+          let dauA = "", dauB = "";
+          const loTrinhParts = currentTenLoTrinh.split('-');
+          if (loTrinhParts.length >= 2) {
+            dauA = loTrinhParts[0].trim();
+            dauB = loTrinhParts[1].trim();
+          }
+
+          raw.tuyenList[currentMaTuyen] = {
+            maTuyen: currentMaTuyen,
+            tenTuyen: `${currentMaTuyen}. ${currentTenLoTrinh || 'Tuyến ' + currentMaTuyen}`,
+            xn: "Transerco",
+            dauA: dauA,
+            dauB: dauB,
+            soXeVd: 0,
+            soXeKh: 0,
+            soXe: 0,
+            loaiXe: "",
+            sucChua: "",
+            status: "active"
+          };
+        }
+        return;
+      }
+
+      // Nhận diện dòng dữ liệu xe (Cột 0 có tiền tố 29B-, 29F-, 29E-...)
+      const bks = parts[0] || '';
+      if (/^29[A-Z0-9\-\.]+$/i.test(bks) && currentMaTuyen) {
+        const nhanHieu = parts[1] || '';
+        const chungLoai = parts[2] || '';
+        const namSx = parts[3] || '';
+        const sucChua = parts[4] || '';
+        const donVi = parts[5] || '';
+
+        importedCars.push({
+          bks: bks.toUpperCase(),
+          maTuyen: currentMaTuyen,
+          nhanHieu,
+          chungLoai,
+          namSx,
+          sucChua,
+          donVi
+        });
+
+        countMap[currentMaTuyen] = (countMap[currentMaTuyen] || 0) + 1;
+
+        // Tự động gán loại xe và sức chứa làm thông số tuyến nếu tuyến chưa có
+        if (raw.tuyenList[currentMaTuyen] && (!raw.tuyenList[currentMaTuyen].loaiXe || raw.tuyenList[currentMaTuyen].loaiXe === '')) {
+          raw.tuyenList[currentMaTuyen].loaiXe = `${nhanHieu} ${chungLoai}`.trim();
+          raw.tuyenList[currentMaTuyen].sucChua = sucChua ? `${sucChua} chỗ` : '';
+        }
+      }
+    });
+
+    if (importedCars.length === 0) {
+      return res.status(400).json({ success: false, message: 'Không tìm thấy dòng xe hợp lệ nào để nạp!' });
+    }
+
+    // Cập nhật hoặc thêm mới vào danh sách xe tổng
+    const existingMap = new Map();
+    raw.xeList.forEach(x => existingMap.set(x.bks.toUpperCase(), x));
+    importedCars.forEach(x => existingMap.set(x.bks, x));
+    raw.xeList = Array.from(existingMap.values());
+
+    // Cập nhật lại số xe kế hoạch (soXeKh) dựa trên toàn bộ xe đang gán vào từng tuyến
+    const finalCounts = {};
+    raw.xeList.forEach(x => {
+      finalCounts[x.maTuyen] = (finalCounts[x.maTuyen] || 0) + 1;
+    });
+
+    for (let k in raw.tuyenList) {
+      if (finalCounts[k] !== undefined) {
+        raw.tuyenList[k].soXeKh = finalCounts[k];
+        raw.tuyenList[k].soXe = finalCounts[k];
+      }
+    }
+
+    await saveRawData(raw);
+    res.json({
+      success: true,
+      message: `Đã xử lý ${importedCars.length} xe! Tự động cập nhật số xe kế hoạch cho ${Object.keys(countMap).length} tuyến.`
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Lỗi nạp bảng xe: ' + err.message });
+  }
+});
+
+// 11. API ĐIỀU CHUYỂN PHƯƠNG TIỆN SANG TUYẾN KHÁC
+app.post('/api/dieu-chuyen-xe', async (req, res) => {
+  try {
+    const { bks, tuyenMoi } = req.body;
+    if (!bks || !tuyenMoi) return res.status(400).json({ success: false, message: 'Thiếu biển số xe hoặc tuyến đích!' });
+
+    const raw = await getRawData();
+    if (!Array.isArray(raw.xeList)) raw.xeList = [];
+    if (!raw.tuyenList) raw.tuyenList = {};
+
+    const xe = raw.xeList.find(x => x.bks.toUpperCase() === bks.toUpperCase());
+    if (!xe) return res.status(404).json({ success: false, message: `Không tìm thấy xe [${bks}] trong cơ sở dữ liệu!` });
+
+    const tuyenCu = xe.maTuyen;
+    const dest = tuyenMoi.toUpperCase();
+    if (tuyenCu === dest) return res.json({ success: false, message: `Xe ${bks} hiện đã thuộc tuyến ${dest} rồi!` });
+
+    // Cập nhật mã tuyến mới cho xe
+    xe.maTuyen = dest;
+
+    // Tự động tính toán lại số xe kế hoạch cho tất cả các tuyến
+    const finalCounts = {};
+    raw.xeList.forEach(x => {
+      finalCounts[x.maTuyen] = (finalCounts[x.maTuyen] || 0) + 1;
+    });
+
+    for (let k in raw.tuyenList) {
+      raw.tuyenList[k].soXeKh = finalCounts[k] || 0;
+      raw.tuyenList[k].soXe = finalCounts[k] || 0;
+    }
+
+    await saveRawData(raw);
+    res.json({
+      success: true,
+      message: `Đã điều chuyển xe [${bks}] từ tuyến ${tuyenCu} sang tuyến ${dest}. Số xe kế hoạch của cả hai tuyến đã tự động cập nhật!`
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Lỗi điều chuyển xe: ' + err.message });
+  }
+});
+
+// 12. API CỨU HỘ
 app.get('/api/restore-backup', async (req, res) => {
   try {
     const localPath = path.join(__dirname, 'bus_full_data.json');
