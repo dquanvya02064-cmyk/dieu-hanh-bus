@@ -16,7 +16,7 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Schema lưu trữ dữ liệu MongoDB
+// Schema dữ liệu MongoDB Atlas
 const busDataSchema = new mongoose.Schema({
   key: { type: String, default: 'main_data' },
   data: Object
@@ -24,10 +24,10 @@ const busDataSchema = new mongoose.Schema({
 const BusModel = mongoose.model('BusData', busDataSchema);
 
 mongoose.connect(MONGO_URI)
-  .then(() => console.log('>>> Da ket noi thanh cong voi MongoDB Atlas!'))
+  .then(() => console.log('>>> Ket noi thanh cong MongoDB Atlas!'))
   .catch(err => console.error('>>> Loi ket noi MongoDB:', err));
 
-// Hàm lấy dữ liệu thô
+// Hàm đọc dữ liệu thô
 async function getRawData() {
   const doc = await BusModel.findOne({ key: 'main_data' });
   if (doc && doc.data) {
@@ -40,54 +40,37 @@ async function getRawData() {
   return {};
 }
 
-// 1. API TRẢ DANH MỤC (ĐÚNG CẤU TRÚC INDEX.HTML ĐÒI HỎI)
+// 1. API TRẢ DANH MỤC CHO INDEX.HTML
 app.get('/api/danh-muc', async (req, res) => {
   try {
     const raw = await getRawData();
     let danhMucList = [];
     let allRoutesList = [];
 
-    // Nếu cấu trúc gốc đã lưu sẵn danhMuc / allRoutes
-    if (raw.danhMuc || raw.data || raw.allRoutes) {
-      danhMucList = raw.data || raw.danhMuc || [];
-      allRoutesList = raw.allRoutes || [];
-    } else {
-      // Tự động phân tích từ tuyenList hoặc danh sách tuyến
-      const tuyens = raw.tuyenList || raw;
-      for (let k in tuyens) {
-        const item = tuyens[k];
-        if (typeof item === 'object' && item !== null) {
-          allRoutesList.push({
-            maTuyen: item.maTuyen || k,
-            tenTuyen: item.tenTuyen || item.tuyen || k,
-            xn: item.xn || item.donVi || "Xí nghiệp xe buýt",
-            dauA: item.dauA || "",
-            dauB: item.dauB || ""
-          });
-
-          // Nếu có danh sách biểu đồ theo tab
-          if (item.tabs && Array.isArray(item.tabs)) {
-            item.tabs.forEach(t => {
-              danhMucList.push({
-                xn: item.xn || item.donVi || "Xí nghiệp xe buýt",
-                tuyen: item.tenTuyen || item.tuyen || k,
-                bieuDo: t.tenBieuDo || t.bieuDo || t.tenTab || "",
-                tenTab: t.tenTab || t.bieuDo || ""
-              });
-            });
-          } else if (item.bieuDo) {
-            danhMucList.push({
-              xn: item.xn || item.donVi || "Xí nghiệp xe buýt",
-              tuyen: item.tenTuyen || item.tuyen || k,
-              bieuDo: item.bieuDo,
-              tenTab: item.tenTab || item.bieuDo
-            });
-          }
-        }
+    // Lấy danh sách tuyến xe
+    if (raw.tuyenList && typeof raw.tuyenList === 'object') {
+      for (let k in raw.tuyenList) {
+        const item = raw.tuyenList[k];
+        allRoutesList.push({
+          maTuyen: item.maTuyen || k,
+          tenTuyen: item.tenTuyen || k,
+          xn: item.xn || "",
+          dauA: item.dauA || "",
+          dauB: item.dauB || ""
+        });
       }
     }
 
-    // Trả về đúng format { success: true, data: [...], allRoutes: [...] }
+    // Lấy danh sách biểu đồ
+    if (Array.isArray(raw.bieuDoList)) {
+      danhMucList = raw.bieuDoList.map(item => ({
+        xn: item.xn || "",
+        tuyen: item.tuyen || "",
+        bieuDo: item.bieuDo || "",
+        tenTab: item.tenTab || ""
+      }));
+    }
+
     res.json({
       success: true,
       data: danhMucList,
@@ -95,57 +78,59 @@ app.get('/api/danh-muc', async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Loi khi tai danh muc' });
+    res.status(500).json({ success: false, message: 'Lỗi khi tải danh mục' });
   }
 });
 
-// 2. API LẤY CHI TIẾT BẢNG BIỂU ĐỒ CHẠY XE
+// 2. API TRẢ CHI TIẾT DỮ LIỆU BIỂU ĐỒ (RAW DATA)
 app.get('/api/table-data', async (req, res) => {
   try {
     const { tab, tuyen } = req.query;
     const raw = await getRawData();
 
-    // Tìm dữ liệu bảng tương ứng với tab / tuyến
-    let foundTable = null;
+    let foundItem = null;
+    if (Array.isArray(raw.bieuDoList)) {
+      foundItem = raw.bieuDoList.find(b => {
+        const matchTab = String(b.tenTab || '').trim() === String(tab || '').trim();
+        const matchTuyen = !tuyen || String(b.tuyen || '').trim() === String(tuyen || '').trim();
+        return matchTab && matchTuyen;
+      });
+
+      if (!foundItem && tab) {
+        foundItem = raw.bieuDoList.find(b => String(b.tenTab || '').trim() === String(tab || '').trim());
+      }
+    }
+
+    if (!foundItem) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy dữ liệu biểu đồ phù hợp' });
+    }
+
+    // Tìm thông tin đầu bến A-B tương ứng
     let customDauA = "";
     let customDauB = "";
-
-    if (raw.tables && raw.tables[tab]) {
-      foundTable = raw.tables[tab];
-    } else {
-      const tuyens = raw.tuyenList || raw;
-      for (let k in tuyens) {
-        const t = tuyens[k];
-        if (t.tenTuyen === tuyen || t.tuyen === tuyen || k === tuyen) {
+    if (raw.tuyenList) {
+      for (let k in raw.tuyenList) {
+        const t = raw.tuyenList[k];
+        if (t.tenTuyen === foundItem.tuyen || t.tenTuyen === tuyen) {
           customDauA = t.dauA || "";
           customDauB = t.dauB || "";
-          if (t.tables && t.tables[tab]) {
-            foundTable = t.tables[tab];
-          } else if (t.rawData) {
-            foundTable = t.rawData;
-          }
           break;
         }
       }
     }
 
-    if (!foundTable && raw.rawData) {
-      foundTable = raw.rawData;
-    }
-
     res.json({
       success: true,
-      rawData: foundTable || [],
+      rawData: foundItem.rawData || [],
       dauA: customDauA,
       dauB: customDauB
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Loi tai du lieu bieu do' });
+    res.status(500).json({ success: false, message: 'Lỗi nạp bảng biểu đồ' });
   }
 });
 
-// Endpoint dự phòng tương thích quản trị
 app.get('/api/bus-data', async (req, res) => {
   const data = await getRawData();
   res.json(data);
@@ -158,10 +143,10 @@ app.post(['/api/danh-muc', '/api/bus-data'], async (req, res) => {
       { key: 'main_data', data: req.body },
       { upsert: true, returnDocument: 'after' }
     );
-    res.json({ success: true, message: 'Luu thanh cong vao MongoDB Atlas' });
+    res.json({ success: true, message: 'Lưu dữ liệu thành công' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, error: 'Loi ghi database' });
+    res.status(500).json({ success: false, error: 'Lỗi ghi database' });
   }
 });
 
