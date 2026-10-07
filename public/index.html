@@ -394,7 +394,7 @@
         dateInfo: parseDateInfo(item.tenTab || item.bieuDo || "")
       }));
 
-      // Luôn lấy mốc ngày áp dụng mới nhất làm đại diện duy nhất
+      // Lấy mốc ngày áp dụng mới nhất làm đại diện
       let bestDate = null;
       parsedTabs.forEach(item => {
         if (!bestDate || item.dateInfo.sortKey.localeCompare(bestDate.sortKey) > 0) {
@@ -435,7 +435,6 @@
           const exactSunday = sundayTabs.find(t => t.dateInfo.label === ngayApDungChuan);
           if (exactSunday) return exactSunday.tenTab;
 
-          // Lấy tab Chủ nhật mới nhất đang áp dụng
           sundayTabs.sort((a, b) => b.dateInfo.sortKey.localeCompare(a.dateInfo.sortKey));
           return sundayTabs[0].tenTab;
         }
@@ -446,13 +445,12 @@
           const exactWeekday = weekdayTabs.find(t => t.dateInfo.label === ngayApDungChuan);
           if (exactWeekday) return exactWeekday.tenTab;
 
-          // Lấy tab Ngày thường mới nhất đang áp dụng
           weekdayTabs.sort((a, b) => b.dateInfo.sortKey.localeCompare(a.dateInfo.sortKey));
           return weekdayTabs[0].tenTab;
         }
       }
 
-      // Nếu tuyến dùng chung tab "Cả tuần"
+      // Tuyến áp dụng Cả tuần
       const allWeekTabs = parsedTabs.filter(t => t.tabType === "all");
       if (allWeekTabs.length > 0) {
         const exactAll = allWeekTabs.find(t => t.dateInfo.label === ngayApDungChuan);
