@@ -10,19 +10,19 @@
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
   <style>
-            /* Ép tất cả các ô trong bảng (kể cả ô gộp tiêu đề) về kích thước chuẩn và tự động ngắt dòng */
-    table th, table td, tr[style*="font"], td[colspan], th[colspan] {
-      font-size: 11px !important;
-      font-weight: normal !important;
-      white-space: normal !important;
-      word-break: break-word !important;
+        /* Chỉ giữ lại cấu hình cơ bản chống tràn màn hình cho bảng trên di động, giữ nguyên cỡ chữ chuẩn */
+    .table-scroll {
+      width: 100%;
+      overflow-x: auto;
+      background: #FFF;
+      border: 1px solid #CCC;
+      -webkit-overflow-scrolling: touch;
     }
-    
-    /* Riêng dòng tiêu đề chính của biểu đồ ép nhỏ lại và nằm gọn trong bảng */
-    .table-scroll tr:first-child th, .table-scroll tr:first-child td {
-      font-size: 11px !important;
-      font-weight: bold !important;
+    .table-scroll table {
+      width: 100%;
+      border-collapse: collapse;
     }
+
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
