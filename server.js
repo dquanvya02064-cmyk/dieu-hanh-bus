@@ -90,7 +90,7 @@ app.get('/api/danh-muc', async (req, res) => {
             xn: item.xn || "",
             dauA: item.dauA || "",
             dauB: item.dauB || "",
-            soXeVd: item.soXeVd || item.soXe || "",
+            soXeVd: item.soXeVd || "",
             soXeKh: item.soXeKh || item.soXe || "",
             soXe: item.soXe || "",
             loaiXe: item.loaiXe || "",
@@ -211,9 +211,9 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], async (req, res) => {
       xn: xn || "",
       dauA: dauA || "",
       dauB: dauB || "",
-      soXeVd: soXeVd || soXe || "",
+      soXeVd: soXeVd || raw.tuyenList[maTuyen]?.soXeVd || "",
       soXeKh: soXeKh || soXe || "",
-      soXe: soXeKh || soXeVd || soXe || "",
+      soXe: soXeKh || soXe || "",
       loaiXe: loaiXe || "",
       sucChua: sucChua || "",
       status: status || oldStatus
@@ -247,7 +247,7 @@ app.post('/api/toggle-status-tuyen', async (req, res) => {
   }
 });
 
-// 7. API LƯU BIỂU ĐỒ (Tự động tính và gán số xe vận doanh = số nốt tối đa)
+// 7. API LƯU BIỂU ĐỒ (TỰ ĐỘNG QUÉT NỐT CUỐI CÙNG LÀM SỐ XE VẬN DOANH soXeVd)
 app.post('/api/luu-bieu-do', async (req, res) => {
   try {
     const { xn, tuyen, bieuDo, tenTab, rawData } = req.body;
@@ -273,18 +273,21 @@ app.post('/api/luu-bieu-do', async (req, res) => {
       raw.bieuDoList.push(newTabObj);
     }
 
-    // Tự động quét số nốt lớn nhất trong biểu đồ để gán số xe vận doanh (soXeVd)
+    // Tự động quét số nốt lớn nhất (cột 0) để gán chuẩn số xe vận doanh soXeVd
     let maxNot = 0;
     if (Array.isArray(rawData)) {
       rawData.forEach(row => {
-        const val0 = parseInt(row[0], 10);
-        if (!isNaN(val0) && val0 > maxNot) maxNot = val0;
+        const val = parseInt(String(row[0] || '').trim(), 10);
+        if (!isNaN(val) && val > maxNot) {
+          maxNot = val;
+        }
       });
     }
 
     if (maxNot > 0 && raw.tuyenList) {
       for (let k in raw.tuyenList) {
-        if (raw.tuyenList[k].tenTuyen === tuyen) {
+        const tObj = raw.tuyenList[k];
+        if (tObj.tenTuyen === tuyen || tObj.maTuyen.toUpperCase() === tuyen.toUpperCase()) {
           raw.tuyenList[k].soXeVd = maxNot;
           break;
         }
@@ -292,7 +295,10 @@ app.post('/api/luu-bieu-do', async (req, res) => {
     }
 
     await saveRawData(raw);
-    res.json({ success: true, message: `Lưu biểu đồ [${tenTab}] thành công! (Xe vận doanh: ${maxNot || 'giữ nguyên'})` });
+    res.json({ 
+      success: true, 
+      message: `Lưu biểu đồ [${tenTab}] thành công! Đã tự động cập nhật số xe Vận doanh = ${maxNot} (theo nốt cuối cùng).` 
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Lỗi lưu biểu đồ: ' + err.message });
@@ -358,7 +364,7 @@ app.get('/api/tim-kiem-xe', async (req, res) => {
   }
 });
 
-// 10. API IMPORT DANH SÁCH XE EXCEL (ĐÃ SỬA: NHẬN DIỆN MỌI BIỂN SỐ CÓ CHỨA DẤU GẠCH / CHẤM)
+// 10. API IMPORT DANH SÁCH XE EXCEL
 app.post(['/api/import-xe-excel', '/api/import-danh-sach-xe'], async (req, res) => {
   try {
     const { rawText } = req.body;
@@ -379,7 +385,6 @@ app.post(['/api/import-xe-excel', '/api/import-danh-sach-xe'], async (req, res) 
       if (!fullLine) return;
       const parts = line.split('\t').map(p => p.trim());
 
-      // Nhận diện tiêu đề: Tuyến 22B: BẾN XE GIÁP BÁT - ĐÔ NGHĨA...
       const matchTuyen = fullLine.match(/^Tuyến\s+([0-9A-Za-z]+)\s*[:\-]?\s*(.*)/i);
       if (matchTuyen) {
         currentMaTuyen = matchTuyen[1].toUpperCase();
@@ -411,7 +416,6 @@ app.post(['/api/import-xe-excel', '/api/import-danh-sach-xe'], async (req, res) 
         return;
       }
 
-      // Nhận diện dòng dữ liệu xe (Cột 0 có chứa dấu gạch ngang hoặc dấu chấm của biển số)
       const bks = parts[0] || '';
       if ((bks.includes('-') || bks.includes('.')) && currentMaTuyen) {
         const nhanHieu = parts[1] || '';
