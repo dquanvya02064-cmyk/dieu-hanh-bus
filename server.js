@@ -273,7 +273,6 @@ app.post('/api/luu-bieu-do', async (req, res) => {
       raw.bieuDoList.push(newTabObj);
     }
 
-    // Tự động quét số nốt lớn nhất (cột 0) để gán chuẩn số xe vận doanh soXeVd
     let maxNot = 0;
     if (Array.isArray(rawData)) {
       rawData.forEach(row => {
@@ -327,7 +326,7 @@ app.post('/api/xoa-bieu-do', async (req, res) => {
   }
 });
 
-// 9. API TRA CỨU XE / TÌM KIẾM ĐỊNH DANH
+// 9. API TRA CỨU XE / TÌM KIẾM ĐỊNH DANH (CÓ TRẢ VỀ ĐỦ SỐ XE VẬN DOANH VÀ KẾ HOẠCH)
 app.get('/api/tim-kiem-xe', async (req, res) => {
   try {
     const q = (req.query.q || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -353,7 +352,9 @@ app.get('/api/tim-kiem-xe', async (req, res) => {
       return {
         ...x,
         tenTuyen: t ? t.tenTuyen : `Tuyến ${x.maTuyen}`,
-        xn: t ? t.xn : (x.donVi || '')
+        xn: t ? t.xn : (x.donVi || ''),
+        soXeVd: t ? (t.soXeVd || 0) : 0,
+        soXeKh: t ? (t.soXeKh || t.soXe || 0) : 0
       };
     });
 
