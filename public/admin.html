@@ -23,10 +23,10 @@
     }
     body { padding: 15px; }
 
-    /* DASHBOARD CARDS THỐNG KÊ XE & TUYẾN */
+    /* DASHBOARD CARDS THỐNG KÊ XE VẬN DOANH & KẾ HOẠCH */
     .dashboard-stats {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 15px;
       max-width: 1250px;
       min-width: 650px;
@@ -101,7 +101,7 @@
     .input-combo {
       display: flex;
       gap: 10px;
-      max-width: 750px;
+      max-width: 800px;
       width: 100%;
       align-items: center;
       flex-wrap: wrap;
@@ -212,7 +212,7 @@
 </head>
 <body>
 
-  <!-- KHU VỰC THỐNG KÊ TỔNG QUAN XE VẬN DOANH & TUYẾN -->
+  <!-- KHU VỰC THỐNG KÊ TỔNG QUAN XE VẬN DOANH & XE KẾ HOẠCH -->
   <div class="dashboard-stats">
     <div class="stat-card blue">
       <div class="info">
@@ -224,9 +224,9 @@
     </div>
     <div class="stat-card green">
       <div class="info">
-        <h4>Xe vận doanh (Kế hoạch)</h4>
-        <div class="number" id="statXeActive">0 xe</div>
-        <div class="subtext">Phục vụ trên các tuyến đang chạy</div>
+        <h4>Tổng xe Vận doanh / KH</h4>
+        <div class="number" id="statXeActive">0 / 0 xe</div>
+        <div class="subtext">Xe vận doanh thực tế trên các tuyến đang chạy</div>
       </div>
       <div class="icon"><i class="fa fa-tachometer"></i></div>
     </div>
@@ -258,7 +258,7 @@
 
         <label>Mã tuyến:</label>
         <div class="input-combo">
-          <input type="text" id="txtMaTuyen" class="form-control" placeholder="Ví dụ: 83 hoặc TEST01" oninput="tuDongGoiYTenTuyen()" style="max-width: 250px;">
+          <input type="text" id="txtMaTuyen" class="form-control" placeholder="Ví dụ: 85 hoặc 14CT" oninput="tuDongGoiYTenTuyen()" style="max-width: 250px;">
         </div>
 
         <label>Đơn vị chủ quản:</label>
@@ -296,12 +296,19 @@
           <input type="text" id="txtTenTuyen" class="form-control" placeholder="Hệ thống tự động ghép theo Mã và Đầu bến...">
         </div>
 
-        <!-- THÔNG TIN ĐỘI XE & HOẠT ĐỘNG -->
+        <!-- THÔNG TIN PHƯƠNG TIỆN: TÁCH RÕ XE VẬN DOANH VÀ KẾ HOẠCH -->
         <label style="color:#0F86DB; font-weight:bold;">Thông tin phương tiện:</label>
         <div class="input-combo">
-          <input type="number" id="txtSoXe" class="form-control" placeholder="Số xe KH (VD: 12)" style="width: 140px;">
-          <input type="text" id="txtLoaiXe" class="form-control" placeholder="Loại xe (VD: VinFast EB8)" style="flex: 1;">
-          <input type="text" id="txtSucChua" class="form-control" placeholder="Sức chứa (VD: 60 chỗ)" style="width: 150px;">
+          <div style="display:flex; align-items:center; gap:4px;">
+            <span>Xe VD:</span>
+            <input type="number" id="txtSoXeVd" class="form-control" placeholder="VD: 12" style="width: 75px;" title="Số xe vận doanh chạy mỗi ngày">
+          </div>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <span>Xe KH:</span>
+            <input type="number" id="txtSoXeKh" class="form-control" placeholder="VD: 15" style="width: 75px;" title="Tổng số xe kế hoạch được giao">
+          </div>
+          <input type="text" id="txtLoaiXe" class="form-control" placeholder="Loại xe (VD: Daewoo BC095)" style="flex: 1; min-width: 150px;">
+          <input type="text" id="txtSucChua" class="form-control" placeholder="Sức chứa (VD: 60 chỗ)" style="width: 130px;">
         </div>
 
         <label style="color:#e67e22; font-weight:bold;">Trạng thái hoạt động:</label>
@@ -379,7 +386,7 @@
               <th style="width: 60px; text-align: center;">Mã</th>
               <th>Tên Tuyến</th>
               <th>Đơn vị chủ quản</th>
-              <th>Phương tiện</th>
+              <th>Phương tiện (VD / KH)</th>
               <th style="width: 140px; text-align: center;">Trạng thái</th>
               <th style="width: 150px; text-align: center;">Hành động</th>
             </tr>
@@ -399,7 +406,8 @@
     let mapTuyenChiTiet = new Map();
     let dangLamMoi = false;
 
-    $(document).ready(function() {$('.select2-search').select2({
+    $(document).ready(function() {
+      $('.select2-search').select2({
         language: { noResults: () => "Không tìm thấy kết quả phù hợp" }
       });
 
@@ -415,7 +423,7 @@
 
     function toggleExtraInput(selectId, inputId) {
       const val = $('#' + selectId).val();
-      const $inp =$('#' + inputId);
+      const $inp = $('#' + inputId);
       if (val === "__NEW__") {
         $inp.show().focus();
       } else {
@@ -431,7 +439,8 @@
       $('#selDauA').val("").trigger('change.select2');
       $('#selDauB').val("").trigger('change.select2');
       $('#txtTenTuyen').val("");
-      $('#txtSoXe').val("");
+      $('#txtSoXeVd').val("");
+      $('#txtSoXeKh').val("");
       $('#txtLoaiXe').val("");
       $('#txtSucChua').val("");
       $('input[name="rdStatus"][value="active"]').prop('checked', true);
@@ -451,7 +460,8 @@
       if (t) {
         $('#txtMaTuyen').val(t.maTuyen).prop('readonly', true);
         $('#txtTenTuyen').val(t.tenTuyen);
-        $('#txtSoXe').val(t.soXe || "");
+        $('#txtSoXeVd').val(t.soXeVd || t.soXe || "");
+        $('#txtSoXeKh').val(t.soXeKh || t.soXe || "");
         $('#txtLoaiXe').val(t.loaiXe || "");
         $('#txtSucChua').val(t.sucChua || "");
         $(`input[name="rdStatus"][value="${t.status || 'active'}"]`).prop('checked', true);
@@ -531,7 +541,6 @@
 
         if (selectedVal) $selTuyen.val(selectedVal);$selTuyen.trigger('change.select2');
 
-        // Vẽ bảng danh sách tuyến & Cập nhật số liệu Dashboard
         veBangDanhSachTuyen();
         capNhatThongKe();
       } catch (err) {
@@ -539,28 +548,32 @@
       }
     }
 
-    // TÍNH TOÁN VÀ CẬP NHẬT XE VẬN DOANH & TỔNG SỐ TUYẾN
+    // TÍNH TOÁN VÀ HIỂN THỊ CHUẨN XE VẬN DOANH VÀ KẾ HOẠCH
     function capNhatThongKe() {
       let tongTuyen = mapTuyenChiTiet.size;
       let tuyenActive = 0;
       let tuyenLocked = 0;
-      let tongXeActive = 0;
+      let tongXeVdActive = 0;
+      let tongXeKhActive = 0;
       let tongXeLocked = 0;
 
       mapTuyenChiTiet.forEach(t => {
-        const soXe = parseInt(t.soXe, 10) || 0;
+        const vd = parseInt(t.soXeVd || t.soXe, 10) || 0;
+        const kh = parseInt(t.soXeKh || t.soXe, 10) || 0;
+
         if (t.status === 'locked') {
           tuyenLocked++;
-          tongXeLocked += soXe;
+          tongXeLocked += (kh || vd);
         } else {
           tuyenActive++;
-          tongXeActive += soXe;
+          tongXeVdActive += vd;
+          tongXeKhActive += kh;
         }
       });
 
       $('#statTongTuyen').text(tongTuyen);
       $('#statTuyenDetail').text(`${tuyenActive} đang chạy / ${tuyenLocked} tạm dừng`);
-      $('#statXeActive').text(`${tongXeActive} xe`);
+      $('#statXeActive').text(`${tongXeVdActive} / ${tongXeKhActive} xe`);
       $('#statTuyenLocked').text(tuyenLocked);
       $('#statXeLocked').text(`${tongXeLocked} xe tạm dừng hoạt động`);
     }
@@ -576,9 +589,16 @@
             ? '<span class="status-badge status-locked"><i class="fa fa-lock"></i> Đã khóa / Dừng</span>' 
             : '<span class="status-badge status-active"><i class="fa fa-check"></i> Đang chạy</span>';
           
-          const thongTinXe = (t.soXe || t.loaiXe) 
-            ? `<strong style="color:#0F86DB;">${t.soXe ? t.soXe + ' xe KH' : ''}</strong> ${t.loaiXe ? '- ' + t.loaiXe : ''} ${t.sucChua ? '(' + t.sucChua + ')' : ''}`
-            : '<span style="color:#aaa;">Chưa cập nhật</span>';
+          const vd = t.soXeVd || t.soXe || "";
+          const kh = t.soXeKh || t.soXe || "";
+          
+          let phuongTienStr = "";
+          if (vd || kh) {
+            phuongTienStr = `<strong style="color:#0F86DB;">${vd ? vd : '?'}/${kh ? kh : '?'} xe</strong>`;
+          }
+          if (t.loaiXe) phuongTienStr += (phuongTienStr ? ' - ' : '') + t.loaiXe;
+          if (t.sucChua) phuongTienStr += ` (${t.sucChua})`;
+          if (!phuongTienStr) phuongTienStr = '<span style="color:#aaa;">Chưa cập nhật</span>';
 
           const btnToggle = isLocked
             ? `<button class="btn btn-success" style="padding:3px 8px; font-size:11px;" onclick="doiTrangThai('${t.maTuyen}', 'active')"><i class="fa fa-unlock"></i> Mở lại</button>`
@@ -589,7 +609,7 @@
               <td style="text-align: center; font-weight: bold; color: #3B86C4;">${t.maTuyen}</td>
               <td><strong>${t.tenTuyen}</strong></td>
               <td>${t.xn || '-'}</td>
-              <td>${thongTinXe}</td>
+              <td>${phuongTienStr}</td>
               <td style="text-align: center;">${badge}</td>
               <td style="text-align: center;">
                 <div style="display:flex; gap:5px; justify-content:center;">
@@ -678,7 +698,8 @@
       const dauB = selBVal === "__NEW__" ? $('#txtDauBMoi').val().trim() : selBVal;
 
       const tenTuyen = $('#txtTenTuyen').val().trim();
-      const soXe = $('#txtSoXe').val().trim();
+      const soXeVd = $('#txtSoXeVd').val().trim();
+      const soXeKh = $('#txtSoXeKh').val().trim();
       const loaiXe = $('#txtLoaiXe').val().trim();
       const sucChua = $('#txtSucChua').val().trim();
       const status = $('input[name="rdStatus"]:checked').val() || 'active';
@@ -692,7 +713,7 @@
         const res = await fetch('/api/tuyen-moi', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ maTuyen, tenTuyen, xn, dauA, dauB, soXe, loaiXe, sucChua, status })
+          body: JSON.stringify({ maTuyen, tenTuyen, xn, dauA, dauB, soXeVd, soXeKh, loaiXe, sucChua, status })
         });
         const data = await res.json();
         alert(data.message);
