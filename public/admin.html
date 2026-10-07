@@ -136,7 +136,6 @@
     .status-active { background-color: #E6F4EA; color: #137333; }
     .status-locked { background-color: #FCE8E6; color: #C5221F; }
 
-    /* Filter Box Panel chuẩn mẫu */
     .filter-box {
       background: #F8FAFC;
       border: 1px solid #D0D7DE;
@@ -279,7 +278,7 @@
     </div>
   </div>
 
-  <!-- PHẦN 2: DÁN EXCEL DANH SÁCH XE -->
+  <!-- PHẦN 2: NẠP DANH SÁCH XE TỪ EXCEL -->
   <div class="panel-custom">
     <div class="panel-heading">
       <div><i class="fa fa-file-excel-o"></i> 2. Nạp Danh sách xe từ Excel (Tự động mở tuyến mới & Tự tính xe KH)</div>
@@ -295,10 +294,53 @@
     </div>
   </div>
 
-  <!-- PHẦN 3: DÁN BIỂU ĐỒ CHẠY XE -->
+  <!-- PHẦN 3: QUẢN LÝ ĐỘI XE TOÀN HỆ THỐNG & ĐIỀU CHUYỂN NHANH -->
   <div class="panel-custom">
     <div class="panel-heading">
-      <div><i class="fa fa-calendar-plus-o"></i> 3. Nhập / Cập nhật / Xóa Biểu đồ chạy xe</div>
+      <div><i class="fa fa-table"></i> 3. Quản lý Đội xe toàn hệ thống & Điều chuyển nhanh</div>
+    </div>
+    <div class="panel-body">
+      <div class="filter-box">
+        <div>
+          <label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Xí nghiệp:</label>
+          <select id="filterXnXe" class="form-control select2-search" style="width:100%;" onchange="locBangXeAdmin()">
+            <option value="">-- Tất cả xí nghiệp --</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Tuyến:</label>
+          <select id="filterTuyenXe" class="form-control select2-search" style="width:100%;" onchange="locBangXeAdmin()">
+            <option value="">-- Tất cả tuyến --</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Tìm kiếm biển số:</label>
+          <input type="text" id="filterBksXe" class="form-control" placeholder="Nhập biển số xe..." oninput="locBangXeAdmin()">
+        </div>
+      </div>
+
+      <div style="overflow-x: auto; max-height: 500px;">
+        <table class="table-custom">
+          <thead>
+            <tr>
+              <th style="width: 50px; text-align: center;">STT</th>
+              <th style="width: 80px; text-align: center;">Tuyến</th>
+              <th style="width: 120px;">Biển số</th>
+              <th>Chủng loại xe</th>
+              <th style="width: 90px; text-align: center;">Sức chứa</th>
+              <th style="width: 140px; text-align: center;">Hành động</th>
+            </tr>
+          </thead>
+          <tbody id="tblQuanLyXeAdmin"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHẦN 4: NHẬP / CẬP NHẬT / XÓA BIỂU ĐỒ CHẠY XE -->
+  <div class="panel-custom">
+    <div class="panel-heading">
+      <div><i class="fa fa-calendar-plus-o"></i> 4. Nhập / Cập nhật / Xóa Biểu đồ chạy xe</div>
     </div>
     <div class="panel-body">
       <div class="form-grid">
@@ -343,10 +385,10 @@
     </div>
   </div>
 
-  <!-- PHẦN 4: DANH SÁCH TUYẾN & ĐIỀU CHUYỂN XE -->
+  <!-- PHẦN 5: DANH SÁCH TUYẾN & TRẠNG THÁI HOẠT ĐỘNG TOÀN HỆ THỐNG -->
   <div class="panel-custom">
     <div class="panel-heading">
-      <div><i class="fa fa-list"></i> 4. Danh sách Tuyến & Trạng thái hoạt động</div>
+      <div><i class="fa fa-list"></i> 5. Danh sách Tuyến & Trạng thái hoạt động</div>
     </div>
     <div class="panel-body">
       <div style="overflow-x: auto;">
@@ -362,53 +404,6 @@
             </tr>
           </thead>
           <tbody id="tblDanhSachTuyen"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- PHẦN 5: QUẢN LÝ ĐỘI XE DẠNG BẢNG LƯỚI CHUYÊN NGHIỆP -->
-  <div class="panel-custom">
-    <div class="panel-heading">
-      <div><i class="fa fa-table"></i> 5. Quản lý Đội xe toàn hệ thống & Điều chuyển nhanh</div>
-    </div>
-    <div class="panel-body">
-      <!-- Bộ lọc tra cứu nhanh -->
-      <div class="filter-box">
-        <div>
-          <label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Xí nghiệp:</label>
-          <select id="filterXnXe" class="form-control select2-search" style="width:100%;" onchange="locBangXeAdmin()">
-            <option value="">-- Tất cả xí nghiệp --</option>
-          </select>
-        </div>
-        <div>
-          <label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Tuyến:</label>
-          <select id="filterTuyenXe" class="form-control select2-search" style="width:100%;" onchange="locBangXeAdmin()">
-            <option value="">-- Tất cả tuyến --</option>
-          </select>
-        </div>
-        <div>
-          <label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Tìm kiếm biển số:</label>
-          <input type="text" id="filterBksXe" class="form-control" placeholder="Nhập biển số xe..." oninput="locBangXeAdmin()">
-        </div>
-      </div>
-
-      <!-- Bảng danh sách xe chuẩn mẫu -->
-      <div style="overflow-x: auto; max-height: 500px;">
-        <table class="table-custom">
-          <thead>
-            <tr>
-              <th style="width: 50px; text-align: center;">STT</th>
-              <th style="width: 80px; text-align: center;">Tuyến</th>
-              <th style="width: 120px;">Biển số</th>
-              <th>Chủng loại xe</th>
-              <th style="width: 90px; text-align: center;">Sức chứa</th>
-              <th style="width: 140px; text-align: center;">Hành động</th>
-            </tr>
-          </thead>
-          <tbody id="tblQuanLyXeAdmin">
-            <!-- Render danh sách xe dạng bảng ở đây -->
-          </tbody>
         </table>
       </div>
     </div>
@@ -549,7 +544,6 @@
         doVaoSelect2("selDauA", dsDauBen, "đầu bến A");
         doVaoSelect2("selDauB", dsDauBen, "đầu bến B");
 
-        // Đổ dữ liệu cho bộ lọc xí nghiệp & tuyến ở bảng đội xe
         doVaoSelect2ThongThuong("filterXnXe", dsXn, "-- Tất cả xí nghiệp --");
         
         const sortedRoutes = Array.from(mapTuyenChiTiet.values()).sort((a, b) => {
@@ -587,7 +581,6 @@
         veBangDanhSachTuyen(sortedRoutes);
         capNhatThongKe();
 
-        // Tải danh sách xe toàn hệ thống cho bảng quản lý đội xe
         await taiToanBoXeAdmin();
       } catch (err) {
         console.error("Lỗi nạp dữ liệu:", err);
