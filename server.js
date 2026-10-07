@@ -181,11 +181,18 @@ app.get('/api/danh-muc', async (req, res) => {
         }));
     }
 
-    res.json({ success: true, data: danhMucList, allRoutes: allRoutesList });
+    // ĐÃ BỔ SUNG THÊM bieuDoList ĐỂ TRANG QUẢN TRỊ NHẬN DIỆN CHÍNH XÁC TRẠNG THÁI BIỂU ĐỒ
+    res.json({ 
+      success: true, 
+      data: danhMucList, 
+      allRoutes: allRoutesList, 
+      bieuDoList: raw.bieuDoList || [] 
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+
 
 // 2. API TABLE DATA
 app.get('/api/table-data', async (req, res) => {
