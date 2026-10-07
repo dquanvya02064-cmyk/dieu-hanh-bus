@@ -16,8 +16,8 @@
       font-size: 12px;
       background-color: #F1F4F9;
       color: #333;
-      padding: 15px;
-      padding-bottom: 75px; /* Tránh bị bottom nav che trên di động */
+      padding: 12px;
+      padding-bottom: 75px;
     }
 
     .panel-custom {
@@ -42,21 +42,25 @@
       justify-content: space-between;
     }
 
-    .panel-body { padding: 18px 20px; }
+    .panel-body { padding: 16px; }
 
     .form-grid {
       display: grid;
-      grid-template-columns: 130px 1fr;
+      grid-template-columns: 140px minmax(0, 500px);
       row-gap: 12px;
       column-gap: 15px;
       align-items: center;
-      margin-bottom: 12px;
+      margin-bottom: 15px;
     }
 
-    .form-label { font-size: 12px; color: #222; font-weight: bold; }
+    .form-label {
+      font-weight: bold;
+      color: #333;
+      font-size: 12px;
+    }
 
     .form-control {
-      height: 28px;
+      height: 34px;
       padding: 3px 8px;
       font-size: 12px;
       border: 1px solid #CCCCCC;
@@ -72,7 +76,7 @@
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
-      margin-top: 4px;
+      margin-top: 3px;
     }
     .day-item {
       display: inline-flex;
@@ -87,8 +91,8 @@
       background-color: #337AB7;
       color: #FFFFFF;
       border: 1px solid #2E6DA4;
-      padding: 6px 16px;
-      font-size: 12px;
+      padding: 8px 20px;
+      font-size: 13px;
       font-weight: bold;
       border-radius: 3px;
       cursor: pointer;
@@ -103,6 +107,7 @@
       border-top: 1px dashed #D0D7DE;
       padding-top: 15px;
       display: none;
+      width: 100%;
     }
 
     .table-scroll {
@@ -134,8 +139,8 @@
     }
     .table-schedule tbody tr:hover { background-color: #F5F9FD; }
 
-    .colstt { width: 35px; font-weight: bold; }
-    .coldau { width: 150px; text-align: left !important; padding-left: 8px !important; }
+    .colstt { width: 45px; font-weight: bold; }
+    .coldau { width: 170px; text-align: left !important; padding-left: 10px !important; }
     .colflight { width: 52px; }
     .colthayca { background-color: #FFFF99 !important; font-weight: bold; color: #000; }
     .coldiemdanh { font-style: italic; font-weight: bold; background-color: #FFF; }
@@ -148,27 +153,22 @@
     .colsa { display: block; color: #555555; font-weight: bold; line-height: 1.3; text-align: left; }
     .colsb { display: block; color: #777777; font-style: italic; line-height: 1.3; text-align: left; }
 
-    /* Custom Select2 gọn gàng tinh tế */
     .select2-container { width: 100% !important; }
     .select2-container .select2-selection--single {
-      height: 28px !important;
-      border: 1px solid #CCCCCC !important;
+      height: 34px !important;
+      border: 1px solid #ccc !important;
       border-radius: 3px !important;
       display: flex;
       align-items: center;
     }
     .select2-container--default .select2-selection--single .select2-selection__rendered {
-      line-height: 26px !important;
+      line-height: 32px !important;
       font-size: 12px !important;
       color: #333 !important;
-      padding-left: 6px !important;
+      padding-left: 8px !important;
     }
     .select2-container--default .select2-selection--single .select2-selection__arrow {
-      height: 26px !important;
-    }
-    .select2-dropdown {
-      font-size: 12px !important;
-      border: 1px solid #3B86C4 !important;
+      height: 32px !important;
     }
 
     .bus-card-custom {
@@ -180,13 +180,12 @@
       box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
 
-    /* Thanh điều hướng dưới di động */
     .bottom-nav {
       position: fixed;
       bottom: 0;
       left: 0;
       width: 100%;
-      height: 55px;
+      height: 58px;
       background: #FFFFFF;
       border-top: 1px solid #D0D7DE;
       display: flex;
@@ -207,15 +206,22 @@
       color: #7F8C8D;
       font-size: 11px;
       font-weight: bold;
-      gap: 2px;
+      gap: 3px;
       text-decoration: none;
       cursor: pointer;
     }
-    .nav-btn i { font-size: 16px; }
+    .nav-btn i { font-size: 18px; }
     .nav-btn.active { color: #3B86C4; }
 
     .tab-content { display: none; }
     .tab-content.active { display: block; }
+
+    @media (max-width: 768px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+        row-gap: 6px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -229,7 +235,6 @@
     </div>
 
     <div class="panel-body">
-      
       <!-- TAB 1: BIỂU ĐỒ CHẠY XE -->
       <div id="tab-bieudo" class="tab-content active">
         <div class="form-grid">
@@ -282,11 +287,10 @@
       <div id="tab-xe" class="tab-content">
         <div class="form-label" style="margin-bottom: 6px;">Nhập biển kiểm soát cần tra cứu (gõ đến đâu hiện kết quả tới đó):</div>
         <div style="margin-bottom: 12px;">
-          <input type="text" id="txtSearchBks" class="form-control" style="font-size: 14px; font-weight: bold; text-transform: uppercase; height: 32px;" placeholder="VD: 153.49 hoặc 29B..." oninput="timKiemXeLive()">
+          <input type="text" id="txtSearchBks" class="form-control" style="font-size: 14px; font-weight: bold; text-transform: uppercase; height: 34px;" placeholder="VD: 153.49 hoặc 29B..." oninput="timKiemXeLive()">
         </div>
         <div id="ketQuaTraCuuXe"></div>
       </div>
-
     </div>
   </div>
 
