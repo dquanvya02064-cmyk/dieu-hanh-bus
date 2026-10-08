@@ -21,12 +21,20 @@
       color: #333;
     }
 
-    /* KHÓA CHẶT MÀN HÌNH ĐĂNG NHẬP TRẮNG TRƠN */
+    /* Khóa cứng body khi chưa đăng nhập */
+    body.locked {
+      overflow: hidden !important;
+      height: 100vh !important;
+      position: fixed !important;
+      width: 100vw !important;
+    }
+
+    /* MÀN HÌNH ĐĂNG NHẬP TRẮNG TRƠN KHÓA CHẶT */
     #authOverlay {
       position: fixed;
       top: 0; left: 0; width: 100vw; height: 100vh;
       background: #FFFFFF;
-      z-index: 999999;
+      z-index: 9999999;
       display: flex; justify-content: center; align-items: center;
       overflow: hidden;
     }
@@ -229,9 +237,9 @@
     }
   </style>
 </head>
-<body>
+<body class="locked">
 
-  <!-- MÀN HÌNH ĐĂNG NHẬP TRẮNG TRƠN -->
+  <!-- MÀN HÌNH ĐĂNG NHẬP TRẮNG TRƠN KHÓA CHẶT -->
   <div id="authOverlay">
     <div class="auth-box">
       <div style="font-size: 15px; font-weight: bold; color: #2C3E50; margin-bottom: 20px; text-transform: uppercase;">
@@ -250,8 +258,15 @@
   </div>
 
   <script>
+    const API_BASE = "https://dieu-hanh-bus.onrender.com";
+
+    // Kiểm tra ngay khi tải trang để khóa/mở giao diện
     if (sessionStorage.getItem('admin_authenticated') === 'true') {
       $('#authOverlay').remove();
+      $('body').removeClass('locked');
+      if (sessionStorage.getItem('admin_role') === 'master') {
+        $('#menuQuanTriUser').show();
+      }
     }
 
     async function xuLyDangNhapAdmin() {
@@ -270,8 +285,12 @@
           sessionStorage.setItem('admin_authenticated', 'true');
           sessionStorage.setItem('admin_role', res.role);
           sessionStorage.setItem('admin_user', username);
+          
+          // Mở khóa body và xóa màn hình đăng nhập
+          $('body').removeClass('locked');
           $('#authOverlay').fadeOut(300, function() { $(this).remove(); });
           showToast(res.message, "success");
+          
           if (res.role === 'master') { $('#menuQuanTriUser').show(); }
         } else {
           $errorBox.text("Tài khoản không tồn tại trên hệ thống");
@@ -536,7 +555,7 @@
           </div>
         </div>
 
-        <!-- SECTION 6: QUẢN TRỊ NGƯỜI DÙNG (Cập nhật mới) -->
+        <!-- SECTION 6: QUẢN TRỊ NGƯỜI DÙNG -->
         <div id="sec-users" class="content-section">
           <div class="panel-custom">
             <div class="panel-heading"><span><i class="fa fa-users"></i> Quản trị Tài khoản Nội bộ</span></div>
@@ -585,8 +604,6 @@
   </div>
 
   <script>
-    const API_BASE = "https://dieu-hanh-bus.onrender.com";
-    
     function showToast(message, type = 'success') {
       let $container = $('#toast-container');
       if ($container.length === 0) {
@@ -599,7 +616,6 @@
       setTimeout(() => { $toast.remove(); }, 3000);
     }
 
-    // Chuyển tab Sidebar Menu
     function chuyenTabAdmin(sectionId, element) {
       $('.content-section').removeClass('active');
       $('.sidebar-menu li a').removeClass('active');$('#' + sectionId).addClass('active');
@@ -1037,7 +1053,6 @@
       } catch (e) { showToast("Lỗi: " + e, "error"); }
     }
 
-    // --- CÁC HÀM QUẢN TRỊ NGƯỜI DÙNG MỚI ---
     async function taiDanhSachTaiKhoan() {
       try {
         const res = await fetch(`${API_BASE}/api/admin/danh-sach-tai-khoan`).then(r => r.json());
