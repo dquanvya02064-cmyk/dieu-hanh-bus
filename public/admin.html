@@ -536,19 +536,30 @@
           </div>
         </div>
 
-        <!-- SECTION 6: QUẢN TRỊ NGƯỜI DÙNG (Dành cho Master) -->
+        <!-- SECTION 6: QUẢN TRỊ NGƯỜI DÙNG (Cập nhật mới) -->
         <div id="sec-users" class="content-section">
           <div class="panel-custom">
-            <div class="panel-heading"><span><i class="fa fa-users"></i> Quản trị Tài khoản Nội bộ (Cấp phép & Duyệt nhân sự)</span></div>
+            <div class="panel-heading"><span><i class="fa fa-users"></i> Quản trị Tài khoản Nội bộ</span></div>
             <div class="panel-body">
               <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                <input type="text" id="newAccUser" class="form-control" placeholder="Tên đăng nhập mới" style="max-width: 200px;">
-                <input type="password" id="newAccPass" class="form-control" placeholder="Mật khẩu" style="max-width: 200px;">
-                <button class="btn btn-primary" onclick="taoTaiKhoanMoi()"><i class="fa fa-user-plus"></i> Tạo tài khoản</button>
+                <input type="text" id="newAccUser" class="form-control" placeholder="Tên đăng nhập" style="max-width: 180px;">
+                <input type="password" id="newAccPass" class="form-control" placeholder="Mật khẩu" style="max-width: 180px;">
+                <select id="newAccRole" class="form-control" style="max-width: 150px;">
+                  <option value="staff">Bình thường</option>
+                  <option value="master">Quản trị</option>
+                </select>
+                <button class="btn btn-primary" onclick="taoTaiKhoanMoi()"><i class="fa fa-user-plus"></i> Thêm tài khoản</button>
               </div>
               <div style="overflow-x: auto;">
                 <table class="table-custom">
-                  <thead><tr><th>Tài khoản</th><th>Vai trò</th><th style="width: 140px; text-align: center;">Trạng thái</th><th style="width: 160px; text-align: center;">Hành động</th></tr></thead>
+                  <thead>
+                    <tr>
+                      <th>Tài khoản</th>
+                      <th>Kiểu tài khoản</th>
+                      <th style="width: 140px; text-align: center;">Trạng thái</th>
+                      <th style="width: 120px; text-align: center;">Hành động</th>
+                    </tr>
+                  </thead>
                   <tbody id="tblDanhSachTaiKhoan"></tbody>
                 </table>
               </div>
@@ -594,10 +605,8 @@
       $('.sidebar-menu li a').removeClass('active');$('#' + sectionId).addClass('active');
       $(element).addClass('active');
 
-      // Đổi tiêu đề Navbar theo menu
       const titleText = $(element).text().trim();$('#navTitle').text(titleText);
 
-      // Ẩn menu trên mobile sau khi chọn
       if (window.innerWidth <= 768) {
         $('#sidebarMenu').removeClass('mobile-show');
       }
@@ -1028,45 +1037,70 @@
       } catch (e) { showToast("Lỗi: " + e, "error"); }
     }
 
+    // --- CÁC HÀM QUẢN TRỊ NGƯỜI DÙNG MỚI ---
     async function taiDanhSachTaiKhoan() {
       try {
         const res = await fetch(`${API_BASE}/api/admin/danh-sach-tai-khoan`).then(r => r.json());
         if (res.success) {
           let html = '';
           res.data.forEach(acc => {
-            const statusBadge = acc.status === 'active' ? '<span class="status-badge status-active">Hoạt động</span>' : '<span class="status-badge status-locked">Chờ duyệt</span>';
+            const roleText = acc.role === 'master' ? 'Quản trị' : 'Bình thường';
+            const statusBadge = '<span class="status-badge status-active">Hoạt động</span>';
+            
             let btnAction = '';
-            if (acc.status === 'pending') {
-              btnAction = `<button class="btn btn-success" style="padding:2px 6px; font-size:11px;" onclick="duyetTaiKhoan('${acc.username}', 'approve')">Duyệt</button>`;
-            } else if (acc.role !== 'master') {
-              btnAction = `<button class="btn btn-danger" style="padding:2px 6px; font-size:11px;" onclick="duyetTaiKhoan('${acc.username}', 'reject')">Xóa</button>`;
-            } else { btnAction = '<span style="color:#888;">Master</span>'; }
+            if (acc.username !== 'quan') {
+              btnAction = `<button class="btn btn-danger" style="padding:2px 8px; font-size:11px;" onclick="xoaTaiKhoan('${acc.username}')"><i class="fa fa-trash"></i> Xóa</button>`;
+            } else {
+              btnAction = '<span style="color:#888; font-style:italic;">Hệ thống</span>';
+            }
 
-            html += `<tr><td><strong>${acc.username}</strong></td><td>${acc.role}</td><td style="text-align: center;">${statusBadge}</td><td style="text-align: center;">${btnAction}</td></tr>`;
+            html += `
+              <tr>
+                <td><strong>${acc.username}</strong></td>
+                <td>${roleText}</td>
+                <td style="text-align: center;">${statusBadge}</td>
+                <td style="text-align: center;">${btnAction}</td>
+              </tr>
+            `;
           });
           $('#tblDanhSachTaiKhoan').html(html);
         }
-      } catch (e) { console.error("Lỗi:", e); }
+      } catch (e) { console.error("Lỗi tải danh sách tài khoản:", e); }
     }
 
     async function taoTaiKhoanMoi() {
-      const username = $('#newAccUser').val().trim(); const password = $('#newAccPass').val().trim();
-      if (!username || !password) { showToast("Nhập đầy đủ thông tin!", "error"); return; }
+      const username = $('#newAccUser').val().trim();
+      const password = $('#newAccPass').val().trim();
+      const role = $('#newAccRole').val();
+
+      if (!username || !password) { showToast("Vui lòng nhập đủ tài khoản và mật khẩu!", "error"); return; }
       try {
         const res = await fetch(`${API_BASE}/api/admin/dang-ky`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password })
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password, role })
         }).then(r => r.json());
+
         showToast(res.message, res.success ? "success" : "error");
-        if (res.success) { $('#newAccUser').val(''); $('#newAccPass').val(''); taiDanhSachTaiKhoan(); }
+        if (res.success) {
+          $('#newAccUser').val('');
+          $('#newAccPass').val('');
+          taiDanhSachTaiKhoan();
+        }
       } catch (e) { showToast("Lỗi kết nối", "error"); }
     }
 
-    async function duyetTaiKhoan(username, action) {
+    async function xoaTaiKhoan(username) {
+      if (!confirm(`Xác nhận xóa tài khoản [${username}]?`)) return;
       try {
-        const res = await fetch(`${API_BASE}/api/admin/duyet-tai-khoan`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, action })
+        const res = await fetch(`${API_BASE}/api/admin/xoa-tai-khoan`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username })
         }).then(r => r.json());
-        showToast(res.message, "success"); taiDanhSachTaiKhoan();
+
+        showToast(res.message, "success");
+        taiDanhSachTaiKhoan();
       } catch (e) { showToast("Lỗi thao tác", "error"); }
     }
   </script>
