@@ -23,6 +23,25 @@ const busDataSchema = new mongoose.Schema({
 });
 const BusModel = mongoose.model('BusData', busDataSchema);
 
+// SCHEMA NHẬT KÝ TRUY CẬP (Tự động xóa sau 30 ngày)
+const accessLogSchema = new mongoose.Schema({
+  username: { type: String, default: 'Khách tra cứu' },
+  role: { type: String, default: 'visitor' },
+  action: { type: String },
+  ip: { type: String },
+  createdAt: { type: Date, default: Date.now }
+});
+const AccessLogModel = mongoose.model('AccessLog', accessLogSchema);
+
+async function cleanOldLogs() {
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    await AccessLogModel.deleteMany({ createdAt: { $lt: thirtyDaysAgo } });
+  } catch (e) {
+    console.error("Lỗi dọn dẹp log cũ:", e);
+  }
+}
+
 // HÀM LÀM SẠCH VÀ ĐỒNG BỘ DỮ LIỆU TỰ ĐỘNG
 async function cleanAndSyncData(data) {
   if (!data) return data;
@@ -101,8 +120,7 @@ mongoose.connect(MONGO_URI)
     if (doc && doc.data) {
       if (!doc.data.taiKhoanList || doc.data.taiKhoanList.length === 0) {
         doc.data.taiKhoanList = [
-          { username: 'quan', password: '123', role: 'master', permissions: ['tuyen', 'xe', 'bieudo'], status: 'active' },
-          { username: 'nhansu01', password: '123', role: 'staff', permissions: ['xe'], status: 'active' }
+          { username: 'quan', password: '123', role: 'master', permissions: ['tuyen', 'xe', 'bieudo'], status: 'active' }
         ];
       }
       const cleanedData = await cleanAndSyncData(doc.data);
@@ -147,6 +165,36 @@ async function saveRawData(data) {
   );
 }
 
+// --- API GHI NHẬN TRUY CẬP WEB ---
+app.post('/api/log-access', async (req, res) => {
+  try {
+    const { username, role, action } = req.body;
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    
+    await AccessLogModel.create({
+      username: username || 'Khách tra cứu',
+      role: role || 'visitor',
+      action: action || 'Truy cập trang tra cứu',
+      ip: ip
+    });
+
+    await cleanOldLogs();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+});
+
+// --- API XEM NHẬT KÝ TRUY CẬP (Dành cho Master) ---
+app.get('/api/admin/danh-sach-log', async (req, res) => {
+  try {
+    const logs = await AccessLogModel.find().sort({ createdAt: -1 }).limit(200);
+    res.json({ success: true, data: logs });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // API ĐĂNG NHẬP QUẢN TRỊ BẢO MẬT
 app.post('/api/admin/login', async (req, res) => {
   try {
@@ -166,6 +214,15 @@ app.post('/api/admin/login', async (req, res) => {
     if (user.status === 'locked') {
       return res.status(403).json({ success: false, message: 'Tài khoản của bạn đang bị tạm khóa!' });
     }
+
+    // Ghi log đăng nhập quản trị thành công
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    await AccessLogModel.create({
+      username: user.username,
+      role: user.role,
+      action: 'Đăng nhập trang quản trị',
+      ip: ip
+    });
 
     res.json({ 
       success: true, 
@@ -216,7 +273,7 @@ app.post('/api/admin/dang-ky', async (req, res) => {
   }
 });
 
-// API CẬP NHẬT TÀI KHOẢN (TRẠNG THÁI, VAI TRÒ, QUYỀN HẠN)
+// API CẬP NHẬT TÀI KHOẢN
 app.post('/api/admin/sua-tai-khoan', async (req, res) => {
   try {
     const { username, status, role, permissions } = req.body;
@@ -272,7 +329,7 @@ app.post('/api/admin/xoa-tai-khoan', async (req, res) => {
   }
 });
 
-// Các API nghiệp vụ xe buýt giữ nguyên...
+// Các API nghiệp vụ khác...
 app.get('/api/danh-muc', async (req, res) => {
   try {
     const isAdmin = req.query.admin === 'true';
