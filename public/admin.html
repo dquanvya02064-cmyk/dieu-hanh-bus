@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quản trị Điều hành Biểu đồ & Tuyến</title>
+  <link rel="icon" type="image/png" href="favicon.png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
   
   <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -165,9 +166,8 @@
     }
     .select2-container--default .select2-selection--single .select2-selection__arrow { height: 30px !important; }
     .select2-dropdown { font-size: 12px !important; border: 1px solid #3B86C4 !important; }
-    .select2-container--open {
-      z-index: 10005 !important;
-    }
+    .select2-container--open { z-index: 10005 !important; }
+
     /* Toast Notification Container */
     #toast-container {
       position: fixed;
@@ -206,6 +206,57 @@
   </style>
 </head>
 <body>
+
+  <!-- KHUNG ĐĂNG NHẬP TRẮNG TRƠN BẢO MẬT QUẢN TRỊ -->
+  <div id="authOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #FFFFFF; z-index: 999999; display: flex; justify-content: center; align-items: center;">
+    <div style="background: #FFFFFF; padding: 40px 30px; border: 1px solid #E1E4E8; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 340px; text-align: center;">
+      <div style="font-size: 15px; font-weight: bold; color: #2C3E50; margin-bottom: 20px; text-transform: uppercase;">
+        <i class="fa fa-lock" style="color: #3B86C4; margin-right: 6px;"></i> Đăng nhập quản trị
+      </div>
+      
+      <input type="text" id="txtAdminId" class="form-control" placeholder="Tài khoản quản trị" style="margin-bottom: 12px; height: 38px;">
+      <input type="password" id="txtAdminPass" class="form-control" placeholder="Mật khẩu" style="margin-bottom: 16px; height: 38px;" onkeypress="if(event.key === 'Enter') xuLyDangNhapAdmin()">
+      
+      <button onclick="xuLyDangNhapAdmin()" style="width: 100%; background: #3B86C4; color: #FFF; border: none; padding: 10px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">
+        Truy cập hệ thống
+      </button>
+      
+      <div id="authErrorMsg" style="margin-top: 12px; font-size: 12px; color: #E74C3C; font-weight: bold; min-height: 18px;"></div>
+    </div>
+  </div>
+
+  <script>
+    if (sessionStorage.getItem('admin_authenticated') === 'true') {
+      $('#authOverlay').remove();
+    }
+
+    async function xuLyDangNhapAdmin() {
+      const username = $('#txtAdminId').val().trim();
+      const password = $('#txtAdminPass').val().trim();
+      const $errorBox = $('#authErrorMsg');
+
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        }).then(r => r.json());
+
+        if (res.success) {
+          sessionStorage.setItem('admin_authenticated', 'true');
+          sessionStorage.setItem('admin_role', res.role);
+          sessionStorage.setItem('admin_user', username);
+          $('#authOverlay').fadeOut(300, function() { $(this).remove(); });
+          showToast(res.message, "success");
+        } else {
+          $errorBox.text("Tài khoản không tồn tại trên hệ thống");
+          $('#txtAdminPass').val('').focus();
+        }
+      } catch (err) {
+        $errorBox.text("Tài khoản không tồn tại trên hệ thống");
+      }
+    }
+  </script>
 
   <!-- DASHBOARD CARDS -->
   <div class="dashboard-stats">
@@ -422,7 +473,7 @@
         </div>
       </div>
 
-      <!-- BẢNG THEO DÕI TRẠNG THÁI BIỂU ĐỒ (SO KHỚP THÔNG MINH) -->
+      <!-- BẢNG THEO DÕI TRẠNG THÁI BIỂU ĐỒ -->
       <div style="margin-top: 25px; border-top: 1px solid #D0D7DE; padding-top: 15px;">
         <h4 style="font-size: 13px; color: #2C3E50; margin-bottom: 10px;"><i class="fa fa-exclamation-triangle" style="color:#e67e22;"></i> Kiểm tra trạng thái Biểu đồ các tuyến trong hệ thống:</h4>
         <div style="overflow-x: auto; max-height: 250px;">
@@ -486,20 +537,19 @@
 
   <script>
     const API_BASE = "https://dieu-hanh-bus.onrender.com";
-    // Hàm hiển thị thông báo nổi hiện đại thay thế alert
+    
     function showToast(message, type = 'success') {
-      let $container =$('#toast-container');
-      if ($container.length === 0) {$('body').append('<div id="toast-container"></div>');
-        $container =$('#toast-container');
+      let $container = $('#toast-container');
+      if ($container.length === 0) {
+        $('body').append('<div id="toast-container"></div>');
+        $container = $('#toast-container');
       }
 
       const icon = type === 'success' ? 'fa-check-circle' : (type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle');
-      const $toast =$(`<div class="custom-toast ${type}"><i class="fa ${icon}" style="font-size: 16px;"></i><span>${message}</span></div>`);
+      const $toast = $(`<div class="custom-toast ${type}"><i class="fa ${icon}" style="font-size: 16px;"></i><span>${message}</span></div>`);
       
       $container.append($toast);
-      setTimeout(() => {
-        $toast.remove();
-      }, 3000);
+      setTimeout(() => { $toast.remove(); }, 3000);
     }
 
     let rawDanhMuc = [];
@@ -541,7 +591,7 @@
 
     function toggleExtraInput(selectId, inputId) {
       const val = $('#' + selectId).val();
-      const $inp =$('#' + inputId);
+      const $inp = $('#' + inputId);
       if (val === "__NEW__") $inp.show().focus();
       else $inp.hide().val("");
     }
@@ -636,14 +686,14 @@
           return (a.maTuyen || '').localeCompare(b.maTuyen || '', undefined, { numeric: true, sensitivity: 'base' });
         });
 
-        const $filterTuyen =$('#filterTuyenXe');
+        const $filterTuyen = $('#filterTuyenXe');
         $filterTuyen.empty().append('<option value="">-- Tất cả tuyến --</option>');
         sortedRoutes.forEach(t => {
           $filterTuyen.append(new Option(`${t.maTuyen} - ${t.tenTuyen}`, t.maTuyen));
         });
         $filterTuyen.trigger('change.select2');
 
-        const $selSua =$('#selChonTuyenDeSua');
+        const $selSua = $('#selChonTuyenDeSua');
         $selSua.empty().append('<option value="">[+ Tạo mới một tuyến hoàn toàn]</option>');
         sortedRoutes.forEach(t => {
           const lockText = t.status === 'locked' ? ' [ĐÃ KHÓA]' : '';
@@ -651,7 +701,7 @@
         });
         $selSua.trigger('change.select2');
 
-        const $selTuyen =$('#selChonTuyen');
+        const $selTuyen = $('#selChonTuyen');
         $selTuyen.empty().append('<option value="">Chọn tuyến</option>');
         
         let selectedVal = "";
@@ -659,10 +709,10 @@
           const isSelected = chonMaTuyenMoi && (t.maTuyen === chonMaTuyenMoi);
           if (isSelected) selectedVal = t.tenTuyen;
           const opt = new Option(t.tenTuyen, t.tenTuyen, false, false);
-          $(opt).attr('data-xn', t.xn);$selTuyen.append(opt);
+          $(opt).attr('data-xn', t.xn); $selTuyen.append(opt);
         });
 
-        if (selectedVal) $selTuyen.val(selectedVal);$selTuyen.trigger('change.select2');
+        if (selectedVal) $selTuyen.val(selectedVal); $selTuyen.trigger('change.select2');
 
         veBangDanhSachTuyen(sortedRoutes);
         veBangTrangThaiBieuDo(sortedRoutes);
@@ -674,7 +724,6 @@
       }
     }
 
-    // VẼ BẢNG KIỂM TRA TRẠNG THÁI BIỂU ĐỒ (SO KHỚP THÔNG MINH)
     function veBangTrangThaiBieuDo(sortedRoutes) {
       let html = '';
       if (!sortedRoutes || sortedRoutes.length === 0) {
@@ -855,24 +904,26 @@
           body: JSON.stringify({ maTuyen, status: statusMoi })
         });
         const data = await res.json();
-        alert(data.message);
+        showToast(data.message, "success");
         await napDuLieuTong();
       } catch (e) {
-        alert("Lỗi: " + e);
+        showToast("Lỗi: " + e, "error");
       }
     }
 
     function doVaoSelect2(elemId, dataSet, label) {
-      const $sel =$('#' + elemId);
+      const $sel = $('#' + elemId);
       $sel.empty().append(`<option value="">Chọn ${label}</option>`);
-      Array.from(dataSet).sort().forEach(val => $sel.append(new Option(val, val)));$sel.append(new Option(`[+ Thêm ${label} mới...]`, "__NEW__"));
+      Array.from(dataSet).sort().forEach(val => $sel.append(new Option(val, val)));
+      $sel.append(new Option(`[+ Thêm ${label} mới...]`, "__NEW__"));
       $sel.trigger('change.select2');
     }
 
     function doVaoSelect2ThongThuong(elemId, dataSet, defaultText) {
-      const $sel =$('#' + elemId);
+      const $sel = $('#' + elemId);
       $sel.empty().append(`<option value="">${defaultText}</option>`);
-      Array.from(dataSet).sort().forEach(val => $sel.append(new Option(val, val)));$sel.trigger('change.select2');
+      Array.from(dataSet).sort().forEach(val => $sel.append(new Option(val, val)));
+      $sel.trigger('change.select2');
     }
 
     function onSelectTuyenChange() {
@@ -886,7 +937,7 @@
       const tuyen = $('#selChonTuyen').val();
       const ngay = $('#txtNgayApDung').val().trim();
       const phamVi = $('input[name="rdPhamVi"]:checked').val() || "Cả tuần";
-      const $tabInp =$('#txtTenTab');
+      const $tabInp = $('#txtTenTab');
 
       if (!tuyen) { $tabInp.val(""); return; }
       const match = tuyen.match(/^([A-Za-z0-9]+)/);
@@ -919,7 +970,7 @@
       const status = $('input[name="rdStatus"]:checked').val() || 'active';
 
       if (!maTuyen || !tenTuyen || !xn) {
-        alert("Vui lòng điền đủ Mã tuyến, Đơn vị chủ quản và Tên tuyến!");
+        showToast("Vui lòng điền đủ Mã tuyến, Đơn vị chủ quản và Tên tuyến!", "error");
         return;
       }
 
@@ -930,11 +981,11 @@
           body: JSON.stringify({ maTuyen, tenTuyen, xn, dauA, dauB, soXeVd, soXeKh, loaiXe, sucChua, status })
         });
         const data = await res.json();
-        alert(data.message);
+        showToast(data.message, "success");
         await napDuLieuTong(maTuyen);
         resetFormTuyen();
       } catch (err) {
-        alert("Lỗi kết nối: " + err);
+        showToast("Lỗi kết nối: " + err, "error");
       }
     }
 
@@ -946,8 +997,8 @@
       const tenTab = $('#txtTenTab').val().trim();
       const rawText = $('#txtRawData').val().trim();
 
-      if (!tuyen) { alert("Vui lòng chọn Tuyến cần gán biểu đồ!"); return; }
-      if (!ngayApDung || !rawText) { alert("Vui lòng điền Ngày áp dụng (dd/mm/yyyy) và dán Dữ liệu giờ!"); return; }
+      if (!tuyen) { showToast("Vui lòng chọn Tuyến cần gán biểu đồ!", "error"); return; }
+      if (!ngayApDung || !rawText) { showToast("Vui lòng điền Ngày áp dụng và dán Dữ liệu giờ!", "error"); return; }
 
       const lines = rawText.split("\n");
       const rawData = [];
@@ -973,17 +1024,17 @@
           body: JSON.stringify({ xn, tuyen, bieuDo, tenTab, rawData, ngayApDung, phamVi })
         });
         const data = await res.json();
-        alert(data.message);
+        showToast(data.message, "success");
         $('#txtRawData').val("");
         await napDuLieuTong();
       } catch (err) {
-        alert("Lỗi khi lưu biểu đồ: " + err);
+        showToast("Lỗi khi lưu biểu đồ: " + err, "error");
       }
     }
 
     async function xoaBieuDo() {
       const tenTab = $('#txtTenTab').val().trim();
-      if (!tenTab) { alert("Vui lòng chọn Tuyến và Ngày áp dụng để xác định biểu đồ cần xóa!"); return; }
+      if (!tenTab) { showToast("Vui lòng chọn Tuyến và Ngày áp dụng để xác định biểu đồ cần xóa!", "error"); return; }
       if (!confirm(`Bạn có chắc chắn muốn XÓA VĨNH VIỄN biểu đồ [${tenTab}] khỏi hệ thống không?`)) return;
 
       try {
@@ -993,7 +1044,7 @@
           body: JSON.stringify({ tenTab })
         });
         const data = await res.json();
-        alert(data.message);
+        showToast(data.message, data.success ? "success" : "error");
         if (data.success) {
           await napDuLieuTong();
           $('#txtRawData').val("");
@@ -1001,13 +1052,13 @@
           tuDongTaoTenTab();
         }
       } catch (err) {
-        alert("Lỗi kết nối khi xóa: " + err);
+        showToast("Lỗi kết nối khi xóa: " + err, "error");
       }
     }
 
     async function napDanhSachXeExcel() {
       const rawText = $('#txtExcelXe').val().trim();
-      if (!rawText) { alert("Vui lòng dán dữ liệu Excel danh sách xe vào ô văn bản!"); return; }
+      if (!rawText) { showToast("Vui lòng dán dữ liệu Excel danh sách xe vào ô văn bản!", "error"); return; }
 
       try {
         const res = await fetch(`${API_BASE}/api/import-danh-sach-xe`, {
@@ -1016,13 +1067,13 @@
           body: JSON.stringify({ rawText })
         }).then(r => r.json());
 
-        alert(res.message);
+        showToast(res.message, res.success ? "success" : "error");
         if (res.success) {
           $('#txtExcelXe').val('');
           await napDuLieuTong();
         }
       } catch (e) {
-        alert("Lỗi nạp danh sách xe: " + e);
+        showToast("Lỗi nạp danh sách xe: " + e, "error");
       }
     }
 
@@ -1034,7 +1085,6 @@
         $sel.append(new Option(`${t.maTuyen} - ${t.tenTuyen}`, t.maTuyen));
       });
       
-      // GẮN DROPDOWN VÀO TRONG MODAL ĐỂ KHÔNG BỊ CHE KHUẤT
       $sel.select2({
         dropdownParent: $('#modalDieuChuyen'),
         language: { noResults: () => "Không tìm thấy kết quả phù hợp" }
@@ -1055,13 +1105,13 @@
           body: JSON.stringify({ bks, tuyenMoi })
         }).then(r => r.json());
 
-        alert(res.message);
+        showToast(res.message, res.success ? "success" : "error");
         if (res.success) {
           $('#modalDieuChuyen').css('display', 'none');
           await napDuLieuTong();
         }
       } catch (e) {
-        alert("Lỗi khi điều chuyển xe: " + e);
+        showToast("Lỗi khi điều chuyển xe: " + e, "error");
       }
     }
   </script>
