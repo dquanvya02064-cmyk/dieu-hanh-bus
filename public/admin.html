@@ -208,17 +208,20 @@
       const role = sessionStorage.getItem('admin_role');
       const permissions = JSON.parse(sessionStorage.getItem('admin_permissions') || '[]');
 
-      if (role === 'master') {
+      $('#menuTuyen, #menuExcel, #menuDoixe, #menuBieudo, #menuQuanTriUser').show();
+
+      if (role === 'master' || sessionStorage.getItem('admin_user') === 'quan') {
         $('#menuQuanTriUser').show();
         return;
       }
 
-      // Ẩn menu người dùng nếu không phải master
       $('#menuQuanTriUser').hide();
 
-      // Kiểm tra quyền chi tiết để ẩn/hiện menu
       if (!permissions.includes('tuyen')) $('#menuTuyen').hide();
-      if (!permissions.includes('xe')) { $('#menuExcel').hide(); $('#menuDoixe').hide(); }
+      if (!permissions.includes('xe')) { 
+        $('#menuExcel').hide(); 
+        $('#menuDoixe').hide(); 
+      }
       if (!permissions.includes('bieudo')) $('#menuBieudo').hide();
     }
 
@@ -972,7 +975,6 @@
               btnAction = '<span style="color:#888; font-style:italic;">Tối cao</span>';
             }
 
-            // Hiển thị danh sách quyền dạng checkbox tương tác trực tiếp
             let permCheckboxes = `
               <div style="display:flex; gap:8px; font-size:11px; flex-wrap:wrap;">
                 <label><input type="checkbox" ${perms.includes('tuyen') ? 'checked' : ''} onchange="doiQuyen('${acc.username}', 'tuyen', this.checked)"> Tuyến</label>
@@ -1025,21 +1027,20 @@
 
     async function doiQuyen(username, permName, isChecked) {
       try {
-        // Lấy danh sách quyền hiện tại từ dòng tương ứng hoặc fetch
-        const res = await fetch(`${API_BASE}/api/admin/danh-sach-tai-khoan`).then(r => r.json());
-        const acc = res.data.find(u => u.username === username);
+        const resList = await fetch(`${API_BASE}/api/admin/danh-sach-tai-khoan`).then(r => r.json());
+        const acc = resList.data.find(u => u.username === username);
         if (!acc) return;
 
         let perms = acc.permissions || [];
         if (isChecked && !perms.includes(permName)) perms.push(permName);
         if (!isChecked && perms.includes(permName)) perms = perms.filter(p => p !== permName);
 
-        await fetch(`${API_BASE}/api/admin/sua-tai-khoan`, {
+        const res = await fetch(`${API_BASE}/api/admin/sua-tai-khoan`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, permissions: perms })
         }).then(r => r.json());
 
-        showToast(`Đã cập nhật quyền cho [${username}]`, "success");
+        showToast(res.message, res.success ? "success" : "error");
       } catch (e) { showToast("Lỗi cập nhật quyền", "error"); }
     }
 
