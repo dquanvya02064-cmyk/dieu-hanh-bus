@@ -130,6 +130,16 @@ async function getRawData() {
   return { tuyenList: {}, bieuDoList: [], xeList: [] };
 }
 
+// Hàm lưu nhanh tốc độ cao (dùng cho các API lưu tuyến, lưu biểu đồ)
+async function saveRawDataFast(data) {
+  await BusModel.findOneAndUpdate(
+    { key: 'main_data' },
+    { key: 'main_data', data: data },
+    { upsert: true, returnDocument: 'after' }
+  );
+}
+
+// Hàm lưu chuẩn (vẫn giữ nguyên để dùng khi khởi động server hoặc lúc import file Excel danh sách xe)
 async function saveRawData(data) {
   const cleaned = await cleanAndSyncData(data);
   await BusModel.findOneAndUpdate(
