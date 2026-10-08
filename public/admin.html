@@ -208,14 +208,15 @@
       const role = sessionStorage.getItem('admin_role');
       const permissions = JSON.parse(sessionStorage.getItem('admin_permissions') || '[]');
 
-      $('#menuTuyen, #menuExcel, #menuDoixe, #menuBieudo, #menuQuanTriUser').show();
+      $('#menuTuyen, #menuExcel, #menuDoixe, #menuBieudo, #menuQuanTriUser, #menuLog').show();
 
       if (role === 'master' || sessionStorage.getItem('admin_user') === 'quan') {
-        $('#menuQuanTriUser').show();
+        $('#menuQuanTriUser, #menuLog').show();
         return;
       }
 
-      $('#menuQuanTriUser').hide();
+      // Nhân viên bình thường không thấy quản lý user và nhật ký truy cập web
+      $('#menuQuanTriUser, #menuLog').hide();
 
       if (!permissions.includes('tuyen')) $('#menuTuyen').hide();
       if (!permissions.includes('xe')) { 
@@ -247,6 +248,7 @@
         <li id="menuDoixe"><a onclick="chuyenTabAdmin('sec-doixe', this)"><i class="fa fa-table"></i> Quản lý toàn bộ Đội xe</a></li>
         <li id="menuBieudo"><a onclick="chuyenTabAdmin('sec-bieudo', this)"><i class="fa fa-calendar-plus-o"></i> Quản trị Biểu đồ chạy xe</a></li>
         <li id="menuQuanTriUser" style="display:none;"><a onclick="chuyenTabAdmin('sec-users', this)"><i class="fa fa-users"></i> Quản trị người dùng</a></li>
+        <li id="menuLog" style="display:none;"><a onclick="chuyenTabAdmin('sec-log', this)"><i class="fa fa-history"></i> Nhật ký truy cập web</a></li>
         <li><a href="index.html"><i class="fa fa-arrow-left"></i> Về trang tra cứu</a></li>
         <li><a onclick="dangXuatAdmin()" style="color: #E74C3C;"><i class="fa fa-sign-out"></i> Đăng xuất hệ thống</a></li>
       </ul>
@@ -470,6 +472,29 @@
           </div>
         </div>
 
+        <!-- SECTION 7: NHẬT KÝ TRUY CẬP WEB -->
+        <div id="sec-log" class="content-section">
+          <div class="panel-custom">
+            <div class="panel-heading"><span><i class="fa fa-history"></i> Lịch sử Khách & Người dùng truy cập Website (Tự động xóa sau 30 ngày)</span></div>
+            <div class="panel-body">
+              <div style="overflow-x: auto; max-height: 500px;">
+                <table class="table-custom">
+                  <thead>
+                    <tr>
+                      <th style="width: 50px; text-align: center;">STT</th>
+                      <th>Đối tượng / Tài khoản</th>
+                      <th>Hành động</th>
+                      <th>Địa chỉ IP</th>
+                      <th style="width: 160px; text-align: center;">Thời gian truy cập</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tblDanhSachLog"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -510,10 +535,12 @@
 
     function chuyenTabAdmin(sectionId, element) {
       $('.content-section').removeClass('active');
-      $('.sidebar-menu li a').removeClass('active');$('#' + sectionId).addClass('active');
+      $('.sidebar-menu li a').removeClass('active');
+      $('#' + sectionId).addClass('active');
       $(element).addClass('active');
 
-      const titleText = $(element).text().trim();$('#navTitle').text(titleText);
+      const titleText = $(element).text().trim();
+      $('#navTitle').text(titleText);
 
       if (window.innerWidth <= 768) {
         $('#sidebarMenu').removeClass('mobile-show');
@@ -521,6 +548,8 @@
 
       if (sectionId === 'sec-users') {
         taiDanhSachTaiKhoan();
+      } else if (sectionId === 'sec-log') {
+        taiDanhSachLog();
       }
     }
 
@@ -536,7 +565,8 @@
     let dsBieuDoLuu = [];
     let dangLamMoi = false;
 
-    $(document).ready(function() {$('.select2-search').select2({
+    $(document).ready(function() {
+      $('.select2-search').select2({
         language: { noResults: () => "Không tìm thấy kết quả phù hợp" }
       });
 
@@ -549,7 +579,7 @@
 
       $('#filterXnXe').on('change', function() {
         const selectedXn = $(this).val();
-        const $filterTuyen =$('#filterTuyenXe');
+        const $filterTuyen = $('#filterTuyenXe');
         $filterTuyen.empty().append('<option value="">-- Tất cả tuyến --</option>');
         mapTuyenChiTiet.forEach(t => {
           if (!selectedXn || (t.xn || '').toLowerCase() === selectedXn.toLowerCase()) {
@@ -939,6 +969,33 @@
         showToast(res.message, res.success ? "success" : "error");
         if (res.success) { $('#modalDieuChuyen').css('display', 'none'); await napDuLieuTong(); }
       } catch (e) { showToast("Lỗi: " + e, "error"); }
+    }
+
+    // --- XEM NHẬT KÝ TRUY CẬP WEB ---
+    async function taiDanhSachLog() {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/danh-sach-log`).then(r => r.json());
+        if (res.success) {
+          let html = '';
+          res.data.forEach((log, index) => {
+            const timeFormatted = new Date(log.createdAt).toLocaleString('vi-VN');
+            const roleBadge = log.role === 'visitor' 
+              ? '<span class="status-badge" style="background:#E2E8F0; color:#475569;">Khách vãng lai</span>' 
+              : '<span class="status-badge status-active">Quản trị viên</span>';
+
+            html += `
+              <tr>
+                <td style="text-align: center; color: #555;">${index + 1}</td>
+                <td><strong>${log.username}</strong> ${roleBadge}</td>
+                <td>${log.action}</td>
+                <td style="font-family: monospace; color: #666;">${log.ip || 'Ẩn danh'}</td>
+                <td style="text-align: center; color: #555;">${timeFormatted}</td>
+              </tr>
+            `;
+          });
+          $('#tblDanhSachLog').html(html);
+        }
+      } catch (e) { console.error("Lỗi tải nhật ký truy cập:", e); }
     }
 
     // --- QUẢN TRỊ NGƯỜI DÙNG & PHÂN QUYỀN ---
