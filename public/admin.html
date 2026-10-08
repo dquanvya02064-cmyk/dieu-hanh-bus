@@ -6,7 +6,6 @@
   <title>Quản trị Điều hành Biểu đồ & Tuyến</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-  
   <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -15,107 +14,156 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       width: 100%;
+      height: 100%;
       font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
       font-size: 12px;
       background-color: #F1F4F9;
       color: #333;
     }
-    body { padding: 15px; }
+
+    /* KHÓA CHẶT MÀN HÌNH ĐĂNG NHẬP TRẮNG TRƠN */
+    #authOverlay {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: #FFFFFF;
+      z-index: 999999;
+      display: flex; justify-content: center; align-items: center;
+      overflow: hidden;
+    }
+    .auth-box {
+      background: #FFFFFF; padding: 35px 30px;
+      border: 1px solid #E1E4E8; border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 340px; text-align: center;
+    }
+
+    /* BỐ CỤC DASHBOARD SIDEBAR LAYOUT */
+    .app-container {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    /* SIDEBAR BÊN TRÁI */
+    .sidebar {
+      width: 260px;
+      background-color: #2C3E50;
+      color: #FFF;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.3s ease;
+      z-index: 1000;
+      flex-shrink: 0;
+    }
+    .sidebar-header {
+      padding: 15px 20px;
+      background: #1A252F;
+      font-size: 13px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #34495E;
+    }
+    .sidebar-menu {
+      list-style: none;
+      padding: 10px 0;
+      overflow-y: auto;
+      flex-grow: 1;
+    }
+    .sidebar-menu li a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
+      color: #BDC3C7;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: bold;
+      border-left: 4px solid transparent;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .sidebar-menu li a:hover, .sidebar-menu li a.active {
+      background: #34495E;
+      color: #FFF;
+      border-left-color: #3B86C4;
+    }
+    .sidebar-menu li a i { font-size: 15px; width: 20px; text-align: center; }
+
+    /* KHUNG NỘI DUNG CHÍNH BÊN PHẢI */
+    .main-content {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background-color: #F1F4F9;
+    }
+    .top-navbar {
+      height: 50px;
+      background: #3B86C4;
+      color: #FFF;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .content-body {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    /* THẺ SECTION NỘI DUNG */
+    .content-section { display: none; }
+    .content-section.active { display: block; }
 
     .dashboard-stats {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 15px;
-      max-width: 1250px;
-      margin: 0 auto 20px auto;
+      margin-bottom: 20px;
     }
     .stat-card {
-      background: #FFFFFF;
-      border: 1px solid #C4D5E5;
-      border-radius: 5px;
-      padding: 14px 18px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      background: #FFFFFF; border: 1px solid #C4D5E5; border-radius: 5px;
+      padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;
       box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
-    .stat-card .info h4 {
-      font-size: 11px;
-      text-transform: uppercase;
-      color: #777;
-      margin-bottom: 5px;
-      letter-spacing: 0.5px;
-    }
+    .stat-card .info h4 { font-size: 11px; text-transform: uppercase; color: #777; margin-bottom: 5px; }
     .stat-card .info .number { font-size: 22px; font-weight: bold; color: #2C3E50; }
     .stat-card .info .subtext { font-size: 11px; color: #888; margin-top: 3px; }
     .stat-card .icon { font-size: 32px; opacity: 0.8; }
-    .stat-card.blue { border-left: 4px solid #3B86C4; }
-    .stat-card.blue .icon { color: #3B86C4; }
-    .stat-card.green { border-left: 4px solid #27AE60; }
-    .stat-card.green .icon { color: #27AE60; }
-    .stat-card.orange { border-left: 4px solid #E67E22; }
-    .stat-card.orange .icon { color: #E67E22; }
+    .stat-card.blue { border-left: 4px solid #3B86C4; } .stat-card.blue .icon { color: #3B86C4; }
+    .stat-card.green { border-left: 4px solid #27AE60; } .stat-card.green .icon { color: #27AE60; }
+    .stat-card.orange { border-left: 4px solid #E67E22; } .stat-card.orange .icon { color: #E67E22; }
 
     .panel-custom {
-      background: #FFFFFF;
-      border: 1px solid #C4D5E5;
-      border-radius: 4px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-      max-width: 1250px;
-      margin: 0 auto 20px auto;
+      background: #FFFFFF; border: 1px solid #C4D5E5; border-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 20px;
     }
     .panel-heading {
-      background: #3B86C4;
-      color: #FFFFFF;
-      padding: 10px 15px;
-      font-size: 13px;
-      font-weight: bold;
-      text-transform: uppercase;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      background: #EBF2F8; color: #2C3E50; padding: 10px 15px; font-size: 13px;
+      font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #D0D7DE;
+      display: flex; justify-content: space-between; align-items: center;
     }
     .panel-body { padding: 18px 20px; }
     .form-grid {
-      display: grid;
-      grid-template-columns: 160px 1fr;
-      row-gap: 14px;
-      column-gap: 15px;
-      align-items: center;
+      display: grid; grid-template-columns: 160px 1fr; row-gap: 14px; column-gap: 15px; align-items: center;
     }
-    .input-combo {
-      display: flex;
-      gap: 10px;
-      max-width: 800px;
-      width: 100%;
-      align-items: center;
-      flex-wrap: wrap;
-    }
+    .input-combo { display: flex; gap: 10px; max-width: 800px; width: 100%; align-items: center; flex-wrap: wrap; }
     .form-control {
-      height: 32px;
-      padding: 3px 8px;
-      font-size: 12px;
-      border: 1px solid #CCCCCC;
-      border-radius: 3px;
-      outline: none;
-      width: 100%;
-      background-color: #FFFFFF;
+      height: 32px; padding: 3px 8px; font-size: 12px; border: 1px solid #CCCCCC;
+      border-radius: 3px; outline: none; width: 100%; background-color: #FFFFFF;
     }
     .form-control:focus { border-color: #3B86C4; }
     .form-control[readonly] { background-color: #EBF2F8; color: #555; cursor: not-allowed; }
     textarea.form-control { height: 140px; font-family: monospace; max-width: 100%; }
 
     .btn {
-      padding: 7px 16px;
-      font-size: 12px;
-      font-weight: bold;
-      border-radius: 3px;
-      cursor: pointer;
-      border: 1px solid transparent;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      color: #fff;
+      padding: 7px 16px; font-size: 12px; font-weight: bold; border-radius: 3px;
+      cursor: pointer; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 6px; color: #fff;
     }
     .btn-success { background-color: #5cb85c; border-color: #4cae4c; }
     .btn-primary { background-color: #337ab7; border-color: #2e6da4; }
@@ -123,9 +171,8 @@
     .btn-warning { background-color: #f0ad4e; border-color: #eea236; }
     .btn-default { background-color: #f0f0f0; border-color: #ccc; color: #333; }
     .btn:hover { opacity: 0.9; }
-    .nav-link { color: #fff; text-decoration: none; font-size: 12px; }
-    .extra-input { display: none; border-color: #e67e22; background-color: #fffaf0; }
 
+    .extra-input { display: none; border-color: #e67e22; background-color: #fffaf0; }
     .radio-group { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
     .radio-item { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
 
@@ -141,87 +188,64 @@
     .status-missing-chart { background-color: #FCE8E6; color: #C5221F; }
 
     .filter-box {
-      background: #F8FAFC;
-      border: 1px solid #D0D7DE;
-      border-radius: 4px;
-      padding: 12px 15px;
-      margin-bottom: 12px;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 10px;
-      align-items: center;
+      background: #F8FAFC; border: 1px solid #D0D7DE; border-radius: 4px;
+      padding: 12px 15px; margin-bottom: 12px; display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; align-items: center;
     }
 
     .select2-container .select2-selection--single {
-      height: 32px !important;
-      border: 1px solid #ccc !important;
-      border-radius: 3px !important;
-      display: flex;
-      align-items: center;
+      height: 32px !important; border: 1px solid #ccc !important; border-radius: 3px !important; display: flex; align-items: center;
     }
     .select2-container--default .select2-selection--single .select2-selection__rendered {
-      line-height: 30px !important;
-      font-size: 12px !important;
-      color: #333 !important;
+      line-height: 30px !important; font-size: 12px !important; color: #333 !important;
     }
     .select2-container--default .select2-selection--single .select2-selection__arrow { height: 30px !important; }
     .select2-dropdown { font-size: 12px !important; border: 1px solid #3B86C4 !important; }
     .select2-container--open { z-index: 10005 !important; }
 
-    /* Toast Notification Container */
+    /* Toast Notification */
     #toast-container {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 99999;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+      position: fixed; top: 20px; right: 20px; z-index: 999999;
+      display: flex; flex-direction: column; gap: 10px;
     }
     .custom-toast {
-      min-width: 280px;
-      max-width: 380px;
-      background: #2C3E50;
-      color: #FFF;
-      padding: 12px 16px;
-      border-radius: 4px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      font-size: 13px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
-      border-left: 4px solid #3B86C4;
+      min-width: 280px; max-width: 380px; background: #2C3E50; color: #FFF;
+      padding: 12px 16px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      font-size: 13px; display: flex; align-items: center; gap: 10px;
+      animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s forwards; border-left: 4px solid #3B86C4;
     }
     .custom-toast.success { border-left-color: #27AE60; background: #27AE60; }
     .custom-toast.error { border-left-color: #E74C3C; background: #C0392B; }
-    
-    @keyframes slideIn {
-      from { transform: translateX(100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
-    }
-    @keyframes fadeOut {
-      to { opacity: 0; transform: translateY(-10px); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes fadeOut { to { opacity: 0; transform: translateY(-10px); } }
+
+    /* RESPONSIVE CHO ĐIỆN THOẠI (MOBILE) */
+    @media (max-width: 768px) {
+      .sidebar {
+        position: fixed; left: -260px; height: 100%; transition: left 0.3s ease;
+      }
+      .sidebar.mobile-show { left: 0; }
+      .form-grid { grid-template-columns: 1fr; row-gap: 6px; }
     }
   </style>
 </head>
 <body>
 
-  <!-- KHUNG ĐĂNG NHẬP TRẮNG TRƠN BẢO MẬT QUẢN TRỊ -->
-  <div id="authOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #FFFFFF; z-index: 999999; display: flex; justify-content: center; align-items: center;">
-    <div style="background: #FFFFFF; padding: 40px 30px; border: 1px solid #E1E4E8; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 340px; text-align: center;">
+  <!-- MÀN HÌNH ĐĂNG NHẬP TRẮNG TRƠN -->
+  <div id="authOverlay">
+    <div class="auth-box">
       <div style="font-size: 15px; font-weight: bold; color: #2C3E50; margin-bottom: 20px; text-transform: uppercase;">
         <i class="fa fa-lock" style="color: #3B86C4; margin-right: 6px;"></i> Đăng nhập quản trị
       </div>
-      
       <input type="text" id="txtAdminId" class="form-control" placeholder="Tài khoản quản trị" style="margin-bottom: 12px; height: 38px;">
       <input type="password" id="txtAdminPass" class="form-control" placeholder="Mật khẩu" style="margin-bottom: 16px; height: 38px;" onkeypress="if(event.key === 'Enter') xuLyDangNhapAdmin()">
-      
-      <button onclick="xuLyDangNhapAdmin()" style="width: 100%; background: #3B86C4; color: #FFF; border: none; padding: 10px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">
+      <button onclick="xuLyDangNhapAdmin()" style="width: 100%; background: #3B86C4; color: #FFF; border: none; padding: 10px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px; margin-bottom: 10px;">
         Truy cập hệ thống
       </button>
-      
-      <div id="authErrorMsg" style="margin-top: 12px; font-size: 12px; color: #E74C3C; font-weight: bold; min-height: 18px;"></div>
+      <a href="index.html" style="display: block; font-size: 12px; color: #666; text-decoration: none; margin-bottom: 10px;">
+        <i class="fa fa-arrow-left"></i> Quay lại trang tra cứu
+      </a>
+      <div id="authErrorMsg" style="margin-top: 8px; font-size: 12px; color: #E74C3C; font-weight: bold; min-height: 18px;"></div>
     </div>
   </div>
 
@@ -248,6 +272,7 @@
           sessionStorage.setItem('admin_user', username);
           $('#authOverlay').fadeOut(300, function() { $(this).remove(); });
           showToast(res.message, "success");
+          if (res.role === 'master') { $('#menuQuanTriUser').show(); }
         } else {
           $errorBox.text("Tài khoản không tồn tại trên hệ thống");
           $('#txtAdminPass').val('').focus();
@@ -256,262 +281,281 @@
         $errorBox.text("Tài khoản không tồn tại trên hệ thống");
       }
     }
+
+    function dangXuatAdmin() {
+      if (confirm("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống quản trị không?")) {
+        sessionStorage.removeItem('admin_authenticated');
+        sessionStorage.removeItem('admin_role');
+        sessionStorage.removeItem('admin_user');
+        showToast("Đã đăng xuất thành công!", "success");
+        setTimeout(() => { location.reload(); }, 500);
+      }
+    }
   </script>
 
-  <!-- DASHBOARD CARDS -->
-  <div class="dashboard-stats">
-    <div class="stat-card blue">
-      <div class="info">
-        <h4>Tổng số tuyến</h4>
-        <div class="number" id="statTongTuyen">0</div>
-        <div class="subtext" id="statTuyenDetail">Đang tải dữ liệu...</div>
+  <!-- BỐ CỤC DASHBOARD CHÍNH -->
+  <div class="app-container">
+    <!-- SIDEBAR BÊN TRÁI -->
+    <nav class="sidebar" id="sidebarMenu">
+      <div class="sidebar-header">
+        <span><i class="fa fa-bus"></i> ĐIỀU HÀNH BUS</span>
+        <i class="fa fa-bars" style="cursor:pointer;" onclick="toggleSidebar()"></i>
       </div>
-      <div class="icon"><i class="fa fa-bus"></i></div>
-    </div>
-    <div class="stat-card green">
-      <div class="info">
-        <h4>Tổng xe Vận doanh / KH</h4>
-        <div class="number" id="statXeActive">0 / 0 xe</div>
-        <div class="subtext">Xe vận doanh thực tế trên các tuyến đang chạy</div>
-      </div>
-      <div class="icon"><i class="fa fa-tachometer"></i></div>
-    </div>
-    <div class="stat-card orange">
-      <div class="info">
-        <h4>Tuyến tạm dừng / Khóa</h4>
-        <div class="number" id="statTuyenLocked">0</div>
-        <div class="subtext" id="statXeLocked">0 xe tạm dừng hoạt động</div>
-      </div>
-      <div class="icon"><i class="fa fa-lock"></i></div>
-    </div>
-  </div>
+      <ul class="sidebar-menu">
+        <li><a class="active" onclick="chuyenTabAdmin('sec-tongquan', this)"><i class="fa fa-tachometer"></i> Tổng quan hệ thống</a></li>
+        <li><a onclick="chuyenTabAdmin('sec-tuyen', this)"><i class="fa fa-pencil-square-o"></i> Quản trị Tuyến & Đội xe</a></li>
+        <li><a onclick="chuyenTabAdmin('sec-excel', this)"><i class="fa fa-file-excel-o"></i> Nạp danh sách xe Excel</a></li>
+        <li><a onclick="chuyenTabAdmin('sec-doixe', this)"><i class="fa fa-table"></i> Quản lý toàn bộ Đội xe</a></li>
+        <li><a onclick="chuyenTabAdmin('sec-bieudo', this)"><i class="fa fa-calendar-plus-o"></i> Quản trị Biểu đồ chạy xe</a></li>
+        <li id="menuQuanTriUser" style="display:none;"><a onclick="chuyenTabAdmin('sec-users', this)"><i class="fa fa-users"></i> Quản trị người dùng</a></li>
+        <li><a href="index.html"><i class="fa fa-arrow-left"></i> Về trang tra cứu</a></li>
+        <li><a onclick="dangXuatAdmin()" style="color: #E74C3C;"><i class="fa fa-sign-out"></i> Đăng xuất hệ thống</a></li>
+      </ul>
+    </nav>
 
-  <!-- PHẦN 1: QUẢN TRỊ THÔNG TIN TUYẾN & ĐỘI XE -->
-  <div class="panel-custom">
-    <div class="panel-heading">
-      <div><i class="fa fa-pencil-square-o"></i> 1. Quản trị Thông tin Tuyến & Đội xe</div>
-      <div><a href="index.html" class="nav-link"><i class="fa fa-arrow-left"></i> Về trang tra cứu</a></div>
-    </div>
-    <div class="panel-body">
-      <div class="form-grid">
-        <label style="color:#d9534f; font-weight:bold;">Chế độ thao tác:</label>
-        <div class="input-combo">
-          <select id="selChonTuyenDeSua" class="form-control select2-search" style="width: 70%;">
-            <option value="">[+ Tạo mới một tuyến hoàn toàn]</option>
-          </select>
-          <button class="btn btn-default" type="button" onclick="resetFormTuyen()"><i class="fa fa-refresh"></i> Làm mới</button>
+    <!-- NỘI DUNG CHÍNH BÊN PHẢI -->
+    <div class="main-content">
+      <header class="top-navbar">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <i class="fa fa-bars" style="font-size: 16px; cursor: pointer;" onclick="toggleSidebar()"></i>
+          <span style="font-weight: bold; font-size: 13px;" id="navTitle">HỆ THỐNG QUẢN TRỊ ĐIỀU HÀNH</span>
         </div>
+        <div style="font-size: 11px;" id="currentUserLabel">Quản trị viên</div>
+      </header>
 
-        <label>Mã tuyến:</label>
-        <div class="input-combo">
-          <input type="text" id="txtMaTuyen" class="form-control" placeholder="Ví dụ: 85 hoặc 14CT" oninput="tuDongGoiYTenTuyen()" style="max-width: 250px;">
-        </div>
-
-        <label>Đơn vị chủ quản:</label>
-        <div class="input-combo">
-          <div style="flex: 1; min-width: 280px;">
-            <select id="selXn" class="form-control select2-search" style="width: 100%;">
-              <option value="">Chọn xí nghiệp</option>
-            </select>
+      <div class="content-body">
+        
+        <!-- SECTION 1: TỔNG QUAN -->
+        <div id="sec-tongquan" class="content-section active">
+          <div class="dashboard-stats">
+            <div class="stat-card blue">
+              <div class="info">
+                <h4>Tổng số tuyến</h4>
+                <div class="number" id="statTongTuyen">0</div>
+                <div class="subtext" id="statTuyenDetail">Đang tải dữ liệu...</div>
+              </div>
+              <div class="icon"><i class="fa fa-bus"></i></div>
+            </div>
+            <div class="stat-card green">
+              <div class="info">
+                <h4>Tổng xe Vận doanh / KH</h4>
+                <div class="number" id="statXeActive">0 / 0 xe</div>
+                <div class="subtext">Xe vận doanh thực tế trên các tuyến</div>
+              </div>
+              <div class="icon"><i class="fa fa-tachometer"></i></div>
+            </div>
+            <div class="stat-card orange">
+              <div class="info">
+                <h4>Tuyến tạm dừng / Khóa</h4>
+                <div class="number" id="statTuyenLocked">0</div>
+                <div class="subtext" id="statXeLocked">0 xe tạm dừng hoạt động</div>
+              </div>
+              <div class="icon"><i class="fa fa-lock"></i></div>
+            </div>
           </div>
-          <input type="text" id="txtXnMoi" class="form-control extra-input" placeholder="Nhập tên Xí nghiệp mới..." style="flex: 1;">
-        </div>
 
-        <label>Đầu A:</label>
-        <div class="input-combo">
-          <div style="flex: 1; min-width: 280px;">
-            <select id="selDauA" class="form-control select2-search" style="width: 100%;">
-              <option value="">Chọn đầu bến A</option>
-            </select>
+          <!-- BẢNG DANH SÁCH TUYẾN -->
+          <div class="panel-custom">
+            <div class="panel-heading"><span><i class="fa fa-list"></i> Danh sách Tuyến & Trạng thái hoạt động</span></div>
+            <div class="panel-body">
+              <div style="overflow-x: auto;">
+                <table class="table-custom">
+                  <thead>
+                    <tr>
+                      <th style="width: 60px; text-align: center;">Mã</th>
+                      <th>Tên Tuyến</th>
+                      <th>Đơn vị chủ quản</th>
+                      <th>Phương tiện (VD / KH)</th>
+                      <th style="width: 140px; text-align: center;">Trạng thái</th>
+                      <th style="width: 220px; text-align: center;">Hành động</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tblDanhSachTuyen"></tbody>
+                </table>
+              </div>
+            </div>
           </div>
-          <input type="text" id="txtDauAMoi" class="form-control extra-input" placeholder="Nhập tên Đầu A mới..." oninput="tuDongGoiYTenTuyen()" style="flex: 1;">
         </div>
 
-        <label>Đầu B:</label>
-        <div class="input-combo">
-          <div style="flex: 1; min-width: 280px;">
-            <select id="selDauB" class="form-control select2-search" style="width: 100%;">
-              <option value="">Chọn đầu bến B</option>
-            </select>
+        <!-- SECTION 2: QUẢN TRỊ TUYẾN -->
+        <div id="sec-tuyen" class="content-section">
+          <div class="panel-custom">
+            <div class="panel-heading"><span><i class="fa fa-pencil-square-o"></i> Quản trị Thông tin Tuyến & Đội xe</span></div>
+            <div class="panel-body">
+              <div class="form-grid">
+                <label style="color:#d9534f; font-weight:bold;">Chế độ thao tác:</label>
+                <div class="input-combo">
+                  <select id="selChonTuyenDeSua" class="form-control select2-search" style="width: 70%;">
+                    <option value="">[+ Tạo mới một tuyến hoàn toàn]</option>
+                  </select>
+                  <button class="btn btn-default" type="button" onclick="resetFormTuyen()"><i class="fa fa-refresh"></i> Làm mới</button>
+                </div>
+
+                <label>Mã tuyến:</label>
+                <div class="input-combo"><input type="text" id="txtMaTuyen" class="form-control" placeholder="Ví dụ: 85 hoặc 14CT" oninput="tuDongGoiYTenTuyen()" style="max-width: 250px;"></div>
+
+                <label>Đơn vị chủ quản:</label>
+                <div class="input-combo">
+                  <div style="flex: 1; min-width: 280px;"><select id="selXn" class="form-control select2-search" style="width: 100%;"><option value="">Chọn xí nghiệp</option></select></div>
+                  <input type="text" id="txtXnMoi" class="form-control extra-input" placeholder="Nhập tên Xí nghiệp mới..." style="flex: 1;">
+                </div>
+
+                <label>Đầu A:</label>
+                <div class="input-combo">
+                  <div style="flex: 1; min-width: 280px;"><select id="selDauA" class="form-control select2-search" style="width: 100%;"><option value="">Chọn đầu bến A</option></select></div>
+                  <input type="text" id="txtDauAMoi" class="form-control extra-input" placeholder="Nhập tên Đầu A mới..." oninput="tuDongGoiYTenTuyen()" style="flex: 1;">
+                </div>
+
+                <label>Đầu B:</label>
+                <div class="input-combo">
+                  <div style="flex: 1; min-width: 280px;"><select id="selDauB" class="form-control select2-search" style="width: 100%;"><option value="">Chọn đầu bến B</option></select></div>
+                  <input type="text" id="txtDauBMoi" class="form-control extra-input" placeholder="Nhập tên Đầu B mới..." oninput="tuDongGoiYTenTuyen()" style="flex: 1;">
+                </div>
+
+                <label>Tên tuyến đầy đủ:</label>
+                <div class="input-combo"><input type="text" id="txtTenTuyen" class="form-control" placeholder="Hệ thống tự động ghép theo Mã và Đầu bến..."></div>
+
+                <label style="color:#0F86DB; font-weight:bold;">Thông tin phương tiện:</label>
+                <div class="input-combo">
+                  <div style="display:flex; align-items:center; gap:4px;"><span>Xe VD:</span><input type="number" id="txtSoXeVd" class="form-control" placeholder="VD: 12" style="width: 75px;"></div>
+                  <div style="display:flex; align-items:center; gap:4px;"><span>Xe KH:</span><input type="number" id="txtSoXeKh" class="form-control" placeholder="VD: 15" style="width: 75px;"></div>
+                  <input type="text" id="txtLoaiXe" class="form-control" placeholder="Loại xe (VD: Daewoo BC095)" style="flex: 1; min-width: 150px;">
+                  <input type="text" id="txtSucChua" class="form-control" placeholder="Sức chứa (VD: 60 chỗ)" style="width: 130px;">
+                </div>
+
+                <label style="color:#e67e22; font-weight:bold;">Trạng thái hoạt động:</label>
+                <div class="radio-group">
+                  <label class="radio-item"><input type="radio" name="rdStatus" value="active" checked> <strong style="color:#137333;"><i class="fa fa-check-circle"></i> Đang hoạt động</strong></label>
+                  <label class="radio-item"><input type="radio" name="rdStatus" value="locked"> <strong style="color:#c5221f;"><i class="fa fa-lock"></i> Tạm dừng / Khóa tuyến</strong></label>
+                </div>
+
+                <div></div>
+                <div><button class="btn btn-success" onclick="xacLapTuyen()"><i class="fa fa-save"></i> Lưu thông tin tuyến</button></div>
+              </div>
+            </div>
           </div>
-          <input type="text" id="txtDauBMoi" class="form-control extra-input" placeholder="Nhập tên Đầu B mới..." oninput="tuDongGoiYTenTuyen()" style="flex: 1;">
         </div>
 
-        <label>Tên tuyến đầy đủ:</label>
-        <div class="input-combo">
-          <input type="text" id="txtTenTuyen" class="form-control" placeholder="Hệ thống tự động ghép theo Mã và Đầu bến...">
-        </div>
-
-        <label style="color:#0F86DB; font-weight:bold;">Thông tin phương tiện:</label>
-        <div class="input-combo">
-          <div style="display:flex; align-items:center; gap:4px;">
-            <span>Xe VD:</span>
-            <input type="number" id="txtSoXeVd" class="form-control" placeholder="VD: 12" style="width: 75px;">
+        <!-- SECTION 3: NẠP EXCEL -->
+        <div id="sec-excel" class="content-section">
+          <div class="panel-custom">
+            <div class="panel-heading"><span><i class="fa fa-file-excel-o"></i> Nạp Danh sách xe từ Excel</span></div>
+            <div class="panel-body">
+              <p style="margin-bottom:8px; color:#555;">Copy toàn bộ danh sách xe từ Google Sheets/Excel rồi dán vào đây:</p>
+              <textarea id="txtExcelXe" class="form-control" style="height:140px;" placeholder="Dán danh sách xe từ Excel vào đây..."></textarea>
+              <div style="margin-top:10px;"><button class="btn btn-success" onclick="napDanhSachXeExcel()"><i class="fa fa-upload"></i> Bóc tách & Tự động cập nhật số xe KH</button></div>
+            </div>
           </div>
-          <div style="display:flex; align-items:center; gap:4px;">
-            <span>Xe KH:</span>
-            <input type="number" id="txtSoXeKh" class="form-control" placeholder="VD: 15" style="width: 75px;">
+        </div>
+
+        <!-- SECTION 4: QUẢN LÝ ĐỘI XE -->
+        <div id="sec-doixe" class="content-section">
+          <div class="panel-custom">
+            <div class="panel-heading"><span><i class="fa fa-table"></i> Quản lý Đội xe toàn hệ thống & Điều chuyển nhanh</span></div>
+            <div class="panel-body">
+              <div class="filter-box">
+                <div>
+                  <label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Xí nghiệp:</label>
+                  <select id="filterXnXe" class="form-control select2-search" style="width:100%;"><option value="">-- Tất cả xí nghiệp --</option></select>
+                </div>
+                <div>
+                  <label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Tuyến:</label>
+                  <select id="filterTuyenXe" class="form-control select2-search" style="width:100%;" onchange="locBangXeAdmin()"><option value="">-- Tất cả tuyến --</option></select>
+                </div>
+                <div>
+                  <label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Tìm kiếm biển số:</label>
+                  <input type="text" id="filterBksXe" class="form-control" placeholder="Nhập biển số xe..." oninput="locBangXeAdmin()">
+                </div>
+              </div>
+
+              <div style="overflow-x: auto; max-height: 450px;">
+                <table class="table-custom">
+                  <thead>
+                    <tr>
+                      <th style="width: 50px; text-align: center;">STT</th>
+                      <th style="width: 80px; text-align: center;">Tuyến</th>
+                      <th style="width: 120px;">Biển số</th>
+                      <th>Chủng loại xe</th>
+                      <th style="width: 90px; text-align: center;">Sức chứa</th>
+                      <th style="width: 140px; text-align: center;">Hành động</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tblQuanLyXeAdmin"></tbody>
+                </table>
+              </div>
+            </div>
           </div>
-          <input type="text" id="txtLoaiXe" class="form-control" placeholder="Loại xe (VD: Daewoo BC095)" style="flex: 1; min-width: 150px;">
-          <input type="text" id="txtSucChua" class="form-control" placeholder="Sức chứa (VD: 60 chỗ)" style="width: 130px;">
         </div>
 
-        <label style="color:#e67e22; font-weight:bold;">Trạng thái hoạt động:</label>
-        <div class="radio-group">
-          <label class="radio-item"><input type="radio" name="rdStatus" value="active" checked> <strong style="color:#137333;"><i class="fa fa-check-circle"></i> Đang hoạt động</strong></label>
-          <label class="radio-item"><input type="radio" name="rdStatus" value="locked"> <strong style="color:#c5221f;"><i class="fa fa-lock"></i> Tạm dừng / Khóa tuyến</strong></label>
+        <!-- SECTION 5: BIỂU ĐỒ -->
+        <div id="sec-bieudo" class="content-section">
+          <div class="panel-custom">
+            <div class="panel-heading"><span><i class="fa fa-calendar-plus-o"></i> Quản trị Biểu đồ chạy xe & Theo dõi biểu đồ thiếu</span></div>
+            <div class="panel-body">
+              <div class="form-grid">
+                <label>Chọn tuyến:</label>
+                <div class="input-combo"><select id="selChonTuyen" class="form-control select2-search" style="width: 100%;"><option value="">Chọn tuyến</option></select></div>
+
+                <label>Đơn vị chủ quản:</label>
+                <div class="input-combo"><input type="text" id="txtBieuDoXn" class="form-control" readonly placeholder="Tự động hiển thị theo tuyến..."></div>
+
+                <label>Ngày áp dụng:</label>
+                <div class="input-combo"><input type="text" id="txtNgayApDung" class="form-control" oninput="tuDongTaoTenTab()" placeholder="dd/mm/yyyy (Ví dụ: 08/10/2026)"></div>
+
+                <label>Phạm vi ngày:</label>
+                <div class="radio-group">
+                  <label class="radio-item"><input type="radio" name="rdPhamVi" value="Cả tuần" checked onchange="tuDongTaoTenTab()"> Cả tuần (T2-CN)</label>
+                  <label class="radio-item"><input type="radio" name="rdPhamVi" value="Thứ 2 - Thứ 7" onchange="tuDongTaoTenTab()"> Thứ 2 - Thứ 7 (T2-T7)</label>
+                  <label class="radio-item"><input type="radio" name="rdPhamVi" value="Chủ nhật" onchange="tuDongTaoTenTab()"> Chủ nhật (CN)</label>
+                </div>
+
+                <label>Tên tab nhận diện:</label>
+                <div class="input-combo"><input type="text" id="txtTenTab" class="form-control" readonly placeholder="Hệ thống tự động ghép..."></div>
+
+                <label>Dữ liệu giờ (Excel):</label>
+                <textarea id="txtRawData" class="form-control" placeholder="Copy cả bảng từ Excel/Sheets dán vào đây..."></textarea>
+
+                <div></div>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                  <button class="btn btn-primary" onclick="luuBieuDo()"><i class="fa fa-upload"></i> Lưu biểu đồ</button>
+                  <button class="btn btn-danger" type="button" onclick="xoaBieuDo()"><i class="fa fa-trash"></i> Xóa biểu đồ này</button>
+                </div>
+              </div>
+
+              <!-- BẢNG TRẠNG THÁI BIỂU ĐỒ -->
+              <div style="margin-top: 25px; border-top: 1px solid #D0D7DE; padding-top: 15px;">
+                <h4 style="font-size: 13px; color: #2C3E50; margin-bottom: 10px;"><i class="fa fa-exclamation-triangle" style="color:#e67e22;"></i> Kiểm tra trạng thái Biểu đồ các tuyến:</h4>
+                <div style="overflow-x: auto; max-height: 250px;">
+                  <table class="table-custom">
+                    <thead><tr><th style="width: 70px; text-align: center;">Mã tuyến</th><th>Tên Tuyến</th><th style="width: 160px; text-align: center;">Trạng thái Biểu đồ</th></tr></thead>
+                    <tbody id="tblTrangThaiBieuDo"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div></div>
-        <div>
-          <button class="btn btn-success" onclick="xacLapTuyen()"><i class="fa fa-save"></i> Lưu thông tin tuyến</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- PHẦN 2: NẠP DANH SÁCH XE TỪ EXCEL -->
-  <div class="panel-custom">
-    <div class="panel-heading">
-      <div><i class="fa fa-file-excel-o"></i> 2. Nạp Danh sách xe từ Excel</div>
-    </div>
-    <div class="panel-body">
-      <p style="margin-bottom:8px; color:#555;">Copy toàn bộ danh sách xe từ Google Sheets/Excel rồi dán vào đây:</p>
-      <textarea id="txtExcelXe" class="form-control" style="height:120px;" placeholder="Dán danh sách xe từ Excel vào đây..."></textarea>
-      <div style="margin-top:10px;">
-        <button class="btn btn-success" onclick="napDanhSachXeExcel()"><i class="fa fa-upload"></i> Bóc tách & Tự động cập nhật số xe KH</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- PHẦN 3: QUẢN LÝ ĐỘI XE TOÀN HỆ THỐNG & ĐIỀU CHUYỂN NHANH -->
-  <div class="panel-custom">
-    <div class="panel-heading">
-      <div><i class="fa fa-table"></i> 3. Quản lý Đội xe toàn hệ thống & Điều chuyển nhanh</div>
-    </div>
-    <div class="panel-body">
-      <div class="filter-box">
-        <div>
-          <label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Xí nghiệp:</label>
-          <select id="filterXnXe" class="form-control select2-search" style="width:100%;">
-            <option value="">-- Tất cả xí nghiệp --</option>
-          </select>
-        </div>
-        <div>
-          <label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Tuyến:</label>
-          <select id="filterTuyenXe" class="form-control select2-search" style="width:100%;" onchange="locBangXeAdmin()">
-            <option value="">-- Tất cả tuyến --</option>
-          </select>
-        </div>
-        <div>
-          <label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Tìm kiếm biển số:</label>
-          <input type="text" id="filterBksXe" class="form-control" placeholder="Nhập biển số xe..." oninput="locBangXeAdmin()">
-        </div>
-      </div>
-
-      <div style="overflow-x: auto; max-height: 400px;">
-        <table class="table-custom">
-          <thead>
-            <tr>
-              <th style="width: 50px; text-align: center;">STT</th>
-              <th style="width: 80px; text-align: center;">Tuyến</th>
-              <th style="width: 120px;">Biển số</th>
-              <th>Chủng loại xe</th>
-              <th style="width: 90px; text-align: center;">Sức chứa</th>
-              <th style="width: 140px; text-align: center;">Hành động</th>
-            </tr>
-          </thead>
-          <tbody id="tblQuanLyXeAdmin"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- PHẦN 4: NHẬP / CẬP NHẬT / XÓA BIỂU ĐỒ CHẠY XE & THEO DÕI THẤT LẠC -->
-  <div class="panel-custom">
-    <div class="panel-heading">
-      <div><i class="fa fa-calendar-plus-o"></i> 4. Nhập / Cập nhật / Xóa Biểu đồ chạy xe & Theo dõi Biểu đồ thiếu</div>
-    </div>
-    <div class="panel-body">
-      <div class="form-grid">
-        <label>Chọn tuyến:</label>
-        <div class="input-combo">
-          <select id="selChonTuyen" class="form-control select2-search" style="width: 100%;">
-            <option value="">Chọn tuyến</option>
-          </select>
+        <!-- SECTION 6: QUẢN TRỊ NGƯỜI DÙNG (Dành cho Master) -->
+        <div id="sec-users" class="content-section">
+          <div class="panel-custom">
+            <div class="panel-heading"><span><i class="fa fa-users"></i> Quản trị Tài khoản Nội bộ (Cấp phép & Duyệt nhân sự)</span></div>
+            <div class="panel-body">
+              <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <input type="text" id="newAccUser" class="form-control" placeholder="Tên đăng nhập mới" style="max-width: 200px;">
+                <input type="password" id="newAccPass" class="form-control" placeholder="Mật khẩu" style="max-width: 200px;">
+                <button class="btn btn-primary" onclick="taoTaiKhoanMoi()"><i class="fa fa-user-plus"></i> Tạo tài khoản</button>
+              </div>
+              <div style="overflow-x: auto;">
+                <table class="table-custom">
+                  <thead><tr><th>Tài khoản</th><th>Vai trò</th><th style="width: 140px; text-align: center;">Trạng thái</th><th style="width: 160px; text-align: center;">Hành động</th></tr></thead>
+                  <tbody id="tblDanhSachTaiKhoan"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <label>Đơn vị chủ quản:</label>
-        <div class="input-combo">
-          <input type="text" id="txtBieuDoXn" class="form-control" readonly placeholder="Tự động hiển thị theo tuyến...">
-        </div>
-
-        <label>Ngày áp dụng:</label>
-        <div class="input-combo">
-          <input type="text" id="txtNgayApDung" class="form-control" oninput="tuDongTaoTenTab()" placeholder="dd/mm/yyyy (Ví dụ: 08/10/2026)">
-        </div>
-
-        <label>Phạm vi ngày:</label>
-        <div class="radio-group">
-          <label class="radio-item"><input type="radio" name="rdPhamVi" value="Cả tuần" checked onchange="tuDongTaoTenTab()"> Cả tuần (T2-CN)</label>
-          <label class="radio-item"><input type="radio" name="rdPhamVi" value="Thứ 2 - Thứ 7" onchange="tuDongTaoTenTab()"> Thứ 2 - Thứ 7 (T2-T7)</label>
-          <label class="radio-item"><input type="radio" name="rdPhamVi" value="Chủ nhật" onchange="tuDongTaoTenTab()"> Chủ nhật (CN)</label>
-        </div>
-
-        <label>Tên tab nhận diện:</label>
-        <div class="input-combo">
-          <input type="text" id="txtTenTab" class="form-control" readonly placeholder="Hệ thống tự động ghép...">
-        </div>
-
-        <label>Dữ liệu giờ (Excel / Tab):</label>
-        <textarea id="txtRawData" class="form-control" placeholder="Copy cả bảng từ Excel/Sheets dán vào đây..."></textarea>
-
-        <div></div>
-        <div style="display: flex; gap: 12px; align-items: center;">
-          <button class="btn btn-primary" onclick="luuBieuDo()"><i class="fa fa-upload"></i> Lưu biểu đồ vào hệ thống</button>
-          <button class="btn btn-danger" type="button" onclick="xoaBieuDo()"><i class="fa fa-trash"></i> Xóa biểu đồ này</button>
-        </div>
-      </div>
-
-      <!-- BẢNG THEO DÕI TRẠNG THÁI BIỂU ĐỒ -->
-      <div style="margin-top: 25px; border-top: 1px solid #D0D7DE; padding-top: 15px;">
-        <h4 style="font-size: 13px; color: #2C3E50; margin-bottom: 10px;"><i class="fa fa-exclamation-triangle" style="color:#e67e22;"></i> Kiểm tra trạng thái Biểu đồ các tuyến trong hệ thống:</h4>
-        <div style="overflow-x: auto; max-height: 250px;">
-          <table class="table-custom">
-            <thead>
-              <tr>
-                <th style="width: 70px; text-align: center;">Mã tuyến</th>
-                <th>Tên Tuyến</th>
-                <th style="width: 160px; text-align: center;">Trạng thái Biểu đồ</th>
-              </tr>
-            </thead>
-            <tbody id="tblTrangThaiBieuDo"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- PHẦN 5: DANH SÁCH TUYẾN & TRẠNG THÁI HOẠT ĐỘNG TOÀN HỆ THỐNG -->
-  <div class="panel-custom">
-    <div class="panel-heading">
-      <div><i class="fa fa-list"></i> 5. Danh sách Tuyến & Trạng thái hoạt động</div>
-    </div>
-    <div class="panel-body">
-      <div style="overflow-x: auto;">
-        <table class="table-custom">
-          <thead>
-            <tr>
-              <th style="width: 60px; text-align: center;">Mã</th>
-              <th>Tên Tuyến</th>
-              <th>Đơn vị chủ quản</th>
-              <th>Phương tiện (VD / KH)</th>
-              <th style="width: 140px; text-align: center;">Trạng thái</th>
-              <th style="width: 220px; text-align: center;">Hành động</th>
-            </tr>
-          </thead>
-          <tbody id="tblDanhSachTuyen"></tbody>
-        </table>
       </div>
     </div>
   </div>
@@ -520,14 +564,8 @@
   <div id="modalDieuChuyen" style="display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
     <div style="background:#fff; width:450px; border-radius:5px; padding:20px; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
       <h3 style="margin-bottom:15px; font-size:14px; color:#2C3E50;"><i class="fa fa-random"></i> Điều chuyển xe sang tuyến khác</h3>
-      <div style="margin-bottom:12px;">
-        <label>Biển kiểm soát:</label>
-        <input type="text" id="dcBks" class="form-control" readonly style="font-weight:bold; margin-top:4px;">
-      </div>
-      <div style="margin-bottom:15px;">
-        <label>Tuyến chuyển đến:</label>
-        <select id="dcTuyenMoi" class="form-control select2-search" style="width:100%; margin-top:4px;"></select>
-      </div>
+      <div style="margin-bottom:12px;"><label>Biển kiểm soát:</label><input type="text" id="dcBks" class="form-control" readonly style="font-weight:bold; margin-top:4px;"></div>
+      <div style="margin-bottom:15px;"><label>Tuyến chuyển đến:</label><select id="dcTuyenMoi" class="form-control select2-search" style="width:100%; margin-top:4px;"></select></div>
       <div style="display:flex; justify-content:flex-end; gap:10px;">
         <button class="btn btn-default" onclick="$('#modalDieuChuyen').css('display','none')">Hủy</button>
         <button class="btn btn-primary" onclick="xacNhanDieuChuyen()"><i class="fa fa-check"></i> Xác nhận chuyển</button>
@@ -544,12 +582,33 @@
         $('body').append('<div id="toast-container"></div>');
         $container = $('#toast-container');
       }
-
       const icon = type === 'success' ? 'fa-check-circle' : (type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle');
       const $toast = $(`<div class="custom-toast ${type}"><i class="fa ${icon}" style="font-size: 16px;"></i><span>${message}</span></div>`);
-      
       $container.append($toast);
       setTimeout(() => { $toast.remove(); }, 3000);
+    }
+
+    // Chuyển tab Sidebar Menu
+    function chuyenTabAdmin(sectionId, element) {
+      $('.content-section').removeClass('active');
+      $('.sidebar-menu li a').removeClass('active');$('#' + sectionId).addClass('active');
+      $(element).addClass('active');
+
+      // Đổi tiêu đề Navbar theo menu
+      const titleText = $(element).text().trim();$('#navTitle').text(titleText);
+
+      // Ẩn menu trên mobile sau khi chọn
+      if (window.innerWidth <= 768) {
+        $('#sidebarMenu').removeClass('mobile-show');
+      }
+
+      if (sectionId === 'sec-users') {
+        taiDanhSachTaiKhoan();
+      }
+    }
+
+    function toggleSidebar() {
+      $('#sidebarMenu').toggleClass('mobile-show');
     }
 
     let rawDanhMuc = [];
@@ -560,10 +619,13 @@
     let dsBieuDoLuu = [];
     let dangLamMoi = false;
 
-    $(document).ready(function() {
-      $('.select2-search').select2({
+    $(document).ready(function() {$('.select2-search').select2({
         language: { noResults: () => "Không tìm thấy kết quả phù hợp" }
       });
+
+      if (sessionStorage.getItem('admin_role') === 'master') {
+        $('#menuQuanTriUser').show();
+      }
 
       $('#selXn').on('change', () => toggleExtraInput('selXn', 'txtXnMoi'));
       $('#selDauA').on('change', () => { toggleExtraInput('selDauA', 'txtDauAMoi'); tuDongGoiYTenTuyen(); });
@@ -574,9 +636,8 @@
 
       $('#filterXnXe').on('change', function() {
         const selectedXn = $(this).val();
-        const $filterTuyen = $('#filterTuyenXe');
+        const $filterTuyen =$('#filterTuyenXe');
         $filterTuyen.empty().append('<option value="">-- Tất cả tuyến --</option>');
-        
         mapTuyenChiTiet.forEach(t => {
           if (!selectedXn || (t.xn || '').toLowerCase() === selectedXn.toLowerCase()) {
             $filterTuyen.append(new Option(`${t.maTuyen} - ${t.tenTuyen}`, t.maTuyen));
@@ -591,7 +652,7 @@
 
     function toggleExtraInput(selectId, inputId) {
       const val = $('#' + selectId).val();
-      const $inp = $('#' + inputId);
+      const $inp =$('#' + inputId);
       if (val === "__NEW__") $inp.show().focus();
       else $inp.hide().val("");
     }
@@ -638,7 +699,6 @@
       const ma = $('#txtMaTuyen').val().trim();
       const selA = $('#selDauA').val();
       const dauA = selA === "__NEW__" ? $('#txtDauAMoi').val().trim() : selA;
-
       const selB = $('#selDauB').val();
       const dauB = selB === "__NEW__" ? $('#txtDauBMoi').val().trim() : selB;
 
@@ -655,9 +715,7 @@
         const allRoutes = data.allRoutes || [];
         dsBieuDoLuu = data.bieuDoList || [];
 
-        dsXn.clear();
-        dsDauBen.clear();
-        mapTuyenChiTiet.clear();
+        dsXn.clear(); dsDauBen.clear(); mapTuyenChiTiet.clear();
 
         allRoutes.forEach(t => {
           if (t.xn) dsXn.add(t.xn);
@@ -686,14 +744,12 @@
           return (a.maTuyen || '').localeCompare(b.maTuyen || '', undefined, { numeric: true, sensitivity: 'base' });
         });
 
-        const $filterTuyen = $('#filterTuyenXe');
+        const $filterTuyen =$('#filterTuyenXe');
         $filterTuyen.empty().append('<option value="">-- Tất cả tuyến --</option>');
-        sortedRoutes.forEach(t => {
-          $filterTuyen.append(new Option(`${t.maTuyen} - ${t.tenTuyen}`, t.maTuyen));
-        });
+        sortedRoutes.forEach(t => { $filterTuyen.append(new Option(`${t.maTuyen} - ${t.tenTuyen}`, t.maTuyen)); });
         $filterTuyen.trigger('change.select2');
 
-        const $selSua = $('#selChonTuyenDeSua');
+        const $selSua =$('#selChonTuyenDeSua');
         $selSua.empty().append('<option value="">[+ Tạo mới một tuyến hoàn toàn]</option>');
         sortedRoutes.forEach(t => {
           const lockText = t.status === 'locked' ? ' [ĐÃ KHÓA]' : '';
@@ -701,23 +757,20 @@
         });
         $selSua.trigger('change.select2');
 
-        const $selTuyen = $('#selChonTuyen');
+        const $selTuyen =$('#selChonTuyen');
         $selTuyen.empty().append('<option value="">Chọn tuyến</option>');
-        
         let selectedVal = "";
         sortedRoutes.forEach(t => {
           const isSelected = chonMaTuyenMoi && (t.maTuyen === chonMaTuyenMoi);
           if (isSelected) selectedVal = t.tenTuyen;
           const opt = new Option(t.tenTuyen, t.tenTuyen, false, false);
-          $(opt).attr('data-xn', t.xn); $selTuyen.append(opt);
+          $(opt).attr('data-xn', t.xn);$selTuyen.append(opt);
         });
-
-        if (selectedVal) $selTuyen.val(selectedVal); $selTuyen.trigger('change.select2');
+        if (selectedVal) $selTuyen.val(selectedVal);$selTuyen.trigger('change.select2');
 
         veBangDanhSachTuyen(sortedRoutes);
         veBangTrangThaiBieuDo(sortedRoutes);
         capNhatThongKe();
-
         await taiToanBoXeAdmin();
       } catch (err) {
         console.error("Lỗi nạp dữ liệu:", err);
@@ -732,28 +785,16 @@
         sortedRoutes.forEach(t => {
           let maTuyenCurrent = String(t.maTuyen || '').trim().toUpperCase();
           let tenTuyenCurrent = String(t.tenTuyen || '').trim().toUpperCase();
-
           const hasChart = dsBieuDoLuu.some(b => {
             let bTuyen = String(b.tuyen || '').trim().toUpperCase();
             let bTab = String(b.tenTab || '').trim().toUpperCase();
-            
-            return bTuyen.includes(maTuyenCurrent) || 
-                   tenTuyenCurrent.includes(bTuyen) || 
-                   bTab.includes(maTuyenCurrent) ||
-                   bTuyen === maTuyenCurrent;
+            return bTuyen.includes(maTuyenCurrent) || tenTuyenCurrent.includes(bTuyen) || bTab.includes(maTuyenCurrent) || bTuyen === maTuyenCurrent;
           });
-
           const badge = hasChart
             ? '<span class="status-badge status-has-chart"><i class="fa fa-check-circle"></i> Đã có biểu đồ</span>'
             : '<span class="status-badge status-missing-chart"><i class="fa fa-exclamation-circle"></i> Thiếu / Thất lạc biểu đồ</span>';
 
-          html += `
-            <tr>
-              <td style="text-align:center; font-weight:bold; color:#3B86C4;">${t.maTuyen}</td>
-              <td><strong>${t.tenTuyen}</strong></td>
-              <td style="text-align:center;">${badge}</td>
-            </tr>
-          `;
+          html += `<tr><td style="text-align:center; font-weight:bold; color:#3B86C4;">${t.maTuyen}</td><td><strong>${t.tenTuyen}</strong></td><td style="text-align:center;">${badge}</td></tr>`;
         });
       }
       $('#tblTrangThaiBieuDo').html(html);
@@ -762,27 +803,20 @@
     async function taiToanBoXeAdmin() {
       try {
         const res = await fetch(`${API_BASE}/api/tim-kiem-xe?q=`).then(r => r.json());
-        if (res.success) {
-          tatCaXeHeThong = res.data || [];
-          locBangXeAdmin();
-        }
-      } catch (err) {
-        console.error("Lỗi tải đội xe:", err);
-      }
+        if (res.success) { tatCaXeHeThong = res.data || []; locBangXeAdmin(); }
+      } catch (err) { console.error("Lỗi tải đội xe:", err); }
     }
 
     function locBangXeAdmin() {
       const selectedXn = $('#filterXnXe').val();
       const selectedTuyen = $('#filterTuyenXe').val();
       const keyword = $('#filterBksXe').val().trim().toLowerCase();
-
       const filtered = tatCaXeHeThong.filter(x => {
         const matchXn = !selectedXn || (x.xn || '').toLowerCase() === selectedXn.toLowerCase();
         const matchTuyen = !selectedTuyen || (x.maTuyen || '').toUpperCase() === selectedTuyen.toUpperCase();
         const matchBks = !keyword || (x.bks || '').toLowerCase().includes(keyword);
         return matchXn && matchTuyen && matchBks;
       });
-
       veBangQuanLyXeAdmin(filtered);
     }
 
@@ -792,20 +826,14 @@
         html = '<tr><td colspan="6" style="text-align:center; color:#999; padding:20px;">Không tìm thấy phương tiện nào phù hợp bộ lọc!</td></tr>';
       } else {
         listXe.forEach((xe, index) => {
-          html += `
-            <tr>
-              <td style="text-align: center; color: #555;">${index + 1}</td>
-              <td style="text-align: center; font-weight: bold; color: #3B86C4;">${xe.maTuyen || '-'}</td>
-              <td><strong style="color: #111;">${xe.bks}</strong></td>
-              <td>${xe.nhanHieu || ''} ${xe.chungLoai || ''}</td>
-              <td style="text-align: center;">${xe.sucChua || '-'}</td>
-              <td style="text-align: center;">
-                <button class="btn btn-primary" style="padding:3px 8px; font-size:11px;" onclick="batModalDieuChuyen('${xe.bks}')">
-                  <i class="fa fa-random"></i> Chuyển tuyến
-                </button>
-              </td>
-            </tr>
-          `;
+          html += `<tr>
+            <td style="text-align: center; color: #555;">${index + 1}</td>
+            <td style="text-align: center; font-weight: bold; color: #3B86C4;">${xe.maTuyen || '-'}</td>
+            <td><strong style="color: #111;">${xe.bks}</strong></td>
+            <td>${xe.nhanHieu || ''} ${xe.chungLoai || ''}</td>
+            <td style="text-align: center;">${xe.sucChua || '-'}</td>
+            <td style="text-align: center;"><button class="btn btn-primary" style="padding:3px 8px; font-size:11px;" onclick="batModalDieuChuyen('${xe.bks}')"><i class="fa fa-random"></i> Chuyển</button></td>
+          </tr>`;
         });
       }
       $('#tblQuanLyXeAdmin').html(html);
@@ -813,26 +841,13 @@
 
     function capNhatThongKe() {
       let tongTuyen = mapTuyenChiTiet.size;
-      let tuyenActive = 0;
-      let tuyenLocked = 0;
-      let tongXeVdActive = 0;
-      let tongXeKhActive = 0;
-      let tongXeLocked = 0;
-
+      let tuyenActive = 0, tuyenLocked = 0, tongXeVdActive = 0, tongXeKhActive = 0, tongXeLocked = 0;
       mapTuyenChiTiet.forEach(t => {
         const vd = parseInt(t.soXeVd || t.soXe, 10) || 0;
         const kh = parseInt(t.soXeKh || t.soXe, 10) || 0;
-
-        if (t.status === 'locked') {
-          tuyenLocked++;
-          tongXeLocked += (kh || vd);
-        } else {
-          tuyenActive++;
-          tongXeVdActive += vd;
-          tongXeKhActive += kh;
-        }
+        if (t.status === 'locked') { tuyenLocked++; tongXeLocked += (kh || vd); }
+        else { tuyenActive++; tongXeVdActive += vd; tongXeKhActive += kh; }
       });
-
       $('#statTongTuyen').text(tongTuyen);
       $('#statTuyenDetail').text(`${tuyenActive} đang chạy / ${tuyenLocked} tạm dừng`);
       $('#statXeActive').text(`${tongXeVdActive} / ${tongXeKhActive} xe`);
@@ -843,93 +858,65 @@
     function veBangDanhSachTuyen(sortedList) {
       let html = '';
       const listToRender = sortedList || Array.from(mapTuyenChiTiet.values());
-
       if (listToRender.length === 0) {
-        html = '<tr><td colspan="6" style="text-align:center; color:#999; padding:15px;">Chưa có tuyến xe nào trong hệ thống!</td></tr>';
+        html = '<tr><td colspan="6" style="text-align:center; color:#999; padding:15px;">Chưa có tuyến xe nào!</td></tr>';
       } else {
         listToRender.forEach(t => {
           const isLocked = t.status === 'locked';
-          const badge = isLocked 
-            ? '<span class="status-badge status-locked"><i class="fa fa-lock"></i> Đã khóa / Dừng</span>' 
-            : '<span class="status-badge status-active"><i class="fa fa-check"></i> Đang chạy</span>';
-          
-          const vd = t.soXeVd || t.soXe || "";
-          const kh = t.soXeKh || t.soXe || "";
-          
-          let phuongTienStr = "";
-          if (vd || kh) {
-            phuongTienStr = `<strong style="color:#0F86DB;">${vd ? vd : '?'}/${kh ? kh : '?'} xe</strong>`;
-          }
-          if (t.loaiXe) phuongTienStr += (phuongTienStr ? ' - ' : '') + t.loaiXe;
-          if (t.sucChua) phuongTienStr += ` (${t.sucChua})`;
-          if (!phuongTienStr) phuongTienStr = '<span style="color:#aaa;">Chưa cập nhật</span>';
-
+          const badge = isLocked ? '<span class="status-badge status-locked">Khóa</span>' : '<span class="status-badge status-active">Hoạt động</span>';
+          const vd = t.soXeVd || t.soXe || ""; const kh = t.soXeKh || t.soXe || "";
+          let phuongTienStr = (vd || kh) ? `<strong style="color:#0F86DB;">${vd || '?'}/${kh || '?'} xe</strong>` : '<span style="color:#aaa;">Chưa cập nhật</span>';
+          if (t.loaiXe) phuongTienStr += ` - ${t.loaiXe}`;
           const btnToggle = isLocked
-            ? `<button class="btn btn-success" style="padding:3px 8px; font-size:11px;" onclick="doiTrangThai('${t.maTuyen}', 'active')"><i class="fa fa-unlock"></i> Mở lại</button>`
-            : `<button class="btn btn-warning" style="padding:3px 8px; font-size:11px;" onclick="doiTrangThai('${t.maTuyen}', 'locked')"><i class="fa fa-lock"></i> Khóa</button>`;
+            ? `<button class="btn btn-success" style="padding:3px 8px; font-size:11px;" onclick="doiTrangThai('${t.maTuyen}', 'active')">Mở</button>`
+            : `<button class="btn btn-warning" style="padding:3px 8px; font-size:11px;" onclick="doiTrangThai('${t.maTuyen}', 'locked')">Khóa</button>`;
 
-          html += `
-            <tr>
-              <td style="text-align: center; font-weight: bold; color: #3B86C4;">${t.maTuyen}</td>
-              <td><strong>${t.tenTuyen}</strong></td>
-              <td>${t.xn || '-'}</td>
-              <td>${phuongTienStr}</td>
-              <td style="text-align: center;">${badge}</td>
-              <td style="text-align: center;">
-                <div style="display:flex; gap:5px; justify-content:center;">
-                  <button class="btn btn-default" style="padding:3px 8px; font-size:11px;" onclick="napTuyenLenSua('${t.maTuyen}')"><i class="fa fa-pencil"></i> Sửa</button>
-                  ${btnToggle}
-                </div>
-              </td>
-            </tr>
-          `;
+          html += `<tr>
+            <td style="text-align: center; font-weight: bold; color: #3B86C4;">${t.maTuyen}</td>
+            <td><strong>${t.tenTuyen}</strong></td>
+            <td>${t.xn || '-'}</td>
+            <td>${phuongTienStr}</td>
+            <td style="text-align: center;">${badge}</td>
+            <td style="text-align: center;"><div style="display:flex; gap:5px; justify-content:center;">
+              <button class="btn btn-default" style="padding:3px 8px; font-size:11px;" onclick="napTuyenLenSua('${t.maTuyen}')">Sửa</button>${btnToggle}
+            </div></td>
+          </tr>`;
         });
       }
       $('#tblDanhSachTuyen').html(html);
     }
 
     function napTuyenLenSua(maTuyen) {
-      $('#selChonTuyenDeSua').val(maTuyen).trigger('change');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      chuyenTabAdmin('sec-tuyen', $('.sidebar-menu li a')[1]);$('#selChonTuyenDeSua').val(maTuyen).trigger('change');
     }
 
     async function doiTrangThai(maTuyen, statusMoi) {
-      const tenStatus = statusMoi === 'locked' ? 'KHÓA (tạm dừng)' : 'MỞ LẠI';
-      if (!confirm(`Bạn có chắc chắn muốn ${tenStatus} hoạt động của tuyến [${maTuyen}]?`)) return;
-
+      if (!confirm(`Xác nhận đổi trạng thái tuyến [${maTuyen}]?`)) return;
       try {
         const res = await fetch(`${API_BASE}/api/toggle-status-tuyen`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ maTuyen, status: statusMoi })
-        });
-        const data = await res.json();
-        showToast(data.message, "success");
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ maTuyen, status: statusMoi })
+        }).then(r => r.json());
+        showToast(res.message, "success");
         await napDuLieuTong();
-      } catch (e) {
-        showToast("Lỗi: " + e, "error");
-      }
+      } catch (e) { showToast("Lỗi: " + e, "error"); }
     }
 
     function doVaoSelect2(elemId, dataSet, label) {
-      const $sel = $('#' + elemId);
+      const $sel =$('#' + elemId);
       $sel.empty().append(`<option value="">Chọn ${label}</option>`);
-      Array.from(dataSet).sort().forEach(val => $sel.append(new Option(val, val)));
-      $sel.append(new Option(`[+ Thêm ${label} mới...]`, "__NEW__"));
+      Array.from(dataSet).sort().forEach(val => $sel.append(new Option(val, val)));$sel.append(new Option(`[+ Thêm ${label} mới...]`, "__NEW__"));
       $sel.trigger('change.select2');
     }
 
     function doVaoSelect2ThongThuong(elemId, dataSet, defaultText) {
-      const $sel = $('#' + elemId);
+      const $sel =$('#' + elemId);
       $sel.empty().append(`<option value="">${defaultText}</option>`);
-      Array.from(dataSet).sort().forEach(val => $sel.append(new Option(val, val)));
-      $sel.trigger('change.select2');
+      Array.from(dataSet).sort().forEach(val => $sel.append(new Option(val, val)));$sel.trigger('change.select2');
     }
 
     function onSelectTuyenChange() {
       const opt = $('#selChonTuyen').find(':selected');
-      const xn = opt.attr('data-xn') || "";
-      $('#txtBieuDoXn').val(xn);
+      $('#txtBieuDoXn').val(opt.attr('data-xn') || "");
       tuDongTaoTenTab();
     }
 
@@ -937,31 +924,20 @@
       const tuyen = $('#selChonTuyen').val();
       const ngay = $('#txtNgayApDung').val().trim();
       const phamVi = $('input[name="rdPhamVi"]:checked').val() || "Cả tuần";
-      const $tabInp = $('#txtTenTab');
-
-      if (!tuyen) { $tabInp.val(""); return; }
+      if (!tuyen) { $('#txtTenTab').val(""); return; }
       const match = tuyen.match(/^([A-Za-z0-9]+)/);
-      const maTuyenNgan = match ? match[1] : tuyen;
-
-      if (ngay) {
-        const ngayFormat = ngay.replace(/\//g, '.');
-        $tabInp.val(`${maTuyenNgan} (${ngayFormat} - ${phamVi})`);
-      } else {
-        $tabInp.val(`${maTuyenNgan} (${phamVi})`);
-      }
+      const maNgan = match ? match[1] : tuyen;
+      $('#txtTenTab').val(ngay ? `${maNgan} (${ngay.replace(/\//g, '.')} - ${phamVi})` : `${maNgan} (${phamVi})`);
     }
 
     async function xacLapTuyen() {
       const maTuyen = $('#txtMaTuyen').val().trim();
       const selXnVal = $('#selXn').val();
       const xn = selXnVal === "__NEW__" ? $('#txtXnMoi').val().trim() : selXnVal;
-
       const selAVal = $('#selDauA').val();
       const dauA = selAVal === "__NEW__" ? $('#txtDauAMoi').val().trim() : selAVal;
-
       const selBVal = $('#selDauB').val();
       const dauB = selBVal === "__NEW__" ? $('#txtDauBMoi').val().trim() : selBVal;
-
       const tenTuyen = $('#txtTenTuyen').val().trim();
       const soXeVd = $('#txtSoXeVd').val().trim();
       const soXeKh = $('#txtSoXeKh').val().trim();
@@ -969,24 +945,16 @@
       const sucChua = $('#txtSucChua').val().trim();
       const status = $('input[name="rdStatus"]:checked').val() || 'active';
 
-      if (!maTuyen || !tenTuyen || !xn) {
-        showToast("Vui lòng điền đủ Mã tuyến, Đơn vị chủ quản và Tên tuyến!", "error");
-        return;
-      }
-
+      if (!maTuyen || !tenTuyen || !xn) { showToast("Vui lòng điền đủ Mã tuyến, Đơn vị và Tên tuyến!", "error"); return; }
       try {
         const res = await fetch(`${API_BASE}/api/tuyen-moi`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ maTuyen, tenTuyen, xn, dauA, dauB, soXeVd, soXeKh, loaiXe, sucChua, status })
-        });
-        const data = await res.json();
-        showToast(data.message, "success");
+        }).then(r => r.json());
+        showToast(res.message, "success");
         await napDuLieuTong(maTuyen);
         resetFormTuyen();
-      } catch (err) {
-        showToast("Lỗi kết nối: " + err, "error");
-      }
+      } catch (err) { showToast("Lỗi kết nối: " + err, "error"); }
     }
 
     async function luuBieuDo() {
@@ -997,122 +965,109 @@
       const tenTab = $('#txtTenTab').val().trim();
       const rawText = $('#txtRawData').val().trim();
 
-      if (!tuyen) { showToast("Vui lòng chọn Tuyến cần gán biểu đồ!", "error"); return; }
+      if (!tuyen) { showToast("Vui lòng chọn Tuyến!", "error"); return; }
       if (!ngayApDung || !rawText) { showToast("Vui lòng điền Ngày áp dụng và dán Dữ liệu giờ!", "error"); return; }
 
-      const lines = rawText.split("\n");
-      const rawData = [];
-      let maxCols = 0;
-
-      for (let i = 0; i < lines.length; i++) {
-        if (!lines[i].trim()) continue;
-        const cols = lines[i].split("\t");
-        if (cols.length > maxCols) maxCols = cols.length;
-        rawData.push(cols);
-      }
-
-      for (let j = 0; j < rawData.length; j++) {
-        while (rawData[j].length < maxCols) rawData[j].push("");
-      }
-
-      const bieuDo = `${ngayApDung} (${phamVi})`;
+      const lines = rawText.split("\n"); const rawData = []; let maxCols = 0;
+      lines.forEach(l => { if (l.trim()) { const cols = l.split("\t"); if (cols.length > maxCols) maxCols = cols.length; rawData.push(cols); } });
+      rawData.forEach(row => { while (row.length < maxCols) row.push(""); });
 
       try {
         const res = await fetch(`${API_BASE}/api/luu-bieu-do`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ xn, tuyen, bieuDo, tenTab, rawData, ngayApDung, phamVi })
-        });
-        const data = await res.json();
-        showToast(data.message, "success");
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ xn, tuyen, bieuDo: `${ngayApDung} (${phamVi})`, tenTab, rawData, ngayApDung, phamVi })
+        }).then(r => r.json());
+        showToast(res.message, "success");
         $('#txtRawData').val("");
         await napDuLieuTong();
-      } catch (err) {
-        showToast("Lỗi khi lưu biểu đồ: " + err, "error");
-      }
+      } catch (err) { showToast("Lỗi: " + err, "error"); }
     }
 
     async function xoaBieuDo() {
       const tenTab = $('#txtTenTab').val().trim();
-      if (!tenTab) { showToast("Vui lòng chọn Tuyến và Ngày áp dụng để xác định biểu đồ cần xóa!", "error"); return; }
-      if (!confirm(`Bạn có chắc chắn muốn XÓA VĨNH VIỄN biểu đồ [${tenTab}] khỏi hệ thống không?`)) return;
-
+      if (!tenTab) { showToast("Chưa chọn biểu đồ để xóa!", "error"); return; }
+      if (!confirm(`Xóa vĩnh viễn biểu đồ [${tenTab}]?`)) return;
       try {
         const res = await fetch(`${API_BASE}/api/xoa-bieu-do`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tenTab })
-        });
-        const data = await res.json();
-        showToast(data.message, data.success ? "success" : "error");
-        if (data.success) {
-          await napDuLieuTong();
-          $('#txtRawData').val("");
-          $('#txtNgayApDung').val("");
-          tuDongTaoTenTab();
-        }
-      } catch (err) {
-        showToast("Lỗi kết nối khi xóa: " + err, "error");
-      }
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenTab })
+        }).then(r => r.json());
+        showToast(res.message, "success");
+        if (res.success) { await napDuLieuTong(); $('#txtRawData').val(""); $('#txtNgayApDung').val(""); tuDongTaoTenTab(); }
+      } catch (err) { showToast("Lỗi: " + err, "error"); }
     }
 
     async function napDanhSachXeExcel() {
       const rawText = $('#txtExcelXe').val().trim();
-      if (!rawText) { showToast("Vui lòng dán dữ liệu Excel danh sách xe vào ô văn bản!", "error"); return; }
-
+      if (!rawText) { showToast("Vui lòng dán dữ liệu Excel!", "error"); return; }
       try {
         const res = await fetch(`${API_BASE}/api/import-danh-sach-xe`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rawText })
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rawText })
         }).then(r => r.json());
-
         showToast(res.message, res.success ? "success" : "error");
-        if (res.success) {
-          $('#txtExcelXe').val('');
-          await napDuLieuTong();
-        }
-      } catch (e) {
-        showToast("Lỗi nạp danh sách xe: " + e, "error");
-      }
+        if (res.success) { $('#txtExcelXe').val(''); await napDuLieuTong(); }
+      } catch (e) { showToast("Lỗi: " + e, "error"); }
     }
 
     function batModalDieuChuyen(bks) {
       $('#dcBks').val(bks);
-      const $sel =$('#dcTuyenMoi');
-      $sel.empty();
-      mapTuyenChiTiet.forEach(t => {
-        $sel.append(new Option(`${t.maTuyen} - ${t.tenTuyen}`, t.maTuyen));
-      });
-      
-      $sel.select2({
-        dropdownParent: $('#modalDieuChuyen'),
-        language: { noResults: () => "Không tìm thấy kết quả phù hợp" }
-      });
-
+      const $sel = $('#dcTuyenMoi'); $sel.empty();
+      mapTuyenChiTiet.forEach(t => { $sel.append(new Option(`${t.maTuyen} - ${t.tenTuyen}`, t.maTuyen)); });
+      $sel.select2({ dropdownParent:$('#modalDieuChuyen'), language: { noResults: () => "Không tìm thấy" } });
       $('#modalDieuChuyen').css('display', 'flex');
     }
 
     async function xacNhanDieuChuyen() {
-      const bks = $('#dcBks').val();
-      const tuyenMoi = $('#dcTuyenMoi').val();
+      const bks = $('#dcBks').val(); const tuyenMoi = $('#dcTuyenMoi').val();
       if (!bks || !tuyenMoi) return;
-
       try {
         const res = await fetch(`${API_BASE}/api/dieu-chuyen-xe`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bks, tuyenMoi })
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bks, tuyenMoi })
         }).then(r => r.json());
-
         showToast(res.message, res.success ? "success" : "error");
+        if (res.success) { $('#modalDieuChuyen').css('display', 'none'); await napDuLieuTong(); }
+      } catch (e) { showToast("Lỗi: " + e, "error"); }
+    }
+
+    async function taiDanhSachTaiKhoan() {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/danh-sach-tai-khoan`).then(r => r.json());
         if (res.success) {
-          $('#modalDieuChuyen').css('display', 'none');
-          await napDuLieuTong();
+          let html = '';
+          res.data.forEach(acc => {
+            const statusBadge = acc.status === 'active' ? '<span class="status-badge status-active">Hoạt động</span>' : '<span class="status-badge status-locked">Chờ duyệt</span>';
+            let btnAction = '';
+            if (acc.status === 'pending') {
+              btnAction = `<button class="btn btn-success" style="padding:2px 6px; font-size:11px;" onclick="duyetTaiKhoan('${acc.username}', 'approve')">Duyệt</button>`;
+            } else if (acc.role !== 'master') {
+              btnAction = `<button class="btn btn-danger" style="padding:2px 6px; font-size:11px;" onclick="duyetTaiKhoan('${acc.username}', 'reject')">Xóa</button>`;
+            } else { btnAction = '<span style="color:#888;">Master</span>'; }
+
+            html += `<tr><td><strong>${acc.username}</strong></td><td>${acc.role}</td><td style="text-align: center;">${statusBadge}</td><td style="text-align: center;">${btnAction}</td></tr>`;
+          });
+          $('#tblDanhSachTaiKhoan').html(html);
         }
-      } catch (e) {
-        showToast("Lỗi khi điều chuyển xe: " + e, "error");
-      }
+      } catch (e) { console.error("Lỗi:", e); }
+    }
+
+    async function taoTaiKhoanMoi() {
+      const username = $('#newAccUser').val().trim(); const password = $('#newAccPass').val().trim();
+      if (!username || !password) { showToast("Nhập đầy đủ thông tin!", "error"); return; }
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/dang-ky`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password })
+        }).then(r => r.json());
+        showToast(res.message, res.success ? "success" : "error");
+        if (res.success) { $('#newAccUser').val(''); $('#newAccPass').val(''); taiDanhSachTaiKhoan(); }
+      } catch (e) { showToast("Lỗi kết nối", "error"); }
+    }
+
+    async function duyetTaiKhoan(username, action) {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/duyet-tai-khoan`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, action })
+        }).then(r => r.json());
+        showToast(res.message, "success"); taiDanhSachTaiKhoan();
+      } catch (e) { showToast("Lỗi thao tác", "error"); }
     }
   </script>
 </body>
