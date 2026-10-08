@@ -130,7 +130,6 @@ async function getRawData() {
   return { tuyenList: {}, bieuDoList: [], xeList: [], taiKhoanList: [] };
 }
 
-// Hàm lưu nhanh tốc độ cao (dùng cho các API lưu tuyến, lưu biểu đồ)
 async function saveRawDataFast(data) {
   await BusModel.findOneAndUpdate(
     { key: 'main_data' },
@@ -139,7 +138,6 @@ async function saveRawDataFast(data) {
   );
 }
 
-// Hàm lưu chuẩn (dùng khi khởi động server hoặc lúc import file Excel danh sách xe)
 async function saveRawData(data) {
   const cleaned = await cleanAndSyncData(data);
   await BusModel.findOneAndUpdate(
@@ -165,6 +163,9 @@ app.post('/api/admin/login', async (req, res) => {
     const user = raw.taiKhoanList.find(u => u.username === username && u.password === password);
     if (!user) {
       return res.status(401).json({ success: false, message: 'Tài khoản không tồn tại trên hệ thống' });
+    }
+    if (user.status === 'locked') {
+      return res.status(403).json({ success: false, message: 'Tài khoản của bạn đang bị tạm khóa!' });
     }
 
     res.json({ success: true, role: user.role, message: 'Đăng nhập thành công!' });
@@ -212,6 +213,48 @@ app.post('/api/admin/dang-ky', async (req, res) => {
 
     await saveRawDataFast(raw);
     res.json({ success: true, message: 'Tạo tài khoản thành công!' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// API CẬP NHẬT TÀI KHOẢN (ĐỔI TRẠNG THÁI HOẶC VAI TRÒ)
+app.post('/api/admin/sua-tai-khoan', async (req, res) => {
+  try {
+    const { username, status, role } = req.body;
+    const raw = await getRawData();
+    if (!raw.taiKhoanList) raw.taiKhoanList = [];
+
+    const user = raw.taiKhoanList.find(u => u.username === username);
+    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản!' });
+
+    if (status) user.status = status;
+    if (role) user.role = role;
+
+    await saveRawDataFast(raw);
+    res.json({ success: true, message: 'Cập nhật tài khoản thành công!' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// API ĐỔI MẬT KHẨU TÀI KHOẢN
+app.post('/api/admin/doi-mat-khau', async (req, res) => {
+  try {
+    const { username, newPassword } = req.body;
+    if (!username || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin mật khẩu mới!' });
+    }
+
+    const raw = await getRawData();
+    if (!raw.taiKhoanList) raw.taiKhoanList = [];
+
+    const user = raw.taiKhoanList.find(u => u.username === username);
+    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản!' });
+
+    user.password = newPassword;
+    await saveRawDataFast(raw);
+    res.json({ success: true, message: `Đã đổi mật khẩu cho tài khoản [${username}] thành công!` });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -528,7 +571,7 @@ app.post('/api/dieu-chuyen-xe', async (req, res) => {
     await saveRawDataFast(raw);
     res.json({ success: true, message: `Đã điều chuyển xe [${bks}] sang tuyến [${tuyenMoi}] thành công!` });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message});
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
