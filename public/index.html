@@ -236,7 +236,6 @@
         row-gap: 6px;
       }
     }
-    /* Toast Notification Container */
     #toast-container {
       position: fixed;
       top: 20px;
@@ -362,14 +361,13 @@
     const API_BASE = "https://dieu-hanh-bus.onrender.com";
     
     function showToast(message, type = 'success') {
-      let $container = $('#toast-container');
-      if ($container.length === 0) {
-        $('body').append('<div id="toast-container"></div>');
-        $container = $('#toast-container');
+      let $container =$('#toast-container');
+      if ($container.length === 0) {$('body').append('<div id="toast-container"></div>');
+        $container =$('#toast-container');
       }
 
       const icon = type === 'success' ? 'fa-check-circle' : (type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle');
-      const $toast = $(`<div class="custom-toast ${type}"><i class="fa ${icon}" style="font-size: 16px;"></i><span>${message}</span></div>`);
+      const $toast =$(`<div class="custom-toast ${type}"><i class="fa ${icon}" style="font-size: 16px;"></i><span>${message}</span></div>`);
       
       $container.append($toast);
       setTimeout(() => { $toast.remove(); }, 3000);
@@ -381,8 +379,7 @@
 
     function chuyenTab(tabId) {
       $('.tab-content').removeClass('active');
-      $('.nav-btn').removeClass('active');
-      $('#' + tabId).addClass('active');
+      $('.nav-btn').removeClass('active');$('#' + tabId).addClass('active');
 
       if (tabId === 'tab-bieudo') $('#btnNavBieuDo').addClass('active');
       else if (tabId === 'tab-xe') $('#btnNavXe').addClass('active');
@@ -390,6 +387,13 @@
     }
 
     $(document).ready(function() {
+      // Tự động ghi nhận khách truy cập trang tra cứu biểu đồ
+      fetch(`${API_BASE}/api/log-access`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'Khách tra cứu', role: 'visitor', action: 'Xem biểu đồ / Tra cứu xe' })
+      }).catch(err => {});
+
       $('.select2-search').select2({
         language: { noResults: () => "Không tìm thấy dữ liệu phù hợp" }
       });
@@ -408,7 +412,7 @@
     function timKiemXeLive() {
       clearTimeout(timeoutSearch);
       const q = $('#txtSearchBks').val().trim();
-      const $box = $('#ketQuaTraCuuXe');
+      const $box =$('#ketQuaTraCuuXe');
 
       if (!q) { $box.html(''); return; }
 
@@ -465,10 +469,9 @@
         allRoutes.forEach(r => { if (r.xn) xnSet.add(r.xn); });
         danhMucData.forEach(item => { if (item.xn) xnSet.add(item.xn); });
 
-        const $selXn = $('#selXn');
+        const $selXn =$('#selXn');
         $selXn.empty().append('<option value="">Chọn xí nghiệp</option>');
-        Array.from(xnSet).sort().forEach(xn => $selXn.append(new Option(xn, xn)));
-        $selXn.trigger('change');
+        Array.from(xnSet).sort().forEach(xn => $selXn.append(new Option(xn, xn)));$selXn.trigger('change');
       } catch (err) {
         console.error("Lỗi khi tải danh mục:", err);
       }
@@ -476,14 +479,14 @@
 
     function onXnChange() {
       const xn = $('#selXn').val();
-      const $selTuyen = $('#selTuyen');
-      const $selNgay = $('#selNgayApDung');
+      const $selTuyen =$('#selTuyen');
+      const $selNgay =$('#selNgayApDung');
 
       $selTuyen.empty().append('<option value="">Chọn tuyến</option>');
       $selNgay.empty().append('<option value="">Chọn tuyến trước</option>');
 
       if (!xn) {
-        $selTuyen.trigger('change'); $selNgay.trigger('change');
+        $selTuyen.trigger('change');$selNgay.trigger('change');
         return;
       }
 
@@ -495,7 +498,7 @@
         $selTuyen.append(new Option(tuyen, tuyen));
       });
 
-      $selTuyen.trigger('change'); $selNgay.trigger('change');
+      $selTuyen.trigger('change');$selNgay.trigger('change');
     }
 
     function parseDateInfo(str) {
@@ -522,7 +525,7 @@
     function onTuyenChange() {
       const xn = $('#selXn').val();
       const tuyen = $('#selTuyen').val();
-      const $selNgay = $('#selNgayApDung');
+      const $selNgay =$('#selNgayApDung');
 
       $selNgay.empty().append('<option value="">Chọn ngày áp dụng</option>');
       if (!xn || !tuyen) { $selNgay.trigger('change'); return; }
@@ -542,7 +545,7 @@
       });
 
       if (bestDate) {
-        $selNgay.append(new Option(bestDate.label, bestDate.label)); $selNgay.val(bestDate.label);
+        $selNgay.append(new Option(bestDate.label, bestDate.label));$selNgay.val(bestDate.label);
       }
       $selNgay.trigger('change');
     }
@@ -610,7 +613,7 @@
         return;
       }
 
-      const $btn = $('.btn-view'); $btn.html('<i class="fa fa-spinner fa-spin"></i> Đang tải...').prop('disabled', true);
+      const $btn = $('.btn-view');$btn.html('<i class="fa fa-spinner fa-spin"></i> Đang tải...').prop('disabled', true);
       $('#viewerWrapper').show();
 
       try {
@@ -674,6 +677,7 @@
         const rowString = rawData[i].join(" ");
         if ((valCol0 === "" && rowString.includes(":")) || rowString.toLowerCase().includes("giờ gạch chân")) continue;
 
+        // Giữ nguyên 100% định dạng và nội dung banner gốc từ file Excel tải lên
         const fullText = rawData[i].filter(c => c && c.trim() !== "").join(" - ").trim();
         if (fullText.length > 3 && !fullText.toLowerCase().includes("đầu a-b") && fullText.toLowerCase() !== "nốt" && !fullText.toLowerCase().includes("điểm danh")) {
           bannerLines.push(fullText);
@@ -748,34 +752,12 @@
         if (item.cells.length > maxCols) maxCols = item.cells.length;
       });
 
-      // Tự động hóa thông tin hoạt động chuẩn xác từ dữ liệu thật
-      const tongLuotToanTuyen = notList.reduce((sum, item) => sum + item.totalTrips, 0);
-      let routeCode = tuyen.match(/^([A-Za-z0-9]+)/) ? tuyen.match(/^([A-Za-z0-9]+)/)[1].toUpperCase() : tuyen;
-      let currentRouteInfo = allRoutes.find(r => r.tenTuyen === tuyen || r.maTuyen === routeCode) || {};
-      let soVd = currentRouteInfo.soXeVd || 0;
-      let soKh = currentRouteInfo.soXeKh || currentRouteInfo.soXe || 0;
-      let loaiXeStr = currentRouteInfo.loaiXe || "XE";
-      let sucChuaStr = currentRouteInfo.sucChua ? ", " + currentRouteInfo.sucChua + " CHỖ" : "";
-
-      let hasHoatDongLine = false;
-      bannerLines.forEach((line, idx) => {
-        const upper = line.toUpperCase();
-        if (upper.includes("HOẠT ĐỘNG") || upper.includes("LƯỢT XE") || upper.includes("XE ")) {
-          hasHoatDongLine = true;
-          bannerLines[idx] = `HOẠT ĐỘNG: ${soVd}/${soKh} XE ${loaiXeStr}${sucChuaStr} = ${tongLuotToanTuyen} LƯỢT XE/NGÀY`;
-        }
-      });
-
-      if (!hasHoatDongLine) {
-        bannerLines.push(`HOẠT ĐỘNG: ${soVd}/${soKh} XE ${loaiXeStr}${sucChuaStr} = ${tongLuotToanTuyen} LƯỢT XE/NGÀY`);
-      }
-
       const totalCols = maxCols + 3;
       let html = '<thead>';
 
       if (bannerLines.length > 0) {
         bannerLines.forEach((line, idx) => {
-          html += `<tr><th colspan="${totalCols}" style="font-size:${idx === 0 ? '13px' : '12px'}; font-weight:bold; padding:8px 6px; background:#FFFFFF; border:1px solid #CCCCCC; text-align:center; color:#111;">${line}</th></tr>`;
+          html += `<tr><th colspan="${totalCols}" style="font-size:12px; font-weight:bold; padding:6px; background:#FFFFFF; border:1px solid #CCCCCC; text-align:center; color:#111;">${line}</th></tr>`;
         });
       }
 
