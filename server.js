@@ -29,7 +29,6 @@ async function cleanAndSyncData(data) {
   if (!Array.isArray(data.xeList)) data.xeList = [];
   if (!data.tuyenList) data.tuyenList = {};
 
-  // 1. Loại bỏ các xe trùng lặp biển số trong xeList (Khắc phục lỗi phình to số lượng xe)
   const uniqueXeMap = new Map();
   data.xeList.forEach(x => {
     if (x && x.bks) {
@@ -42,7 +41,6 @@ async function cleanAndSyncData(data) {
   });
   data.xeList = Array.from(uniqueXeMap.values());
 
-  // 2. Tính lại số xe kế hoạch chuẩn xác từ xeList cho từng tuyến
   const realKhCounts = {};
   data.xeList.forEach(x => {
     if (x.maTuyen) {
@@ -50,7 +48,6 @@ async function cleanAndSyncData(data) {
     }
   });
 
-  // 3. Quét nốt lớn nhất từ bieuDoList để làm số xe Vận doanh chuẩn
   const maxNotMap = {};
   if (Array.isArray(data.bieuDoList)) {
     data.bieuDoList.forEach(item => {
@@ -76,19 +73,16 @@ async function cleanAndSyncData(data) {
     });
   }
 
-  // 4. Đồng bộ lại vào tuyenList
   for (let k in data.tuyenList) {
     let tObj = data.tuyenList[k];
     let maT = (tObj.maTuyen || k).toUpperCase();
 
-    // Gán lại số xe kế hoạch đúng thực tế
     let realKh = realKhCounts[maT] || 0;
     if (realKh > 0) {
       tObj.soXeKh = realKh;
       tObj.soXe = realKh;
     }
 
-    // Gán số vận doanh từ nốt biểu đồ, nếu không có thì lấy số kế hoạch đắp vào
     let foundVd = maxNotMap[maT];
     if (foundVd && foundVd > 0) {
       tObj.soXeVd = foundVd;
@@ -127,7 +121,7 @@ async function getRawData() {
     const fileData = JSON.parse(fs.readFileSync(localPath, 'utf8'));
     return await cleanAndSyncData(fileData);
   }
-  return { tuyenList: {}, bieuDoList: [], xeList: [] };
+  return { tuyenList: {}, bieuDoList: [], xeList: [], taiKhoanList: [] };
 }
 
 // Hàm lưu nhanh tốc độ cao (dùng cho các API lưu tuyến, lưu biểu đồ)
@@ -139,7 +133,7 @@ async function saveRawDataFast(data) {
   );
 }
 
-// Hàm lưu chuẩn (vẫn giữ nguyên để dùng khi khởi động server hoặc lúc import file Excel danh sách xe)
+// Hàm lưu chuẩn (dùng khi khởi động server hoặc lúc import file Excel danh sách xe)
 async function saveRawData(data) {
   const cleaned = await cleanAndSyncData(data);
   await BusModel.findOneAndUpdate(
@@ -148,6 +142,30 @@ async function saveRawData(data) {
     { upsert: true, returnDocument: 'after' }
   );
 }
+
+// API ĐĂNG NHẬP QUẢN TRỊ BẢO MẬT
+app.post('/api/admin/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const raw = await getRawData();
+    if (!raw.taiKhoanList || raw.taiKhoanList.length === 0) {
+      raw.taiKhoanList = [
+        { username: 'quan', password: '123', role: 'master', status: 'active' },
+        { username: 'admin', password: 'adminpassword', role: 'master', status: 'active' }
+      ];
+      await saveRawDataFast(raw);
+    }
+
+    const user = raw.taiKhoanList.find(u => u.username === username && u.password === password);
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Tài khoản không tồn tại trên hệ thống' });
+    }
+
+    res.json({ success: true, role: user.role, message: 'Đăng nhập thành công!' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 // 1. API LẤY DANH MỤC
 app.get('/api/danh-muc', async (req, res) => {
@@ -191,7 +209,6 @@ app.get('/api/danh-muc', async (req, res) => {
         }));
     }
 
-    // ĐÃ BỔ SUNG THÊM bieuDoList ĐỂ TRANG QUẢN TRỊ NHẬN DIỆN CHÍNH XÁC TRẠNG THÁI BIỂU ĐỒ
     res.json({ 
       success: true, 
       data: danhMucList, 
@@ -202,7 +219,6 @@ app.get('/api/danh-muc', async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
-
 
 // 2. API TABLE DATA
 app.get('/api/table-data', async (req, res) => {
@@ -248,7 +264,7 @@ app.post(['/api/bus-data', '/api/save-data'], async (req, res) => {
   }
 });
 
-// 5. API LƯU TUYẾN
+// 5. API LƯU TUYẾN (Dùng saveRawDataFast để tối ưu tốc độ cao)
 app.post(['/api/save-tuyen', '/api/tuyen-moi'], async (req, res) => {
   try {
     const { maTuyen, tenTuyen, xn, dauA, dauB, soXeVd, soXeKh, loaiXe, sucChua, status } = req.body;
@@ -271,7 +287,7 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], async (req, res) => {
       status: status || "active"
     };
 
-    await saveRawData(raw);
+    await saveRawDataFast(raw);
     res.json({ success: true, message: 'Lưu tuyến thành công!' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -288,14 +304,14 @@ app.post('/api/toggle-status-tuyen', async (req, res) => {
     }
 
     raw.tuyenList[maTuyen].status = status;
-    await saveRawData(raw);
+    await saveRawDataFast(raw);
     res.json({ success: true, message: 'Cập nhật trạng thái thành công!' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// 7. API LƯU BIỂU ĐỒ (TỰ ĐỘNG TÍNH NỐT LỚN NHẤT LÀM SỐ XE VẬN DOANH)
+// 7. API LƯU BIỂU ĐỒ (Dùng saveRawDataFast để lưu cực nhanh)
 app.post('/api/luu-bieu-do', async (req, res) => {
   try {
     const { xn, tuyen, bieuDo, tenTab, rawData } = req.body;
@@ -309,8 +325,8 @@ app.post('/api/luu-bieu-do', async (req, res) => {
     if (idx >= 0) raw.bieuDoList[idx] = newTabObj;
     else raw.bieuDoList.push(newTabObj);
 
-    await saveRawData(raw);
-    res.json({ success: true, message: 'Lưu biểu đồ và tự động cập nhật số xe vận doanh thành công!' });
+    await saveRawDataFast(raw);
+    res.json({ success: true, message: 'Lưu biểu đồ thành công!' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -324,7 +340,7 @@ app.post('/api/xoa-bieu-do', async (req, res) => {
     if (!Array.isArray(raw.bieuDoList)) raw.bieuDoList = [];
 
     raw.bieuDoList = raw.bieuDoList.filter(b => String(b.tenTab || '').trim() !== String(tenTab).trim());
-    await saveRawData(raw);
+    await saveRawDataFast(raw);
     res.json({ success: true, message: 'Đã xóa biểu đồ!' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -418,7 +434,6 @@ app.post(['/api/import-xe-excel', '/api/import-danh-sach-xe'], async (req, res) 
     });
 
     if (importedCars.length > 0) {
-      // Gộp và loại bỏ xe trùng bks
       const existingMap = new Map();
       raw.xeList.forEach(x => existingMap.set(x.bks.toUpperCase(), x));
       importedCars.forEach(x => existingMap.set(x.bks, x));
@@ -427,6 +442,26 @@ app.post(['/api/import-xe-excel', '/api/import-danh-sach-xe'], async (req, res) 
 
     await saveRawData(raw);
     res.json({ success: true, message: `Đã nhập xe và làm sạch dữ liệu thành công!` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 11. API ĐIỀU CHUYỂN XE
+app.post('/api/dieu-chuyen-xe', async (req, res) => {
+  try {
+    const { bks, tuyenMoi } = req.body;
+    if (!bks || !tuyenMoi) return res.status(400).json({ success: false, message: 'Thiếu thông tin điều chuyển!' });
+
+    const raw = await getRawData();
+    if (!Array.isArray(raw.xeList)) raw.xeList = [];
+
+    const xe = raw.xeList.find(x => String(x.bks || '').trim().toUpperCase() === String(bks).trim().toUpperCase());
+    if (!xe) return res.status(404).json({ success: false, message: 'Không tìm thấy biển kiểm soát xe!' });
+
+    xe.maTuyen = String(tuyenMoi).trim().toUpperCase();
+    await saveRawDataFast(raw);
+    res.json({ success: true, message: `Đã điều chuyển xe [${bks}] sang tuyến [${tuyenMoi}] thành công!` });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
