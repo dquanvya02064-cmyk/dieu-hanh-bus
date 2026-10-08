@@ -21,7 +21,6 @@
       color: #333;
     }
 
-    /* Khóa cứng body khi chưa đăng nhập */
     body.locked {
       overflow: hidden !important;
       height: 100vh !important;
@@ -29,7 +28,6 @@
       width: 100vw !important;
     }
 
-    /* MÀN HÌNH ĐĂNG NHẬP TRẮNG TRƠN KHÓA CHẶT */
     #authOverlay {
       position: fixed;
       top: 0; left: 0; width: 100vw; height: 100vh;
@@ -44,7 +42,6 @@
       box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 340px; text-align: center;
     }
 
-    /* BỐ CỤC DASHBOARD SIDEBAR LAYOUT */
     .app-container {
       display: flex;
       height: 100vh;
@@ -52,7 +49,6 @@
       overflow: hidden;
     }
 
-    /* SIDEBAR BÊN TRÁI */
     .sidebar {
       width: 260px;
       background-color: #2C3E50;
@@ -99,7 +95,6 @@
     }
     .sidebar-menu li a i { font-size: 15px; width: 20px; text-align: center; }
 
-    /* KHUNG NỘI DUNG CHÍNH BÊN PHẢI */
     .main-content {
       flex-grow: 1;
       display: flex;
@@ -124,7 +119,6 @@
       padding: 20px;
     }
 
-    /* THẺ SECTION NỘI DUNG */
     .content-section { display: none; }
     .content-section.active { display: block; }
 
@@ -211,7 +205,6 @@
     .select2-dropdown { font-size: 12px !important; border: 1px solid #3B86C4 !important; }
     .select2-container--open { z-index: 10005 !important; }
 
-    /* Toast Notification */
     #toast-container {
       position: fixed; top: 20px; right: 20px; z-index: 999999;
       display: flex; flex-direction: column; gap: 10px;
@@ -227,7 +220,6 @@
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     @keyframes fadeOut { to { opacity: 0; transform: translateY(-10px); } }
 
-    /* RESPONSIVE CHO ĐIỆN THOẠI (MOBILE) */
     @media (max-width: 768px) {
       .sidebar {
         position: fixed; left: -260px; height: 100%; transition: left 0.3s ease;
@@ -239,7 +231,6 @@
 </head>
 <body class="locked">
 
-  <!-- MÀN HÌNH ĐĂNG NHẬP TRẮNG TRƠN KHÓA CHẶT -->
   <div id="authOverlay">
     <div class="auth-box">
       <div style="font-size: 15px; font-weight: bold; color: #2C3E50; margin-bottom: 20px; text-transform: uppercase;">
@@ -260,7 +251,6 @@
   <script>
     const API_BASE = "https://dieu-hanh-bus.onrender.com";
 
-    // Kiểm tra ngay khi tải trang để khóa/mở giao diện
     if (sessionStorage.getItem('admin_authenticated') === 'true') {
       $('#authOverlay').remove();
       $('body').removeClass('locked');
@@ -286,14 +276,13 @@
           sessionStorage.setItem('admin_role', res.role);
           sessionStorage.setItem('admin_user', username);
           
-          // Mở khóa body và xóa màn hình đăng nhập
           $('body').removeClass('locked');
           $('#authOverlay').fadeOut(300, function() { $(this).remove(); });
           showToast(res.message, "success");
           
           if (res.role === 'master') { $('#menuQuanTriUser').show(); }
         } else {
-          $errorBox.text("Tài khoản không tồn tại trên hệ thống");
+          $errorBox.text(res.message || "Tài khoản không tồn tại trên hệ thống");
           $('#txtAdminPass').val('').focus();
         }
       } catch (err) {
@@ -312,9 +301,7 @@
     }
   </script>
 
-  <!-- BỐ CỤC DASHBOARD CHÍNH -->
   <div class="app-container">
-    <!-- SIDEBAR BÊN TRÁI -->
     <nav class="sidebar" id="sidebarMenu">
       <div class="sidebar-header">
         <span><i class="fa fa-bus"></i> ĐIỀU HÀNH BUS</span>
@@ -332,7 +319,6 @@
       </ul>
     </nav>
 
-    <!-- NỘI DUNG CHÍNH BÊN PHẢI -->
     <div class="main-content">
       <header class="top-navbar">
         <div style="display: flex; align-items: center; gap: 12px;">
@@ -373,7 +359,6 @@
             </div>
           </div>
 
-          <!-- BẢNG DANH SÁCH TUYẾN -->
           <div class="panel-custom">
             <div class="panel-heading"><span><i class="fa fa-list"></i> Danh sách Tuyến & Trạng thái hoạt động</span></div>
             <div class="panel-body">
@@ -541,7 +526,6 @@
                 </div>
               </div>
 
-              <!-- BẢNG TRẠNG THÁI BIỂU ĐỒ -->
               <div style="margin-top: 25px; border-top: 1px solid #D0D7DE; padding-top: 15px;">
                 <h4 style="font-size: 13px; color: #2C3E50; margin-bottom: 10px;"><i class="fa fa-exclamation-triangle" style="color:#e67e22;"></i> Kiểm tra trạng thái Biểu đồ các tuyến:</h4>
                 <div style="overflow-x: auto; max-height: 250px;">
@@ -576,7 +560,7 @@
                       <th>Tài khoản</th>
                       <th>Kiểu tài khoản</th>
                       <th style="width: 140px; text-align: center;">Trạng thái</th>
-                      <th style="width: 120px; text-align: center;">Hành động</th>
+                      <th style="width: 320px; text-align: center;">Hành động</th>
                     </tr>
                   </thead>
                   <tbody id="tblDanhSachTaiKhoan"></tbody>
@@ -590,7 +574,6 @@
     </div>
   </div>
 
-  <!-- MODAL ĐIỀU CHUYỂN XE -->
   <div id="modalDieuChuyen" style="display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
     <div style="background:#fff; width:450px; border-radius:5px; padding:20px; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
       <h3 style="margin-bottom:15px; font-size:14px; color:#2C3E50;"><i class="fa fa-random"></i> Điều chuyển xe sang tuyến khác</h3>
@@ -1053,26 +1036,43 @@
       } catch (e) { showToast("Lỗi: " + e, "error"); }
     }
 
+    // --- QUẢN TRỊ NGƯỜI DÙNG & ĐỔI MẬT KHẨU ---
     async function taiDanhSachTaiKhoan() {
       try {
         const res = await fetch(`${API_BASE}/api/admin/danh-sach-tai-khoan`).then(r => r.json());
         if (res.success) {
           let html = '';
           res.data.forEach(acc => {
-            const roleText = acc.role === 'master' ? 'Quản trị' : 'Bình thường';
-            const statusBadge = '<span class="status-badge status-active">Hoạt động</span>';
+            const isLocked = acc.status === 'locked';
+            const statusBadge = isLocked 
+              ? '<span class="status-badge status-locked">Tạm khóa</span>' 
+              : '<span class="status-badge status-active">Hoạt động</span>';
             
             let btnAction = '';
             if (acc.username !== 'quan') {
-              btnAction = `<button class="btn btn-danger" style="padding:2px 8px; font-size:11px;" onclick="xoaTaiKhoan('${acc.username}')"><i class="fa fa-trash"></i> Xóa</button>`;
+              const toggleText = isLocked ? 'Mở' : 'Khóa';
+              const toggleCls = isLocked ? 'btn-success' : 'btn-warning';
+              
+              btnAction = `
+                <div style="display:flex; gap:4px; justify-content:center; align-items:center; flex-wrap:wrap;">
+                  <select class="form-control" style="width: 90px; height: 26px; font-size: 11px;" onchange="doiVaiTro('${acc.username}', this.value)">
+                    <option value="staff" ${acc.role === 'staff' ? 'selected' : ''}>Bình thường</option>
+                    <option value="master" ${acc.role === 'master' ? 'selected' : ''}>Quản trị</option>
+                  </select>
+                  <input type="password" id="pass_${acc.username}" class="form-control" placeholder="MK mới" style="width: 75px; height: 26px; font-size: 11px;">
+                  <button class="btn btn-primary" style="padding:2px 5px; font-size:10px;" onclick="doiMatKhau('${acc.username}')">Đổi MK</button>
+                  <button class="btn ${toggleCls}" style="padding:2px 6px; font-size:11px;" onclick="doiTrangThaiTaiKhoan('${acc.username}', '${isLocked ? 'active' : 'locked'}')">${toggleText}</button>
+                  <button class="btn btn-danger" style="padding:2px 6px; font-size:11px;" onclick="xoaTaiKhoan('${acc.username}')"><i class="fa fa-trash"></i></button>
+                </div>
+              `;
             } else {
-              btnAction = '<span style="color:#888; font-style:italic;">Hệ thống</span>';
+              btnAction = '<span style="color:#888; font-style:italic;">Tài khoản tối cao</span>';
             }
 
             html += `
               <tr>
                 <td><strong>${acc.username}</strong></td>
-                <td>${roleText}</td>
+                <td>${acc.role === 'master' ? 'Quản trị' : 'Bình thường'}</td>
                 <td style="text-align: center;">${statusBadge}</td>
                 <td style="text-align: center;">${btnAction}</td>
               </tr>
@@ -1103,6 +1103,55 @@
           taiDanhSachTaiKhoan();
         }
       } catch (e) { showToast("Lỗi kết nối", "error"); }
+    }
+
+    async function doiTrangThaiTaiKhoan(username, newStatus) {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/sua-tai-khoan`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, status: newStatus })
+        }).then(r => r.json());
+
+        showToast(res.message, "success");
+        taiDanhSachTaiKhoan();
+      } catch (e) { showToast("Lỗi thao tác", "error"); }
+    }
+
+    async function doiVaiTro(username, newRole) {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/sua-tai-khoan`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, role: newRole })
+        }).then(r => r.json());
+
+        showToast(res.message, "success");
+        taiDanhSachTaiKhoan();
+      } catch (e) { showToast("Lỗi thao tác", "error"); }
+    }
+
+    async function doiMatKhau(username) {
+      const newPassword = $(`#pass_${username}`).val().trim();
+      if (!newPassword) {
+        showToast("Vui lòng nhập mật khẩu mới cần đổi!", "error");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/doi-mat-khau`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, newPassword })
+        }).then(r => r.json());
+
+        showToast(res.message, res.success ? "success" : "error");
+        if (res.success) {
+          $(`#pass_${username}`).val('');
+        }
+      } catch (e) {
+        showToast("Lỗi kết nối khi đổi mật khẩu", "error");
+      }
     }
 
     async function xoaTaiKhoan(username) {
