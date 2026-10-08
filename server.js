@@ -99,6 +99,12 @@ mongoose.connect(MONGO_URI)
     console.log('>>> Ket noi thanh cong MongoDB Atlas!');
     const doc = await BusModel.findOne({ key: 'main_data' });
     if (doc && doc.data) {
+      if (!doc.data.taiKhoanList || doc.data.taiKhoanList.length === 0) {
+        doc.data.taiKhoanList = [
+          { username: 'quan', password: '123', role: 'master', status: 'active' },
+          { username: 'nhansu01', password: '123', role: 'staff', status: 'active' }
+        ];
+      }
       const cleanedData = await cleanAndSyncData(doc.data);
       await BusModel.findOneAndUpdate({ key: 'main_data' }, { key: 'main_data', data: cleanedData }, { upsert: true });
       console.log('>>> Đã tự động làm sạch và đồng bộ dữ liệu thành công!');
@@ -151,7 +157,7 @@ app.post('/api/admin/login', async (req, res) => {
     if (!raw.taiKhoanList || raw.taiKhoanList.length === 0) {
       raw.taiKhoanList = [
         { username: 'quan', password: '123', role: 'master', status: 'active' },
-        { username: 'admin', password: 'adminpassword', role: 'master', status: 'active' }
+        { username: 'nhansu01', password: '123', role: 'staff', status: 'active' }
       ];
       await saveRawDataFast(raw);
     }
@@ -162,6 +168,65 @@ app.post('/api/admin/login', async (req, res) => {
     }
 
     res.json({ success: true, role: user.role, message: 'Đăng nhập thành công!' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// API LẤY DANH SÁCH TÀI KHOẢN
+app.get('/api/admin/danh-sach-tai-khoan', async (req, res) => {
+  try {
+    const raw = await getRawData();
+    if (!raw.taiKhoanList || raw.taiKhoanList.length === 0) {
+      raw.taiKhoanList = [
+        { username: 'quan', password: '123', role: 'master', status: 'active' },
+        { username: 'nhansu01', password: '123', role: 'staff', status: 'active' }
+      ];
+      await saveRawDataFast(raw);
+    }
+    res.json({ success: true, data: raw.taiKhoanList });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// API TẠO TÀI KHOẢN MỚI
+app.post('/api/admin/dang-ky', async (req, res) => {
+  try {
+    const { username, password, role } = req.body;
+    if (!username || !password) return res.status(400).json({ success: false, message: 'Thiếu thông tin tài khoản!' });
+
+    const raw = await getRawData();
+    if (!raw.taiKhoanList) raw.taiKhoanList = [];
+
+    if (raw.taiKhoanList.some(u => u.username === username)) {
+      return res.status(400).json({ success: false, message: 'Tên tài khoản đã tồn tại!' });
+    }
+
+    raw.taiKhoanList.push({
+      username,
+      password,
+      role: role || 'staff',
+      status: 'active'
+    });
+
+    await saveRawDataFast(raw);
+    res.json({ success: true, message: 'Tạo tài khoản thành công!' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// API XÓA TÀI KHOẢN
+app.post('/api/admin/xoa-tai-khoan', async (req, res) => {
+  try {
+    const { username } = req.body;
+    const raw = await getRawData();
+    if (!raw.taiKhoanList) raw.taiKhoanList = [];
+
+    raw.taiKhoanList = raw.taiKhoanList.filter(u => u.username !== username);
+    await saveRawDataFast(raw);
+    res.json({ success: true, message: 'Đã xóa tài khoản thành công!' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -264,7 +329,7 @@ app.post(['/api/bus-data', '/api/save-data'], async (req, res) => {
   }
 });
 
-// 5. API LƯU TUYẾN (Dùng saveRawDataFast để tối ưu tốc độ cao)
+// 5. API LƯU TUYẾN
 app.post(['/api/save-tuyen', '/api/tuyen-moi'], async (req, res) => {
   try {
     const { maTuyen, tenTuyen, xn, dauA, dauB, soXeVd, soXeKh, loaiXe, sucChua, status } = req.body;
@@ -311,7 +376,7 @@ app.post('/api/toggle-status-tuyen', async (req, res) => {
   }
 });
 
-// 7. API LƯU BIỂU ĐỒ (Dùng saveRawDataFast để lưu cực nhanh)
+// 7. API LƯU BIỂU ĐỒ
 app.post('/api/luu-bieu-do', async (req, res) => {
   try {
     const { xn, tuyen, bieuDo, tenTab, rawData } = req.body;
@@ -463,7 +528,7 @@ app.post('/api/dieu-chuyen-xe', async (req, res) => {
     await saveRawDataFast(raw);
     res.json({ success: true, message: `Đã điều chuyển xe [${bks}] sang tuyến [${tuyenMoi}] thành công!` });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: err.message});
   }
 });
 
