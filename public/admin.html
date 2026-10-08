@@ -13,125 +13,60 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
-      width: 100%;
-      height: 100%;
+      width: 100%; height: 100%;
       font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
-      font-size: 12px;
-      background-color: #F1F4F9;
-      color: #333;
+      font-size: 12px; background-color: #F1F4F9; color: #333;
     }
 
     body.locked {
-      overflow: hidden !important;
-      height: 100vh !important;
-      position: fixed !important;
-      width: 100vw !important;
+      overflow: hidden !important; height: 100vh !important; position: fixed !important; width: 100vw !important;
     }
 
     #authOverlay {
-      position: fixed;
-      top: 0; left: 0; width: 100vw; height: 100vh;
-      background: #FFFFFF;
-      z-index: 9999999;
-      display: flex; justify-content: center; align-items: center;
-      overflow: hidden;
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: #FFFFFF; z-index: 9999999;
+      display: flex; justify-content: center; align-items: center; overflow: hidden;
     }
     .auth-box {
-      background: #FFFFFF; padding: 35px 30px;
-      border: 1px solid #E1E4E8; border-radius: 8px;
+      background: #FFFFFF; padding: 35px 30px; border: 1px solid #E1E4E8; border-radius: 8px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 340px; text-align: center;
     }
 
-    .app-container {
-      display: flex;
-      height: 100vh;
-      width: 100vw;
-      overflow: hidden;
-    }
+    .app-container { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
 
     .sidebar {
-      width: 260px;
-      background-color: #2C3E50;
-      color: #FFF;
-      display: flex;
-      flex-direction: column;
-      transition: all 0.3s ease;
-      z-index: 1000;
-      flex-shrink: 0;
+      width: 260px; background-color: #2C3E50; color: #FFF;
+      display: flex; flex-direction: column; transition: all 0.3s ease; z-index: 1000; flex-shrink: 0;
     }
     .sidebar-header {
-      padding: 15px 20px;
-      background: #1A252F;
-      font-size: 13px;
-      font-weight: bold;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid #34495E;
+      padding: 15px 20px; background: #1A252F; font-size: 13px; font-weight: bold;
+      display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #34495E;
     }
-    .sidebar-menu {
-      list-style: none;
-      padding: 10px 0;
-      overflow-y: auto;
-      flex-grow: 1;
-    }
+    .sidebar-menu { list-style: none; padding: 10px 0; overflow-y: auto; flex-grow: 1; }
     .sidebar-menu li a {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 20px;
-      color: #BDC3C7;
-      text-decoration: none;
-      font-size: 12px;
-      font-weight: bold;
-      border-left: 4px solid transparent;
-      transition: all 0.2s;
-      cursor: pointer;
+      display: flex; align-items: center; gap: 10px; padding: 12px 20px;
+      color: #BDC3C7; text-decoration: none; font-size: 12px; font-weight: bold;
+      border-left: 4px solid transparent; transition: all 0.2s; cursor: pointer;
     }
     .sidebar-menu li a:hover, .sidebar-menu li a.active {
-      background: #34495E;
-      color: #FFF;
-      border-left-color: #3B86C4;
+      background: #34495E; color: #FFF; border-left-color: #3B86C4;
     }
     .sidebar-menu li a i { font-size: 15px; width: 20px; text-align: center; }
 
-    .main-content {
-      flex-grow: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      background-color: #F1F4F9;
-    }
+    .main-content { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; background-color: #F1F4F9; }
     .top-navbar {
-      height: 50px;
-      background: #3B86C4;
-      color: #FFF;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 20px;
-      flex-shrink: 0;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      height: 50px; background: #3B86C4; color: #FFF; display: flex; align-items: center;
+      justify-content: space-between; padding: 0 20px; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    .content-body {
-      flex-grow: 1;
-      overflow-y: auto;
-      padding: 20px;
-    }
+    .content-body { flex-grow: 1; overflow-y: auto; padding: 20px; }
 
     .content-section { display: none; }
     .content-section.active { display: block; }
 
-    .dashboard-stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 15px;
-      margin-bottom: 20px;
-    }
+    .dashboard-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
     .stat-card {
       background: #FFFFFF; border: 1px solid #C4D5E5; border-radius: 5px;
-      padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
     .stat-card .info h4 { font-size: 11px; text-transform: uppercase; color: #777; margin-bottom: 5px; }
     .stat-card .info .number { font-size: 22px; font-weight: bold; color: #2C3E50; }
@@ -141,23 +76,16 @@
     .stat-card.green { border-left: 4px solid #27AE60; } .stat-card.green .icon { color: #27AE60; }
     .stat-card.orange { border-left: 4px solid #E67E22; } .stat-card.orange .icon { color: #E67E22; }
 
-    .panel-custom {
-      background: #FFFFFF; border: 1px solid #C4D5E5; border-radius: 4px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 20px;
-    }
+    .panel-custom { background: #FFFFFF; border: 1px solid #C4D5E5; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 20px; }
     .panel-heading {
       background: #EBF2F8; color: #2C3E50; padding: 10px 15px; font-size: 13px;
-      font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #D0D7DE;
-      display: flex; justify-content: space-between; align-items: center;
+      font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #D0D7DE; display: flex; justify-content: space-between; align-items: center;
     }
     .panel-body { padding: 18px 20px; }
-    .form-grid {
-      display: grid; grid-template-columns: 160px 1fr; row-gap: 14px; column-gap: 15px; align-items: center;
-    }
+    .form-grid { display: grid; grid-template-columns: 160px 1fr; row-gap: 14px; column-gap: 15px; align-items: center; }
     .input-combo { display: flex; gap: 10px; max-width: 800px; width: 100%; align-items: center; flex-wrap: wrap; }
     .form-control {
-      height: 32px; padding: 3px 8px; font-size: 12px; border: 1px solid #CCCCCC;
-      border-radius: 3px; outline: none; width: 100%; background-color: #FFFFFF;
+      height: 32px; padding: 3px 8px; font-size: 12px; border: 1px solid #CCCCCC; border-radius: 3px; outline: none; width: 100%; background-color: #FFFFFF;
     }
     .form-control:focus { border-color: #3B86C4; }
     .form-control[readonly] { background-color: #EBF2F8; color: #555; cursor: not-allowed; }
@@ -190,29 +118,20 @@
     .status-missing-chart { background-color: #FCE8E6; color: #C5221F; }
 
     .filter-box {
-      background: #F8FAFC; border: 1px solid #D0D7DE; border-radius: 4px;
-      padding: 12px 15px; margin-bottom: 12px; display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; align-items: center;
+      background: #F8FAFC; border: 1px solid #D0D7DE; border-radius: 4px; padding: 12px 15px; margin-bottom: 12px;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; align-items: center;
     }
 
-    .select2-container .select2-selection--single {
-      height: 32px !important; border: 1px solid #ccc !important; border-radius: 3px !important; display: flex; align-items: center;
-    }
-    .select2-container--default .select2-selection--single .select2-selection__rendered {
-      line-height: 30px !important; font-size: 12px !important; color: #333 !important;
-    }
+    .select2-container .select2-selection--single { height: 32px !important; border: 1px solid #ccc !important; border-radius: 3px !important; display: flex; align-items: center; }
+    .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 30px !important; font-size: 12px !important; color: #333 !important; }
     .select2-container--default .select2-selection--single .select2-selection__arrow { height: 30px !important; }
     .select2-dropdown { font-size: 12px !important; border: 1px solid #3B86C4 !important; }
     .select2-container--open { z-index: 10005 !important; }
 
-    #toast-container {
-      position: fixed; top: 20px; right: 20px; z-index: 999999;
-      display: flex; flex-direction: column; gap: 10px;
-    }
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 999999; display: flex; flex-direction: column; gap: 10px; }
     .custom-toast {
-      min-width: 280px; max-width: 380px; background: #2C3E50; color: #FFF;
-      padding: 12px 16px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      font-size: 13px; display: flex; align-items: center; gap: 10px;
+      min-width: 280px; max-width: 380px; background: #2C3E50; color: #FFF; padding: 12px 16px; border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 13px; display: flex; align-items: center; gap: 10px;
       animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s forwards; border-left: 4px solid #3B86C4;
     }
     .custom-toast.success { border-left-color: #27AE60; background: #27AE60; }
@@ -221,9 +140,7 @@
     @keyframes fadeOut { to { opacity: 0; transform: translateY(-10px); } }
 
     @media (max-width: 768px) {
-      .sidebar {
-        position: fixed; left: -260px; height: 100%; transition: left 0.3s ease;
-      }
+      .sidebar { position: fixed; left: -260px; height: 100%; transition: left 0.3s ease; }
       .sidebar.mobile-show { left: 0; }
       .form-grid { grid-template-columns: 1fr; row-gap: 6px; }
     }
@@ -254,9 +171,7 @@
     if (sessionStorage.getItem('admin_authenticated') === 'true') {
       $('#authOverlay').remove();
       $('body').removeClass('locked');
-      if (sessionStorage.getItem('admin_role') === 'master') {
-        $('#menuQuanTriUser').show();
-      }
+      apDungQuyenTruyCap();
     }
 
     async function xuLyDangNhapAdmin() {
@@ -266,8 +181,7 @@
 
       try {
         const res = await fetch(`${API_BASE}/api/admin/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password })
         }).then(r => r.json());
 
@@ -275,12 +189,12 @@
           sessionStorage.setItem('admin_authenticated', 'true');
           sessionStorage.setItem('admin_role', res.role);
           sessionStorage.setItem('admin_user', username);
+          sessionStorage.setItem('admin_permissions', JSON.stringify(res.permissions || []));
           
           $('body').removeClass('locked');
           $('#authOverlay').fadeOut(300, function() { $(this).remove(); });
           showToast(res.message, "success");
-          
-          if (res.role === 'master') { $('#menuQuanTriUser').show(); }
+          apDungQuyenTruyCap();
         } else {
           $errorBox.text(res.message || "Tài khoản không tồn tại trên hệ thống");
           $('#txtAdminPass').val('').focus();
@@ -290,11 +204,27 @@
       }
     }
 
+    function apDungQuyenTruyCap() {
+      const role = sessionStorage.getItem('admin_role');
+      const permissions = JSON.parse(sessionStorage.getItem('admin_permissions') || '[]');
+
+      if (role === 'master') {
+        $('#menuQuanTriUser').show();
+        return;
+      }
+
+      // Ẩn menu người dùng nếu không phải master
+      $('#menuQuanTriUser').hide();
+
+      // Kiểm tra quyền chi tiết để ẩn/hiện menu
+      if (!permissions.includes('tuyen')) $('#menuTuyen').hide();
+      if (!permissions.includes('xe')) { $('#menuExcel').hide(); $('#menuDoixe').hide(); }
+      if (!permissions.includes('bieudo')) $('#menuBieudo').hide();
+    }
+
     function dangXuatAdmin() {
       if (confirm("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống quản trị không?")) {
-        sessionStorage.removeItem('admin_authenticated');
-        sessionStorage.removeItem('admin_role');
-        sessionStorage.removeItem('admin_user');
+        sessionStorage.clear();
         showToast("Đã đăng xuất thành công!", "success");
         setTimeout(() => { location.reload(); }, 500);
       }
@@ -309,10 +239,10 @@
       </div>
       <ul class="sidebar-menu">
         <li><a class="active" onclick="chuyenTabAdmin('sec-tongquan', this)"><i class="fa fa-tachometer"></i> Tổng quan hệ thống</a></li>
-        <li><a onclick="chuyenTabAdmin('sec-tuyen', this)"><i class="fa fa-pencil-square-o"></i> Quản trị Tuyến & Đội xe</a></li>
-        <li><a onclick="chuyenTabAdmin('sec-excel', this)"><i class="fa fa-file-excel-o"></i> Nạp danh sách xe Excel</a></li>
-        <li><a onclick="chuyenTabAdmin('sec-doixe', this)"><i class="fa fa-table"></i> Quản lý toàn bộ Đội xe</a></li>
-        <li><a onclick="chuyenTabAdmin('sec-bieudo', this)"><i class="fa fa-calendar-plus-o"></i> Quản trị Biểu đồ chạy xe</a></li>
+        <li id="menuTuyen"><a onclick="chuyenTabAdmin('sec-tuyen', this)"><i class="fa fa-pencil-square-o"></i> Quản trị Tuyến & Đội xe</a></li>
+        <li id="menuExcel"><a onclick="chuyenTabAdmin('sec-excel', this)"><i class="fa fa-file-excel-o"></i> Nạp danh sách xe Excel</a></li>
+        <li id="menuDoixe"><a onclick="chuyenTabAdmin('sec-doixe', this)"><i class="fa fa-table"></i> Quản lý toàn bộ Đội xe</a></li>
+        <li id="menuBieudo"><a onclick="chuyenTabAdmin('sec-bieudo', this)"><i class="fa fa-calendar-plus-o"></i> Quản trị Biểu đồ chạy xe</a></li>
         <li id="menuQuanTriUser" style="display:none;"><a onclick="chuyenTabAdmin('sec-users', this)"><i class="fa fa-users"></i> Quản trị người dùng</a></li>
         <li><a href="index.html"><i class="fa fa-arrow-left"></i> Về trang tra cứu</a></li>
         <li><a onclick="dangXuatAdmin()" style="color: #E74C3C;"><i class="fa fa-sign-out"></i> Đăng xuất hệ thống</a></li>
@@ -334,27 +264,15 @@
         <div id="sec-tongquan" class="content-section active">
           <div class="dashboard-stats">
             <div class="stat-card blue">
-              <div class="info">
-                <h4>Tổng số tuyến</h4>
-                <div class="number" id="statTongTuyen">0</div>
-                <div class="subtext" id="statTuyenDetail">Đang tải dữ liệu...</div>
-              </div>
+              <div class="info"><h4>Tổng số tuyến</h4><div class="number" id="statTongTuyen">0</div><div class="subtext" id="statTuyenDetail">Đang tải dữ liệu...</div></div>
               <div class="icon"><i class="fa fa-bus"></i></div>
             </div>
             <div class="stat-card green">
-              <div class="info">
-                <h4>Tổng xe Vận doanh / KH</h4>
-                <div class="number" id="statXeActive">0 / 0 xe</div>
-                <div class="subtext">Xe vận doanh thực tế trên các tuyến</div>
-              </div>
+              <div class="info"><h4>Tổng xe Vận doanh / KH</h4><div class="number" id="statXeActive">0 / 0 xe</div><div class="subtext">Xe vận doanh thực tế trên các tuyến</div></div>
               <div class="icon"><i class="fa fa-tachometer"></i></div>
             </div>
             <div class="stat-card orange">
-              <div class="info">
-                <h4>Tuyến tạm dừng / Khóa</h4>
-                <div class="number" id="statTuyenLocked">0</div>
-                <div class="subtext" id="statXeLocked">0 xe tạm dừng hoạt động</div>
-              </div>
+              <div class="info"><h4>Tuyến tạm dừng / Khóa</h4><div class="number" id="statTuyenLocked">0</div><div class="subtext" id="statXeLocked">0 xe tạm dừng hoạt động</div></div>
               <div class="icon"><i class="fa fa-lock"></i></div>
             </div>
           </div>
@@ -389,36 +307,28 @@
               <div class="form-grid">
                 <label style="color:#d9534f; font-weight:bold;">Chế độ thao tác:</label>
                 <div class="input-combo">
-                  <select id="selChonTuyenDeSua" class="form-control select2-search" style="width: 70%;">
-                    <option value="">[+ Tạo mới một tuyến hoàn toàn]</option>
-                  </select>
+                  <select id="selChonTuyenDeSua" class="form-control select2-search" style="width: 70%;"><option value="">[+ Tạo mới một tuyến hoàn toàn]</option></select>
                   <button class="btn btn-default" type="button" onclick="resetFormTuyen()"><i class="fa fa-refresh"></i> Làm mới</button>
                 </div>
-
                 <label>Mã tuyến:</label>
                 <div class="input-combo"><input type="text" id="txtMaTuyen" class="form-control" placeholder="Ví dụ: 85 hoặc 14CT" oninput="tuDongGoiYTenTuyen()" style="max-width: 250px;"></div>
-
                 <label>Đơn vị chủ quản:</label>
                 <div class="input-combo">
                   <div style="flex: 1; min-width: 280px;"><select id="selXn" class="form-control select2-search" style="width: 100%;"><option value="">Chọn xí nghiệp</option></select></div>
                   <input type="text" id="txtXnMoi" class="form-control extra-input" placeholder="Nhập tên Xí nghiệp mới..." style="flex: 1;">
                 </div>
-
                 <label>Đầu A:</label>
                 <div class="input-combo">
                   <div style="flex: 1; min-width: 280px;"><select id="selDauA" class="form-control select2-search" style="width: 100%;"><option value="">Chọn đầu bến A</option></select></div>
                   <input type="text" id="txtDauAMoi" class="form-control extra-input" placeholder="Nhập tên Đầu A mới..." oninput="tuDongGoiYTenTuyen()" style="flex: 1;">
                 </div>
-
                 <label>Đầu B:</label>
                 <div class="input-combo">
                   <div style="flex: 1; min-width: 280px;"><select id="selDauB" class="form-control select2-search" style="width: 100%;"><option value="">Chọn đầu bến B</option></select></div>
                   <input type="text" id="txtDauBMoi" class="form-control extra-input" placeholder="Nhập tên Đầu B mới..." oninput="tuDongGoiYTenTuyen()" style="flex: 1;">
                 </div>
-
                 <label>Tên tuyến đầy đủ:</label>
                 <div class="input-combo"><input type="text" id="txtTenTuyen" class="form-control" placeholder="Hệ thống tự động ghép theo Mã và Đầu bến..."></div>
-
                 <label style="color:#0F86DB; font-weight:bold;">Thông tin phương tiện:</label>
                 <div class="input-combo">
                   <div style="display:flex; align-items:center; gap:4px;"><span>Xe VD:</span><input type="number" id="txtSoXeVd" class="form-control" placeholder="VD: 12" style="width: 75px;"></div>
@@ -426,13 +336,11 @@
                   <input type="text" id="txtLoaiXe" class="form-control" placeholder="Loại xe (VD: Daewoo BC095)" style="flex: 1; min-width: 150px;">
                   <input type="text" id="txtSucChua" class="form-control" placeholder="Sức chứa (VD: 60 chỗ)" style="width: 130px;">
                 </div>
-
                 <label style="color:#e67e22; font-weight:bold;">Trạng thái hoạt động:</label>
                 <div class="radio-group">
                   <label class="radio-item"><input type="radio" name="rdStatus" value="active" checked> <strong style="color:#137333;"><i class="fa fa-check-circle"></i> Đang hoạt động</strong></label>
                   <label class="radio-item"><input type="radio" name="rdStatus" value="locked"> <strong style="color:#c5221f;"><i class="fa fa-lock"></i> Tạm dừng / Khóa tuyến</strong></label>
                 </div>
-
                 <div></div>
                 <div><button class="btn btn-success" onclick="xacLapTuyen()"><i class="fa fa-save"></i> Lưu thông tin tuyến</button></div>
               </div>
@@ -458,20 +366,10 @@
             <div class="panel-heading"><span><i class="fa fa-table"></i> Quản lý Đội xe toàn hệ thống & Điều chuyển nhanh</span></div>
             <div class="panel-body">
               <div class="filter-box">
-                <div>
-                  <label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Xí nghiệp:</label>
-                  <select id="filterXnXe" class="form-control select2-search" style="width:100%;"><option value="">-- Tất cả xí nghiệp --</option></select>
-                </div>
-                <div>
-                  <label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Tuyến:</label>
-                  <select id="filterTuyenXe" class="form-control select2-search" style="width:100%;" onchange="locBangXeAdmin()"><option value="">-- Tất cả tuyến --</option></select>
-                </div>
-                <div>
-                  <label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Tìm kiếm biển số:</label>
-                  <input type="text" id="filterBksXe" class="form-control" placeholder="Nhập biển số xe..." oninput="locBangXeAdmin()">
-                </div>
+                <div><label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Xí nghiệp:</label><select id="filterXnXe" class="form-control select2-search" style="width:100%;"><option value="">-- Tất cả xí nghiệp --</option></select></div>
+                <div><label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Tuyến:</label><select id="filterTuyenXe" class="form-control select2-search" style="width:100%;" onchange="locBangXeAdmin()"><option value="">-- Tất cả tuyến --</option></select></div>
+                <div><label style="display:block; margin-bottom:4px; font-weight:bold; color:#555;">Tìm kiếm biển số:</label><input type="text" id="filterBksXe" class="form-control" placeholder="Nhập biển số xe..." oninput="locBangXeAdmin()"></div>
               </div>
-
               <div style="overflow-x: auto; max-height: 450px;">
                 <table class="table-custom">
                   <thead>
@@ -499,33 +397,26 @@
               <div class="form-grid">
                 <label>Chọn tuyến:</label>
                 <div class="input-combo"><select id="selChonTuyen" class="form-control select2-search" style="width: 100%;"><option value="">Chọn tuyến</option></select></div>
-
                 <label>Đơn vị chủ quản:</label>
                 <div class="input-combo"><input type="text" id="txtBieuDoXn" class="form-control" readonly placeholder="Tự động hiển thị theo tuyến..."></div>
-
                 <label>Ngày áp dụng:</label>
                 <div class="input-combo"><input type="text" id="txtNgayApDung" class="form-control" oninput="tuDongTaoTenTab()" placeholder="dd/mm/yyyy (Ví dụ: 08/10/2026)"></div>
-
                 <label>Phạm vi ngày:</label>
                 <div class="radio-group">
                   <label class="radio-item"><input type="radio" name="rdPhamVi" value="Cả tuần" checked onchange="tuDongTaoTenTab()"> Cả tuần (T2-CN)</label>
                   <label class="radio-item"><input type="radio" name="rdPhamVi" value="Thứ 2 - Thứ 7" onchange="tuDongTaoTenTab()"> Thứ 2 - Thứ 7 (T2-T7)</label>
                   <label class="radio-item"><input type="radio" name="rdPhamVi" value="Chủ nhật" onchange="tuDongTaoTenTab()"> Chủ nhật (CN)</label>
                 </div>
-
                 <label>Tên tab nhận diện:</label>
                 <div class="input-combo"><input type="text" id="txtTenTab" class="form-control" readonly placeholder="Hệ thống tự động ghép..."></div>
-
                 <label>Dữ liệu giờ (Excel):</label>
                 <textarea id="txtRawData" class="form-control" placeholder="Copy cả bảng từ Excel/Sheets dán vào đây..."></textarea>
-
                 <div></div>
                 <div style="display: flex; gap: 12px; align-items: center;">
                   <button class="btn btn-primary" onclick="luuBieuDo()"><i class="fa fa-upload"></i> Lưu biểu đồ</button>
                   <button class="btn btn-danger" type="button" onclick="xoaBieuDo()"><i class="fa fa-trash"></i> Xóa biểu đồ này</button>
                 </div>
               </div>
-
               <div style="margin-top: 25px; border-top: 1px solid #D0D7DE; padding-top: 15px;">
                 <h4 style="font-size: 13px; color: #2C3E50; margin-bottom: 10px;"><i class="fa fa-exclamation-triangle" style="color:#e67e22;"></i> Kiểm tra trạng thái Biểu đồ các tuyến:</h4>
                 <div style="overflow-x: auto; max-height: 250px;">
@@ -539,28 +430,34 @@
           </div>
         </div>
 
-        <!-- SECTION 6: QUẢN TRỊ NGƯỜI DÙNG -->
+        <!-- SECTION 6: QUẢN TRỊ NGƯỜI DÙNG & PHÂN QUYỀN -->
         <div id="sec-users" class="content-section">
           <div class="panel-custom">
-            <div class="panel-heading"><span><i class="fa fa-users"></i> Quản trị Tài khoản Nội bộ</span></div>
+            <div class="panel-heading"><span><i class="fa fa-users"></i> Quản trị Tài khoản & Phân quyền Chức năng</span></div>
             <div class="panel-body">
-              <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                <input type="text" id="newAccUser" class="form-control" placeholder="Tên đăng nhập" style="max-width: 180px;">
-                <input type="password" id="newAccPass" class="form-control" placeholder="Mật khẩu" style="max-width: 180px;">
-                <select id="newAccRole" class="form-control" style="max-width: 150px;">
+              <div style="margin-bottom: 15px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; background: #F8FAFC; padding: 12px; border: 1px solid #D0D7DE; border-radius: 4px;">
+                <input type="text" id="newAccUser" class="form-control" placeholder="Tên đăng nhập" style="max-width: 150px;">
+                <input type="password" id="newAccPass" class="form-control" placeholder="Mật khẩu" style="max-width: 150px;">
+                <select id="newAccRole" class="form-control" style="max-width: 130px;" onchange="togglePermissionCheckboxes()">
                   <option value="staff">Bình thường</option>
-                  <option value="master">Quản trị</option>
+                  <option value="master">Quản trị tối cao</option>
                 </select>
-                <button class="btn btn-primary" onclick="taoTaiKhoanMoi()"><i class="fa fa-user-plus"></i> Thêm tài khoản</button>
+                <div id="permissionGroup" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                  <label><input type="checkbox" class="new-perm" value="tuyen"> Quản trị Tuyến</label>
+                  <label><input type="checkbox" class="new-perm" value="xe"> Quản lý Xe</label>
+                  <label><input type="checkbox" class="new-perm" value="bieudo"> Làm Biểu đồ</label>
+                </div>
+                <button class="btn btn-primary" onclick="taoTaiKhoanMoi()"><i class="fa fa-user-plus"></i> Thêm</button>
               </div>
               <div style="overflow-x: auto;">
                 <table class="table-custom">
                   <thead>
                     <tr>
                       <th>Tài khoản</th>
-                      <th>Kiểu tài khoản</th>
-                      <th style="width: 140px; text-align: center;">Trạng thái</th>
-                      <th style="width: 320px; text-align: center;">Hành động</th>
+                      <th>Kiểu</th>
+                      <th>Quyền hạn chức năng</th>
+                      <th style="width: 110px; text-align: center;">Trạng thái</th>
+                      <th style="width: 340px; text-align: center;">Hành động</th>
                     </tr>
                   </thead>
                   <tbody id="tblDanhSachTaiKhoan"></tbody>
@@ -599,6 +496,15 @@
       setTimeout(() => { $toast.remove(); }, 3000);
     }
 
+    function togglePermissionCheckboxes() {
+      const role = $('#newAccRole').val();
+      if (role === 'master') {
+        $('#permissionGroup').hide();
+      } else {
+        $('#permissionGroup').show();
+      }
+    }
+
     function chuyenTabAdmin(sectionId, element) {
       $('.content-section').removeClass('active');
       $('.sidebar-menu li a').removeClass('active');$('#' + sectionId).addClass('active');
@@ -630,10 +536,6 @@
     $(document).ready(function() {$('.select2-search').select2({
         language: { noResults: () => "Không tìm thấy kết quả phù hợp" }
       });
-
-      if (sessionStorage.getItem('admin_role') === 'master') {
-        $('#menuQuanTriUser').show();
-      }
 
       $('#selXn').on('change', () => toggleExtraInput('selXn', 'txtXnMoi'));
       $('#selDauA').on('change', () => { toggleExtraInput('selDauA', 'txtDauAMoi'); tuDongGoiYTenTuyen(); });
@@ -1036,7 +938,7 @@
       } catch (e) { showToast("Lỗi: " + e, "error"); }
     }
 
-    // --- QUẢN TRỊ NGƯỜI DÙNG & ĐỔI MẬT KHẨU ---
+    // --- QUẢN TRỊ NGƯỜI DÙNG & PHÂN QUYỀN ---
     async function taiDanhSachTaiKhoan() {
       try {
         const res = await fetch(`${API_BASE}/api/admin/danh-sach-tai-khoan`).then(r => r.json());
@@ -1048,6 +950,7 @@
               ? '<span class="status-badge status-locked">Tạm khóa</span>' 
               : '<span class="status-badge status-active">Hoạt động</span>';
             
+            const perms = acc.permissions || [];
             let btnAction = '';
             if (acc.username !== 'quan') {
               const toggleText = isLocked ? 'Mở' : 'Khóa';
@@ -1055,24 +958,35 @@
               
               btnAction = `
                 <div style="display:flex; gap:4px; justify-content:center; align-items:center; flex-wrap:wrap;">
-                  <select class="form-control" style="width: 90px; height: 26px; font-size: 11px;" onchange="doiVaiTro('${acc.username}', this.value)">
+                  <select class="form-control" style="width: 85px; height: 26px; font-size: 11px;" onchange="doiVaiTro('${acc.username}', this.value)">
                     <option value="staff" ${acc.role === 'staff' ? 'selected' : ''}>Bình thường</option>
                     <option value="master" ${acc.role === 'master' ? 'selected' : ''}>Quản trị</option>
                   </select>
-                  <input type="password" id="pass_${acc.username}" class="form-control" placeholder="MK mới" style="width: 75px; height: 26px; font-size: 11px;">
-                  <button class="btn btn-primary" style="padding:2px 5px; font-size:10px;" onclick="doiMatKhau('${acc.username}')">Đổi MK</button>
-                  <button class="btn ${toggleCls}" style="padding:2px 6px; font-size:11px;" onclick="doiTrangThaiTaiKhoan('${acc.username}', '${isLocked ? 'active' : 'locked'}')">${toggleText}</button>
-                  <button class="btn btn-danger" style="padding:2px 6px; font-size:11px;" onclick="xoaTaiKhoan('${acc.username}')"><i class="fa fa-trash"></i></button>
+                  <input type="password" id="pass_${acc.username}" class="form-control" placeholder="MK mới" style="width: 70px; height: 26px; font-size: 11px;">
+                  <button class="btn btn-primary" style="padding:2px 4px; font-size:10px;" onclick="doiMatKhau('${acc.username}')">Đổi MK</button>
+                  <button class="btn ${toggleCls}" style="padding:2px 5px; font-size:11px;" onclick="doiTrangThaiTaiKhoan('${acc.username}', '${isLocked ? 'active' : 'locked'}')">${toggleText}</button>
+                  <button class="btn btn-danger" style="padding:2px 5px; font-size:11px;" onclick="xoaTaiKhoan('${acc.username}')"><i class="fa fa-trash"></i></button>
                 </div>
               `;
             } else {
-              btnAction = '<span style="color:#888; font-style:italic;">Tài khoản tối cao</span>';
+              btnAction = '<span style="color:#888; font-style:italic;">Tối cao</span>';
             }
+
+            // Hiển thị danh sách quyền dạng checkbox tương tác trực tiếp
+            let permCheckboxes = `
+              <div style="display:flex; gap:8px; font-size:11px; flex-wrap:wrap;">
+                <label><input type="checkbox" ${perms.includes('tuyen') ? 'checked' : ''} onchange="doiQuyen('${acc.username}', 'tuyen', this.checked)"> Tuyến</label>
+                <label><input type="checkbox" ${perms.includes('xe') ? 'checked' : ''} onchange="doiQuyen('${acc.username}', 'xe', this.checked)"> Xe</label>
+                <label><input type="checkbox" ${perms.includes('bieudo') ? 'checked' : ''} onchange="doiQuyen('${acc.username}', 'bieudo', this.checked)"> Biểu đồ</label>
+              </div>
+            `;
+            if (acc.username === 'quan') permCheckboxes = '<span style="color:#137333; font-weight:bold;">Toàn quyền (Master)</span>';
 
             html += `
               <tr>
                 <td><strong>${acc.username}</strong></td>
                 <td>${acc.role === 'master' ? 'Quản trị' : 'Bình thường'}</td>
+                <td>${permCheckboxes}</td>
                 <td style="text-align: center;">${statusBadge}</td>
                 <td style="text-align: center;">${btnAction}</td>
               </tr>
@@ -1087,84 +1001,89 @@
       const username = $('#newAccUser').val().trim();
       const password = $('#newAccPass').val().trim();
       const role = $('#newAccRole').val();
+      
+      let permissions = [];
+      $('.new-perm:checked').each(function() {
+        permissions.push($(this).val());
+      });
 
       if (!username || !password) { showToast("Vui lòng nhập đủ tài khoản và mật khẩu!", "error"); return; }
       try {
         const res = await fetch(`${API_BASE}/api/admin/dang-ky`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password, role })
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password, role, permissions })
         }).then(r => r.json());
 
         showToast(res.message, res.success ? "success" : "error");
         if (res.success) {
-          $('#newAccUser').val('');
-          $('#newAccPass').val('');
+          $('#newAccUser').val(''); $('#newAccPass').val('');
+          $('.new-perm').prop('checked', false);
           taiDanhSachTaiKhoan();
         }
       } catch (e) { showToast("Lỗi kết nối", "error"); }
     }
 
+    async function doiQuyen(username, permName, isChecked) {
+      try {
+        // Lấy danh sách quyền hiện tại từ dòng tương ứng hoặc fetch
+        const res = await fetch(`${API_BASE}/api/admin/danh-sach-tai-khoan`).then(r => r.json());
+        const acc = res.data.find(u => u.username === username);
+        if (!acc) return;
+
+        let perms = acc.permissions || [];
+        if (isChecked && !perms.includes(permName)) perms.push(permName);
+        if (!isChecked && perms.includes(permName)) perms = perms.filter(p => p !== permName);
+
+        await fetch(`${API_BASE}/api/admin/sua-tai-khoan`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, permissions: perms })
+        }).then(r => r.json());
+
+        showToast(`Đã cập nhật quyền cho [${username}]`, "success");
+      } catch (e) { showToast("Lỗi cập nhật quyền", "error"); }
+    }
+
     async function doiTrangThaiTaiKhoan(username, newStatus) {
       try {
         const res = await fetch(`${API_BASE}/api/admin/sua-tai-khoan`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, status: newStatus })
         }).then(r => r.json());
-
-        showToast(res.message, "success");
-        taiDanhSachTaiKhoan();
+        showToast(res.message, "success"); taiDanhSachTaiKhoan();
       } catch (e) { showToast("Lỗi thao tác", "error"); }
     }
 
     async function doiVaiTro(username, newRole) {
       try {
         const res = await fetch(`${API_BASE}/api/admin/sua-tai-khoan`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, role: newRole })
         }).then(r => r.json());
-
-        showToast(res.message, "success");
-        taiDanhSachTaiKhoan();
+        showToast(res.message, "success"); taiDanhSachTaiKhoan();
       } catch (e) { showToast("Lỗi thao tác", "error"); }
     }
 
     async function doiMatKhau(username) {
       const newPassword = $(`#pass_${username}`).val().trim();
-      if (!newPassword) {
-        showToast("Vui lòng nhập mật khẩu mới cần đổi!", "error");
-        return;
-      }
-
+      if (!newPassword) { showToast("Vui lòng nhập mật khẩu mới!", "error"); return; }
       try {
         const res = await fetch(`${API_BASE}/api/admin/doi-mat-khau`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, newPassword })
         }).then(r => r.json());
-
         showToast(res.message, res.success ? "success" : "error");
-        if (res.success) {
-          $(`#pass_${username}`).val('');
-        }
-      } catch (e) {
-        showToast("Lỗi kết nối khi đổi mật khẩu", "error");
-      }
+        if (res.success) { $(`#pass_${username}`).val(''); }
+      } catch (e) { showToast("Lỗi kết nối", "error"); }
     }
 
     async function xoaTaiKhoan(username) {
       if (!confirm(`Xác nhận xóa tài khoản [${username}]?`)) return;
       try {
         const res = await fetch(`${API_BASE}/api/admin/xoa-tai-khoan`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username })
         }).then(r => r.json());
-
-        showToast(res.message, "success");
-        taiDanhSachTaiKhoan();
+        showToast(res.message, "success"); taiDanhSachTaiKhoan();
       } catch (e) { showToast("Lỗi thao tác", "error"); }
     }
   </script>
