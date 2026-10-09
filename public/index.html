@@ -88,12 +88,18 @@
       user-select: none;
     }
 
+    .btn-group-action {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
     .btn-view {
       background-color: #337AB7;
       color: #FFFFFF;
       border: 1px solid #2E6DA4;
-      padding: 8px 20px;
-      font-size: 13px;
+      padding: 8px 16px;
+      font-size: 12px;
       font-weight: bold;
       border-radius: 3px;
       cursor: pointer;
@@ -102,6 +108,8 @@
       gap: 6px;
     }
     .btn-view:hover { background-color: #286090; }
+    .btn-view.secondary { background-color: #5CB85C; border-color: #4CAE4C; }
+    .btn-view.secondary:hover { background-color: #449D44; }
 
     .viewer-wrapper {
       margin-top: 20px;
@@ -139,6 +147,41 @@
       height: 28px;
     }
     .table-schedule tbody tr:hover { background-color: #F5F9FD; }
+
+    /* Giao diện Lịch Dọc */
+    .vertical-container {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      background: #FFFFFF;
+      padding: 10px;
+    }
+    .vertical-block {
+      border: 1px solid #CCCCCC;
+      background: #FFFFFF;
+      border-radius: 3px;
+      overflow: hidden;
+      min-width: 260px;
+      flex: 1;
+    }
+    .table-vertical {
+      border-collapse: collapse;
+      font-size: 11px;
+      width: 100%;
+      background-color: #FFFFFF;
+    }
+    .table-vertical th, .table-vertical td {
+      border: 1px solid #CCCCCC;
+      padding: 5px 8px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    .table-vertical thead th {
+      background-color: #3B86C4;
+      color: #FFF;
+      font-weight: bold;
+    }
 
     .colstt { width: 45px; font-weight: bold; text-align: center !important; }
     .coldau { width: 170px; text-align: left !important; padding-left: 10px !important; }
@@ -319,15 +362,14 @@
           </div>
 
           <div></div>
-          <div>
-            <button class="btn-view" onclick="xemBieuDo()"><i class="fa fa-eye"></i> Xem Biểu Đồ</button>
+          <div class="btn-group-action">
+            <button class="btn-view" onclick="xemBieuDo('ngang')"><i class="fa fa-table"></i> Xem biểu đồ ngang</button>
+            <button class="btn-view secondary" onclick="xemBieuDo('doc')"><i class="fa fa-list-alt"></i> Xem biểu đồ dọc</button>
           </div>
         </div>
 
         <div id="viewerWrapper" class="viewer-wrapper">
-          <div class="table-scroll">
-            <table id="mainScheduleTable" class="table-schedule"></table>
-          </div>
+          <div id="viewerContainer"></div>
         </div>
       </div>
 
@@ -376,6 +418,7 @@
     let danhMucData = [];
     let allRoutes = [];
     let timeoutSearch = null;
+    let currentMode = 'ngang'; // 'ngang' hoặc 'doc'
 
     function chuyenTab(tabId) {
       $('.tab-content').removeClass('active');
@@ -387,7 +430,6 @@
     }
 
     $(document).ready(function() {
-      // Tự động ghi nhận khách truy cập trang tra cứu biểu đồ
       fetch(`${API_BASE}/api/log-access`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -402,7 +444,7 @@
       $('#selTuyen').on('change', onTuyenChange);
       $('#selNgayApDung').on('change', () => {
         if ($('#selTuyen').val() && $('#selNgayApDung').val()) {
-          xemBieuDo();
+          xemBieuDo(currentMode);
         }
       });
 
@@ -552,7 +594,7 @@
 
     function onDayChange() {
       if ($('#selTuyen').val() && $('#selNgayApDung').val()) {
-        xemBieuDo();
+        xemBieuDo(currentMode);
       }
     }
 
@@ -596,7 +638,8 @@
       return bieuDoList[0].tenTab;
     }
 
-    async function xemBieuDo() {
+    async function xemBieuDo(mode = 'ngang') {
+      currentMode = mode;
       const xn = $('#selXn').val();
       const tuyen = $('#selTuyen').val();
       const ngayApDung = $('#selNgayApDung').val();
@@ -613,15 +656,22 @@
         return;
       }
 
-      const $btn = $('.btn-view');$btn.html('<i class="fa fa-spinner fa-spin"></i> Đang tải...').prop('disabled', true);
+      const $btn = $(event?.currentTarget \vert{}\vert{} '.btn-view');$btn.html('<i class="fa fa-spinner fa-spin"></i> Đang tải...').prop('disabled', true);
       $('#viewerWrapper').show();
 
       try {
         const res = await fetch(`${API_BASE}/api/table-data?tab=${encodeURIComponent(tabName)}&tuyen=${encodeURIComponent(tuyen)}`).then(r => r.json());
-        $btn.html('<i class="fa fa-eye"></i> Xem Biểu Đồ').prop('disabled', false);
-        hienThiBangHTML(res, tuyen);
+        $('.btn-view').html(function() {
+          return $(this).attr('onclick').includes('ngang') ? '<i class="fa fa-table"></i> Xem biểu đồ ngang' : '<i class="fa fa-list-alt"></i> Xem biểu đồ dọc';
+        }).prop('disabled', false);
+
+        if (mode === 'ngang') {
+          hienThiBangNgang(res, tuyen);
+        } else {
+          hienThiBangDoc(res, tuyen);
+        }
       } catch (err) {
-        $btn.html('<i class="fa fa-eye"></i> Xem Biểu Đồ').prop('disabled', false);
+        $('.btn-view').prop('disabled', false);
         showToast("Lỗi kết nối máy chủ: " + err, "error");
       }
     }
@@ -644,19 +694,9 @@
       return p.length >= 2 ? parseInt(p[0], 10) * 60 + parseInt(p[1], 10) : 0;
     }
 
-    function hienThiBangHTML(res, tuyen) {
-      if (!res || !res.success) {
-        showToast("Không tải được dữ liệu: " + (res.message || "Lỗi không xác định"), "error");
-        $('#viewerWrapper').hide();
-        return;
-      }
-
+    // --- HIỂN THỊ BIỂU ĐỒ NGANG ---
+    function hienThiBangNgang(res, tuyen) {
       const rawData = res.rawData;
-      if (!rawData || rawData.length === 0) {
-        showToast("Tab này không có dữ liệu!", "error");
-        return;
-      }
-
       const customDauA = res.dauA || "";
       const customDauB = res.dauB || "";
       const bannerLines = [];
@@ -669,15 +709,12 @@
 
         for (let col = 0; col < rawData[i].length; col++) {
           const cellStr = String(rawData[i][col] || "").toLowerCase();
-          if (cellStr.includes("điểm danh") && !diemDanhCols.includes(col)) {
-            diemDanhCols.push(col);
-          }
+          if (cellStr.includes("điểm danh") && !diemDanhCols.includes(col)) diemDanhCols.push(col);
         }
 
         const rowString = rawData[i].join(" ");
         if ((valCol0 === "" && rowString.includes(":")) || rowString.toLowerCase().includes("giờ gạch chân")) continue;
 
-        // Giữ nguyên 100% định dạng và nội dung banner gốc từ file Excel tải lên
         const fullText = rawData[i].filter(c => c && c.trim() !== "").join(" - ").trim();
         if (fullText.length > 3 && !fullText.toLowerCase().includes("đầu a-b") && fullText.toLowerCase() !== "nốt" && !fullText.toLowerCase().includes("điểm danh")) {
           bannerLines.push(fullText);
@@ -687,7 +724,6 @@
       if (startRow === -1) startRow = 0;
       const tableData = rawData.slice(startRow);
       const cleanTableData = [];
-
       for (let j = 0; j < tableData.length; j++) {
         const col0 = String(tableData[j][0] || "").trim();
         if (col0 !== "" && !isNaN(col0)) {
@@ -709,12 +745,6 @@
         let totalTrips = 0;
         let endC = Math.max(rowA.length, rowB.length);
 
-        const lastA = String(rowA[endC - 1] || "").trim();
-        const lastB = String(rowB[endC - 1] || "").trim();
-        if ((lastA !== "" && !isNaN(lastA) && !lastA.includes(":")) || (lastB !== "" && !isNaN(lastB) && !lastB.includes(":"))) {
-          endC = endC - 1;
-        }
-
         for (let c = 2; c < endC; c++) {
           const valA = chuanHoaGio(rowA[c] ? rowA[c].trim() : "");
           const valB = chuanHoaGio(rowB[c] ? rowB[c].trim() : "");
@@ -725,8 +755,7 @@
             continue;
           }
           if (valA.toLowerCase().includes("thay ca") || valB.toLowerCase().includes("thay ca")) {
-            cells.push({ type: "thayca" });
-            continue;
+            cells.push({ type: "thayca" }); continue;
           }
           if (!valA && !valB) { cells.push({ type: "empty" }); continue; }
 
@@ -753,14 +782,12 @@
       });
 
       const totalCols = maxCols + 3;
-      let html = '<thead>';
-
+      let html = '<div class="table-scroll"><table class="table-schedule"><thead>';
       if (bannerLines.length > 0) {
-        bannerLines.forEach((line, idx) => {
+        bannerLines.forEach((line) => {
           html += `<tr><th colspan="${totalCols}" style="font-size:12px; font-weight:bold; padding:6px; background:#FFFFFF; border:1px solid #CCCCCC; text-align:center; color:#111;">${line}</th></tr>`;
         });
       }
-
       html += '<tr><th class="colstt">Nốt</th><th class="coldau">Đầu A-B</th><th colspan="' + maxCols + '">GIỜ XE XUẤT BẾN / VỀ BẾN</th><th class="coltotal">LƯỢT</th></tr></thead><tbody>';
 
       let tongLuot = 0;
@@ -778,10 +805,110 @@
         while (cnt < maxCols) { html += '<td></td>'; cnt++; }
         html += `<td class="coltotal">${item.totalTrips}</td></tr>`;
       });
+      html += `<tr style="font-weight:bold; background:#FAFAFA;"><td colspan="2" style="text-align:center;">Tổng lượt</td><td colspan="${maxCols}"></td><td class="coltotal" style="color:#0F86DB;">${tongLuot}</td></tr></tbody></table></div>`;
 
-      html += `<tr style="font-weight:bold; background:#FAFAFA;"><td colspan="2" style="text-align:center;">Tổng lượt</td><td colspan="${maxCols}"></td><td class="coltotal" style="color:#0F86DB;">${tongLuot}</td></tr></tbody>`;
+      $('#viewerContainer').html(html);
+      $('#viewerWrapper').show();
+      $('html, body').animate({ scrollTop:$('#viewerWrapper').offset().top - 20 }, 300);
+    }
 
-      $('#mainScheduleTable').html(html);
+    // --- HIỂN THỊ BIỂU ĐỒ DỌC ---
+    function hienThiBangDoc(res, tuyen) {
+      const rawData = res.rawData;
+      const customDauA = res.dauA || "";
+      const customDauB = res.dauB || "";
+      let startRow = -1;
+
+      for (let i = 0; i < rawData.length; i++) {
+        const valCol0 = String(rawData[i][0] || "").trim();
+        if (valCol0 === "1" || valCol0 === "01") { startRow = i; break; }
+      }
+      if (startRow === -1) startRow = 0;
+
+      const tableData = rawData.slice(startRow);
+      const cleanTableData = [];
+      for (let j = 0; j < tableData.length; j++) {
+        const col0 = String(tableData[j][0] || "").trim();
+        if (col0 !== "" && !isNaN(col0)) {
+          cleanTableData.push(tableData[j]); 
+          if (j + 1 < tableData.length) cleanTableData.push(tableData[j + 1]); 
+        }
+      }
+
+      // Thu thập toàn bộ các chuyến xe, sắp xếp theo thời gian tăng dần
+      let allTrips = [];
+      let labelA = customDauA || "Đầu A";
+      let labelB = customDauB || "Đầu B";
+
+      for (let r = 0; r < cleanTableData.length; r += 2) {
+        const rowA = cleanTableData[r];
+        const rowB = cleanTableData[r + 1] || [];
+        if (!customDauA && rowA[1]) labelA = rowA[1].trim();
+        if (!customDauB && rowB[1]) labelB = rowB[1].trim();
+
+        let endC = Math.max(rowA.length, rowB.length);
+        for (let c = 2; c < endC; c++) {
+          const valA = chuanHoaGio(rowA[c] ? rowA[c].trim() : "");
+          const valB = chuanHoaGio(rowB[c] ? rowB[c].trim() : "");
+          if (valA && !valA.toLowerCase().includes("thay ca")) {
+            allTrips.push({ timeStr: valA, timeMin: chuyenPhut(valA), type: 'A', text: valA });
+          }
+          if (valB && !valB.toLowerCase().includes("thay ca")) {
+            allTrips.push({ timeStr: valB, timeMin: chuyenPhut(valB), type: 'B', text: valB });
+          }
+        }
+      }
+
+      // Sắp xếp các chuyến xe theo thời gian trong ngày
+      allTrips.sort((x, y) => x.timeMin - y.timeMin);
+
+      // Gom nhóm thành các khối dọc (mỗi khối 15 dòng giống ảnh mẫu)
+      const pageSize = 15;
+      let blocks = [];
+      for (let i = 0; i < allTrips.length; i += pageSize) {
+        blocks.push(allTrips.slice(i, i + pageSize));
+      }
+
+      let html = `<div style="font-weight:bold; font-size:13px; margin-bottom:10px; color:#2C3E50;"><i class="fa fa-list-alt"></i> Biểu đồ dọc - Tổng số: ${allTrips.length} chuyến</div>`;
+      html += '<div class="vertical-container">';
+
+      blocks.forEach((block, bIdx) => {
+        let startStt = bIdx * pageSize + 1;
+        html += `
+          <div class="vertical-block">
+            <table class="table-vertical">
+              <thead>
+                <tr>
+                  <th style="width: 45px;">STT</th>
+                  <th>${labelA}</th>
+                  <th>${labelB}</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+
+        for (let idx = 0; idx < pageSize; idx++) {
+          let trip = block[idx];
+          let stt = startStt + idx;
+          let valA = (trip && trip.type === 'A') ? trip.text : '';
+          let valB = (trip && trip.type === 'B') ? trip.text : '';
+
+          // Nếu block ngắn hơn pageSize, có thể hỗ trợ cân bằng dòng trống
+          html += `
+            <tr>
+              <td style="font-weight:bold; color:#555; background:#F8FAFC;">${stt}</td>
+              <td style="color:${valA ? '#0F86DB' : 'transparent'}; font-weight:bold;">${valA || '-'}</td>
+              <td style="color:${valB ? '#FF0000' : 'transparent'}; font-weight:bold;">${valB || '-'}</td>
+            </tr>
+          `;
+        }
+
+        html += `</tbody></table></div>`;
+      });
+
+      html += '</div>';
+
+      $('#viewerContainer').html(html);
       $('#viewerWrapper').show();
       $('html, body').animate({ scrollTop:$('#viewerWrapper').offset().top - 20 }, 300);
     }
