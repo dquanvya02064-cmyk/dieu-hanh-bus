@@ -148,10 +148,10 @@
     }
     .table-schedule tbody tr:hover { background-color: #F5F9FD; }
 
-    /* Giao diện Lịch Dọc */
+    /* Giao diện Lịch Dọc đúng chuẩn 3 cột khối giống hệt ảnh mẫu của bạn */
     .vertical-container {
       display: flex;
-      gap: 15px;
+      gap: 12px;
       flex-wrap: wrap;
       justify-content: flex-start;
       background: #FFFFFF;
@@ -162,7 +162,7 @@
       background: #FFFFFF;
       border-radius: 3px;
       overflow: hidden;
-      min-width: 260px;
+      min-width: 280px;
       flex: 1;
     }
     .table-vertical {
@@ -178,9 +178,10 @@
       vertical-align: middle;
     }
     .table-vertical thead th {
-      background-color: #3B86C4;
-      color: #FFF;
+      background-color: #EBF2F8;
+      color: #111;
       font-weight: bold;
+      height: 28px;
     }
 
     .colstt { width: 45px; font-weight: bold; text-align: center !important; }
@@ -430,7 +431,6 @@
     }
 
     $(document).ready(function() {
-      // Ghi nhận log truy cập
       fetch(`${API_BASE}/api/log-access`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -449,7 +449,6 @@
         }
       });
 
-      // Kích hoạt nạp danh mục ngay lập tức
       napDanhMuc();
     });
 
@@ -684,6 +683,7 @@
       return p.length >= 2 ? parseInt(p[0], 10) * 60 + parseInt(p[1], 10) : 0;
     }
 
+    // --- BIỂU ĐỒ NGANG (Giữ nguyên form, banner và tự động tính số nốt, tổng lượt) ---
     function hienThiBangNgang(res, tuyen) {
       const rawData = res.rawData;
       const customDauA = res.dauA || "";
@@ -713,6 +713,7 @@
       if (startRow === -1) startRow = 0;
       const tableData = rawData.slice(startRow);
       const cleanTableData = [];
+
       for (let j = 0; j < tableData.length; j++) {
         const col0 = String(tableData[j][0] || "").trim();
         if (col0 !== "" && !isNaN(col0)) {
@@ -744,7 +745,8 @@
             continue;
           }
           if (valA.toLowerCase().includes("thay ca") || valB.toLowerCase().includes("thay ca")) {
-            cells.push({ type: "thayca" }); continue;
+            cells.push({ type: "thayca" });
+            continue;
           }
           if (!valA && !valB) { cells.push({ type: "empty" }); continue; }
 
@@ -761,7 +763,7 @@
             cells.push({ type: "flight", top: "", topCls: "", btm: valB, btmCls: "cold2b" });
           }
         }
-        notList.push({ not: notVal || (r / 2 + 1), dauA, dauB, cells, totalTrips });
+        notList.push({ not: notVal || (notList.length + 1), dauA, dauB, cells, totalTrips });
       }
 
       let maxCols = 0;
@@ -772,11 +774,13 @@
 
       const totalCols = maxCols + 3;
       let html = '<div class="table-scroll"><table class="table-schedule"><thead>';
+
       if (bannerLines.length > 0) {
         bannerLines.forEach((line) => {
           html += `<tr><th colspan="${totalCols}" style="font-size:12px; font-weight:bold; padding:6px; background:#FFFFFF; border:1px solid #CCCCCC; text-align:center; color:#111;">${line}</th></tr>`;
         });
       }
+
       html += '<tr><th class="colstt">Nốt</th><th class="coldau">Đầu A-B</th><th colspan="' + maxCols + '">GIỜ XE XUẤT BẾN / VỀ BẾN</th><th class="coltotal">LƯỢT</th></tr></thead><tbody>';
 
       let tongLuot = 0;
@@ -794,6 +798,7 @@
         while (cnt < maxCols) { html += '<td></td>'; cnt++; }
         html += `<td class="coltotal">${item.totalTrips}</td></tr>`;
       });
+
       html += `<tr style="font-weight:bold; background:#FAFAFA;"><td colspan="2" style="text-align:center;">Tổng lượt</td><td colspan="${maxCols}"></td><td class="coltotal" style="color:#0F86DB;">${tongLuot}</td></tr></tbody></table></div>`;
 
       $('#viewerContainer').html(html);
@@ -801,6 +806,7 @@
       $('html, body').animate({ scrollTop:$('#viewerWrapper').offset().top - 20 }, 300);
     }
 
+    // --- BIỂU ĐỒ DỌC ĐÚNG CHUẨN MẪU (3 cột khối: STT | Tên đầu bến A | Tên đầu bến B) ---
     function hienThiBangDoc(res, tuyen) {
       const rawData = res.rawData;
       const customDauA = res.dauA || "";
@@ -823,10 +829,11 @@
         }
       }
 
-      let allTrips = [];
+      let pairsList = [];
       let labelA = customDauA || "Đầu A";
       let labelB = customDauB || "Đầu B";
 
+      // Đọc từng dòng nốt ngang (Dòng A là chiều đi, Dòng B là chiều về tương ứng)
       for (let r = 0; r < cleanTableData.length; r += 2) {
         const rowA = cleanTableData[r];
         const rowB = cleanTableData[r + 1] || [];
@@ -837,28 +844,43 @@
         for (let c = 2; c < endC; c++) {
           const valA = chuanHoaGio(rowA[c] ? rowA[c].trim() : "");
           const valB = chuanHoaGio(rowB[c] ? rowB[c].trim() : "");
-          if (valA && !valA.toLowerCase().includes("thay ca")) {
-            allTrips.push({ timeMin: chuyenPhut(valA), type: 'A', text: valA });
-          }
-          if (valB && !valB.toLowerCase().includes("thay ca")) {
-            allTrips.push({ timeMin: chuyenPhut(valB), type: 'B', text: valB });
+
+          if ((valA && valA.includes(":") && !valA.toLowerCase().includes("thay ca")) || 
+              (valB && valB.includes(":") && !valB.toLowerCase().includes("thay ca"))) {
+            pairsList.push({
+              minA: valA && valA.includes(":") ? chuyenPhut(valA) : 99999,
+              timeA: valA && valA.includes(":") ? valA : '',
+              timeB: valB && valB.includes(":") ? valB : ''
+            });
           }
         }
       }
 
-      allTrips.sort((x, y) => x.timeMin - y.timeMin);
+      // Sắp xếp các cặp giờ theo thời gian xuất bến tăng dần của chiều A
+      pairsList.sort((x, y) => x.minA - y.minA);
 
-      const pageSize = 15;
+      const pageSize = 15; // Mỗi bảng dọc chia đúng 15 dòng như ảnh mẫu
       let blocks = [];
-      for (let i = 0; i < allTrips.length; i += pageSize) {
-        blocks.push(allTrips.slice(i, i + pageSize));
+
+      for (let i = 0; i < pairsList.length; i += pageSize) {
+        let blockItems = [];
+        for (let k = 0; k < pageSize; k++) {
+          let idx = i + k;
+          if (idx < pairsList.length) {
+            blockItems.push({
+              stt: idx + 1,
+              timeA: pairsList[idx].timeA,
+              timeB: pairsList[idx].timeB
+            });
+          }
+        }
+        blocks.push(blockItems);
       }
 
-      let html = `<div style="font-weight:bold; font-size:13px; margin-bottom:10px; color:#2C3E50;"><i class="fa fa-list-alt"></i> Biểu đồ dọc - Tổng số: ${allTrips.length} chuyến</div>`;
+      let html = `<div style="font-weight:bold; font-size:13px; margin-bottom:10px; color:#2C3E50;"><i class="fa fa-list-alt"></i> Biểu đồ dọc - Tổng số: ${pairsList.length} chuyến</div>`;
       html += '<div class="vertical-container">';
 
-      blocks.forEach((block, bIdx) => {
-        let startStt = bIdx * pageSize + 1;
+      blocks.forEach((block) => {
         html += `
           <div class="vertical-block">
             <table class="table-vertical">
@@ -872,20 +894,15 @@
               <tbody>
         `;
 
-        for (let idx = 0; idx < pageSize; idx++) {
-          let trip = block[idx];
-          let stt = startStt + idx;
-          let valA = (trip && trip.type === 'A') ? trip.text : '';
-          let valB = (trip && trip.type === 'B') ? trip.text : '';
-
+        block.forEach(item => {
           html += `
             <tr>
-              <td style="font-weight:bold; color:#555; background:#F8FAFC;">${stt}</td>
-              <td style="color:${valA ? '#0F86DB' : 'transparent'}; font-weight:bold;">${valA || '-'}</td>
-              <td style="color:${valB ? '#FF0000' : 'transparent'}; font-weight:bold;">${valB || '-'}</td>
+              <td style="font-weight:bold; color:#555; background:#F8FAFC; text-align:center;">${item.stt}</td>
+              <td style="color:#111; text-align:center;">${item.timeA || ''}</td>
+              <td style="color:#111; text-align:center;">${item.timeB || ''}</td>
             </tr>
           `;
-        }
+        });
 
         html += `</tbody></table></div>`;
       });
@@ -895,14 +912,6 @@
       $('#viewerContainer').html(html);
       $('#viewerWrapper').show();
       $('html, body').animate({ scrollTop:$('#viewerWrapper').offset().top - 20 }, 300);
-    }
-
-    function chuyenNhanhSangBieuDo(xn, tenTuyen) {
-      chuyenTab('tab-bieudo');
-      if (xn) $('#selXn').val(xn).trigger('change');
-      setTimeout(() => {
-        if (tenTuyen) $('#selTuyen').val(tenTuyen).trigger('change');
-      }, 350);
     }
   </script>
 </body>
