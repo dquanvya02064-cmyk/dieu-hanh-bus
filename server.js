@@ -23,7 +23,6 @@ const busDataSchema = new mongoose.Schema({
 });
 const BusModel = mongoose.model('BusData', busDataSchema);
 
-// SCHEMA NHẬT KÝ TRUY CẬP (Tự động xóa sau 30 ngày)
 const accessLogSchema = new mongoose.Schema({
   username: { type: String, default: 'Khách tra cứu' },
   role: { type: String, default: 'visitor' },
@@ -42,7 +41,6 @@ async function cleanOldLogs() {
   }
 }
 
-// HÀM LÀM SẠCH VÀ ĐỒNG BỘ DỮ LIỆU TỰ ĐỘNG
 async function cleanAndSyncData(data) {
   if (!data) return data;
   if (!Array.isArray(data.xeList)) data.xeList = [];
@@ -165,7 +163,6 @@ async function saveRawData(data) {
   );
 }
 
-// --- API GHI NHẬN TRUY CẬP WEB ---
 app.post('/api/log-access', async (req, res) => {
   try {
     const { username, role, action } = req.body;
@@ -185,7 +182,6 @@ app.post('/api/log-access', async (req, res) => {
   }
 });
 
-// --- API XEM NHẬT KÝ TRUY CẬP (Dành cho Master) ---
 app.get('/api/admin/danh-sach-log', async (req, res) => {
   try {
     const logs = await AccessLogModel.find().sort({ createdAt: -1 }).limit(200);
@@ -195,7 +191,6 @@ app.get('/api/admin/danh-sach-log', async (req, res) => {
   }
 });
 
-// API ĐĂNG NHẬP QUẢN TRỊ BẢO MẬT
 app.post('/api/admin/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -215,7 +210,6 @@ app.post('/api/admin/login', async (req, res) => {
       return res.status(403).json({ success: false, message: 'Tài khoản của bạn đang bị tạm khóa!' });
     }
 
-    // Ghi log đăng nhập quản trị thành công
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     await AccessLogModel.create({
       username: user.username,
@@ -235,7 +229,6 @@ app.post('/api/admin/login', async (req, res) => {
   }
 });
 
-// API LẤY DANH SÁCH TÀI KHOẢN
 app.get('/api/admin/danh-sach-tai-khoan', async (req, res) => {
   try {
     const raw = await getRawData();
@@ -245,7 +238,6 @@ app.get('/api/admin/danh-sach-tai-khoan', async (req, res) => {
   }
 });
 
-// API TẠO TÀI KHOẢN MỚI
 app.post('/api/admin/dang-ky', async (req, res) => {
   try {
     const { username, password, role, permissions } = req.body;
@@ -273,7 +265,6 @@ app.post('/api/admin/dang-ky', async (req, res) => {
   }
 });
 
-// API CẬP NHẬT TÀI KHOẢN
 app.post('/api/admin/sua-tai-khoan', async (req, res) => {
   try {
     const { username, status, role, permissions } = req.body;
@@ -294,7 +285,6 @@ app.post('/api/admin/sua-tai-khoan', async (req, res) => {
   }
 });
 
-// API ĐỔI MẬT KHẨU TÀI KHOẢN
 app.post('/api/admin/doi-mat-khau', async (req, res) => {
   try {
     const { username, newPassword } = req.body;
@@ -314,7 +304,6 @@ app.post('/api/admin/doi-mat-khau', async (req, res) => {
   }
 });
 
-// API XÓA TÀI KHOẢN
 app.post('/api/admin/xoa-tai-khoan', async (req, res) => {
   try {
     const { username } = req.body;
@@ -329,7 +318,6 @@ app.post('/api/admin/xoa-tai-khoan', async (req, res) => {
   }
 });
 
-// Các API nghiệp vụ khác...
 app.get('/api/danh-muc', async (req, res) => {
   try {
     const isAdmin = req.query.admin === 'true';
