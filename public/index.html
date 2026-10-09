@@ -363,8 +363,8 @@
 
           <div></div>
           <div class="btn-group-action">
-            <button class="btn-view" onclick="xemBieuDo('ngang')"><i class="fa fa-table"></i> Xem biểu đồ ngang</button>
-            <button class="btn-view secondary" onclick="xemBieuDo('doc')"><i class="fa fa-list-alt"></i> Xem biểu đồ dọc</button>
+            <button class="btn-view" onclick="xemBieuDo('ngang', this)"><i class="fa fa-table"></i> Xem biểu đồ ngang</button>
+            <button class="btn-view secondary" onclick="xemBieuDo('doc', this)"><i class="fa fa-list-alt"></i> Xem biểu đồ dọc</button>
           </div>
         </div>
 
@@ -430,6 +430,7 @@
     }
 
     $(document).ready(function() {
+      // Ghi nhận log truy cập
       fetch(`${API_BASE}/api/log-access`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -448,6 +449,7 @@
         }
       });
 
+      // Kích hoạt nạp danh mục ngay lập tức
       napDanhMuc();
     });
 
@@ -630,7 +632,7 @@
       return bieuDoList[0].tenTab;
     }
 
-    async function xemBieuDo(mode = 'ngang') {
+    async function xemBieuDo(mode = 'ngang', btnElement = null) {
       currentMode = mode;
       const xn = $('#selXn').val();
       const tuyen = $('#selTuyen').val();
@@ -648,18 +650,18 @@
         return;
       }
 
-      const btnEl = event ? event.currentTarget : null;
-      const $btn = btnEl ? $(btnEl) : $('.btn-view');$btn.html('<i class="fa fa-spinner fa-spin"></i> Đang tải...').prop('disabled', true);
+      const $btn = btnElement ? $(btnElement) :$('.btn-view');
+      const oldHtml = $btn.html();$btn.html('<i class="fa fa-spinner fa-spin"></i> Đang tải...').prop('disabled', true);
       $('#viewerWrapper').show();
 
       try {
         const res = await fetch(`${API_BASE}/api/table-data?tab=${encodeURIComponent(tabName)}&tuyen=${encodeURIComponent(tuyen)}`).then(r => r.json());
-        $('.btn-view').prop('disabled', false);
+        $('.btn-view').prop('disabled', false);$btn.html(oldHtml);
 
         if (mode === 'ngang') hienThiBangNgang(res, tuyen);
         else hienThiBangDoc(res, tuyen);
       } catch (err) {
-        $('.btn-view').prop('disabled', false);
+        $('.btn-view').prop('disabled', false);$btn.html(oldHtml);
         showToast("Lỗi kết nối máy chủ: " + err, "error");
       }
     }
