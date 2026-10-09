@@ -14,7 +14,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       width: 100%; height: 100%;
-      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
       font-size: 12px; background-color: #F1F4F9; color: #333;
     }
 
@@ -215,7 +215,6 @@
         return;
       }
 
-      // Nhân viên bình thường không thấy quản lý user và nhật ký truy cập web
       $('#menuQuanTriUser, #menuLog').hide();
 
       if (!permissions.includes('tuyen')) $('#menuTuyen').hide();
@@ -595,7 +594,7 @@
 
     function toggleExtraInput(selectId, inputId) {
       const val = $('#' + selectId).val();
-      const $inp =$('#' + inputId);
+      const $inp = $('#' + inputId);
       if (val === "__NEW__") $inp.show().focus();
       else $inp.hide().val("");
     }
@@ -687,12 +686,12 @@
           return (a.maTuyen || '').localeCompare(b.maTuyen || '', undefined, { numeric: true, sensitivity: 'base' });
         });
 
-        const $filterTuyen =$('#filterTuyenXe');
+        const $filterTuyen = $('#filterTuyenXe');
         $filterTuyen.empty().append('<option value="">-- Tất cả tuyến --</option>');
         sortedRoutes.forEach(t => { $filterTuyen.append(new Option(`${t.maTuyen} - ${t.tenTuyen}`, t.maTuyen)); });
         $filterTuyen.trigger('change.select2');
 
-        const $selSua =$('#selChonTuyenDeSua');
+        const $selSua = $('#selChonTuyenDeSua');
         $selSua.empty().append('<option value="">[+ Tạo mới một tuyến hoàn toàn]</option>');
         sortedRoutes.forEach(t => {
           const lockText = t.status === 'locked' ? ' [ĐÃ KHÓA]' : '';
@@ -700,16 +699,16 @@
         });
         $selSua.trigger('change.select2');
 
-        const $selTuyen =$('#selChonTuyen');
+        const $selTuyen = $('#selChonTuyen');
         $selTuyen.empty().append('<option value="">Chọn tuyến</option>');
         let selectedVal = "";
         sortedRoutes.forEach(t => {
           const isSelected = chonMaTuyenMoi && (t.maTuyen === chonMaTuyenMoi);
           if (isSelected) selectedVal = t.tenTuyen;
           const opt = new Option(t.tenTuyen, t.tenTuyen, false, false);
-          $(opt).attr('data-xn', t.xn);$selTuyen.append(opt);
+          $(opt).attr('data-xn', t.xn); $selTuyen.append(opt);
         });
-        if (selectedVal) $selTuyen.val(selectedVal);$selTuyen.trigger('change.select2');
+        if (selectedVal) $selTuyen.val(selectedVal); $selTuyen.trigger('change.select2');
 
         veBangDanhSachTuyen(sortedRoutes);
         veBangTrangThaiBieuDo(sortedRoutes);
@@ -830,7 +829,7 @@
     }
 
     function napTuyenLenSua(maTuyen) {
-      chuyenTabAdmin('sec-tuyen', $('.sidebar-menu li a')[1]);$('#selChonTuyenDeSua').val(maTuyen).trigger('change');
+      chuyenTabAdmin('sec-tuyen', $('.sidebar-menu li a')[1]); $('#selChonTuyenDeSua').val(maTuyen).trigger('change');
     }
 
     async function doiTrangThai(maTuyen, statusMoi) {
@@ -845,16 +844,16 @@
     }
 
     function doVaoSelect2(elemId, dataSet, label) {
-      const $sel =$('#' + elemId);
+      const $sel = $('#' + elemId);
       $sel.empty().append(`<option value="">Chọn ${label}</option>`);
-      Array.from(dataSet).sort().forEach(val => $sel.append(new Option(val, val)));$sel.append(new Option(`[+ Thêm ${label} mới...]`, "__NEW__"));
+      Array.from(dataSet).sort().forEach(val => $sel.append(new Option(val, val))); $sel.append(new Option(`[+ Thêm ${label} mới...]`, "__NEW__"));
       $sel.trigger('change.select2');
     }
 
     function doVaoSelect2ThongThuong(elemId, dataSet, defaultText) {
-      const $sel =$('#' + elemId);
+      const $sel = $('#' + elemId);
       $sel.empty().append(`<option value="">${defaultText}</option>`);
-      Array.from(dataSet).sort().forEach(val => $sel.append(new Option(val, val)));$sel.trigger('change.select2');
+      Array.from(dataSet).sort().forEach(val => $sel.append(new Option(val, val))); $sel.trigger('change.select2');
     }
 
     function onSelectTuyenChange() {
@@ -955,7 +954,7 @@
       $('#dcBks').val(bks);
       const $sel = $('#dcTuyenMoi'); $sel.empty();
       mapTuyenChiTiet.forEach(t => { $sel.append(new Option(`${t.maTuyen} - ${t.tenTuyen}`, t.maTuyen)); });
-      $sel.select2({ dropdownParent:$('#modalDieuChuyen'), language: { noResults: () => "Không tìm thấy" } });
+      $sel.select2({ dropdownParent: $('#modalDieuChuyen'), language: { noResults: () => "Không tìm thấy" } });
       $('#modalDieuChuyen').css('display', 'flex');
     }
 
@@ -971,7 +970,6 @@
       } catch (e) { showToast("Lỗi: " + e, "error"); }
     }
 
-    // --- XEM NHẬT KÝ TRUY CẬP WEB ---
     async function taiDanhSachLog() {
       try {
         const res = await fetch(`${API_BASE}/api/admin/danh-sach-log`).then(r => r.json());
@@ -998,7 +996,6 @@
       } catch (e) { console.error("Lỗi tải nhật ký truy cập:", e); }
     }
 
-    // --- QUẢN TRỊ NGƯỜI DÙNG & PHÂN QUYỀN ---
     async function taiDanhSachTaiKhoan() {
       try {
         const res = await fetch(`${API_BASE}/api/admin/danh-sach-tai-khoan`).then(r => r.json());
