@@ -418,7 +418,7 @@
     let danhMucData = [];
     let allRoutes = [];
     let timeoutSearch = null;
-    let currentMode = 'ngang'; // 'ngang' hoặc 'doc'
+    let currentMode = 'ngang';
 
     function chuyenTab(tabId) {
       $('.tab-content').removeClass('active');
@@ -479,14 +479,6 @@
                   <div><strong>Sức chứa:</strong> ${xe.sucChua ? xe.sucChua + ' chỗ' : '-'}</div>
                   <div><strong>Năm sản xuất:</strong> ${xe.namSx || '-'}</div>
                   <div><strong>Đơn vị:</strong> ${xe.xn || 'Transerco'}</div>
-                  <div style="color: #0F86DB; font-weight: bold; margin-top: 4px;">
-                    <i class="fa fa-bus"></i> Tổng số xe tuyến (Vận doanh / Kế hoạch): ${xe.soXeVd || 0} / ${xe.soXeKh || 0} xe
-                  </div>
-                </div>
-                <div style="margin-top: 10px; border-top: 1px dashed #E1E4E8; padding-top: 8px; text-align: right;">
-                  <button onclick="chuyenNhanhSangBieuDo('${xe.xn}', '${xe.tenTuyen}')" style="background: #27AE60; color: #FFF; border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; width: 100%;">
-                    <i class="fa fa-calendar"></i> Xem biểu đồ Tuyến ${xe.maTuyen}
-                  </button>
                 </div>
               </div>
             `;
@@ -656,20 +648,16 @@
         return;
       }
 
-      const $btn = $(event?.currentTarget \vert{}\vert{} '.btn-view');$btn.html('<i class="fa fa-spinner fa-spin"></i> Đang tải...').prop('disabled', true);
+      const btnEl = event ? event.currentTarget : null;
+      const $btn = btnEl ? $(btnEl) : $('.btn-view');$btn.html('<i class="fa fa-spinner fa-spin"></i> Đang tải...').prop('disabled', true);
       $('#viewerWrapper').show();
 
       try {
         const res = await fetch(`${API_BASE}/api/table-data?tab=${encodeURIComponent(tabName)}&tuyen=${encodeURIComponent(tuyen)}`).then(r => r.json());
-        $('.btn-view').html(function() {
-          return $(this).attr('onclick').includes('ngang') ? '<i class="fa fa-table"></i> Xem biểu đồ ngang' : '<i class="fa fa-list-alt"></i> Xem biểu đồ dọc';
-        }).prop('disabled', false);
+        $('.btn-view').prop('disabled', false);
 
-        if (mode === 'ngang') {
-          hienThiBangNgang(res, tuyen);
-        } else {
-          hienThiBangDoc(res, tuyen);
-        }
+        if (mode === 'ngang') hienThiBangNgang(res, tuyen);
+        else hienThiBangDoc(res, tuyen);
       } catch (err) {
         $('.btn-view').prop('disabled', false);
         showToast("Lỗi kết nối máy chủ: " + err, "error");
@@ -694,7 +682,6 @@
       return p.length >= 2 ? parseInt(p[0], 10) * 60 + parseInt(p[1], 10) : 0;
     }
 
-    // --- HIỂN THỊ BIỂU ĐỒ NGANG ---
     function hienThiBangNgang(res, tuyen) {
       const rawData = res.rawData;
       const customDauA = res.dauA || "";
@@ -812,7 +799,6 @@
       $('html, body').animate({ scrollTop:$('#viewerWrapper').offset().top - 20 }, 300);
     }
 
-    // --- HIỂN THỊ BIỂU ĐỒ DỌC ---
     function hienThiBangDoc(res, tuyen) {
       const rawData = res.rawData;
       const customDauA = res.dauA || "";
@@ -835,7 +821,6 @@
         }
       }
 
-      // Thu thập toàn bộ các chuyến xe, sắp xếp theo thời gian tăng dần
       let allTrips = [];
       let labelA = customDauA || "Đầu A";
       let labelB = customDauB || "Đầu B";
@@ -851,18 +836,16 @@
           const valA = chuanHoaGio(rowA[c] ? rowA[c].trim() : "");
           const valB = chuanHoaGio(rowB[c] ? rowB[c].trim() : "");
           if (valA && !valA.toLowerCase().includes("thay ca")) {
-            allTrips.push({ timeStr: valA, timeMin: chuyenPhut(valA), type: 'A', text: valA });
+            allTrips.push({ timeMin: chuyenPhut(valA), type: 'A', text: valA });
           }
           if (valB && !valB.toLowerCase().includes("thay ca")) {
-            allTrips.push({ timeStr: valB, timeMin: chuyenPhut(valB), type: 'B', text: valB });
+            allTrips.push({ timeMin: chuyenPhut(valB), type: 'B', text: valB });
           }
         }
       }
 
-      // Sắp xếp các chuyến xe theo thời gian trong ngày
       allTrips.sort((x, y) => x.timeMin - y.timeMin);
 
-      // Gom nhóm thành các khối dọc (mỗi khối 15 dòng giống ảnh mẫu)
       const pageSize = 15;
       let blocks = [];
       for (let i = 0; i < allTrips.length; i += pageSize) {
@@ -893,7 +876,6 @@
           let valA = (trip && trip.type === 'A') ? trip.text : '';
           let valB = (trip && trip.type === 'B') ? trip.text : '';
 
-          // Nếu block ngắn hơn pageSize, có thể hỗ trợ cân bằng dòng trống
           html += `
             <tr>
               <td style="font-weight:bold; color:#555; background:#F8FAFC;">${stt}</td>
