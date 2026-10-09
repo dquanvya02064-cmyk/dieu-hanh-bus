@@ -13,7 +13,7 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
       font-size: 12px;
       background-color: #F1F4F9;
       color: #333;
@@ -362,8 +362,7 @@
     
     function showToast(message, type = 'success') {
       let $container = $('#toast-container');
-      if ($container.length === 0) {
-        $('body').append('<div id="toast-container"></div>');
+      if ($container.length === 0) { $('body').append('<div id="toast-container"></div>');
         $container = $('#toast-container');
       }
 
@@ -380,8 +379,7 @@
 
     function chuyenTab(tabId) {
       $('.tab-content').removeClass('active');
-      $('.nav-btn').removeClass('active');
-      $('#' + tabId).addClass('active');
+      $('.nav-btn').removeClass('active'); $('#' + tabId).addClass('active');
 
       if (tabId === 'tab-bieudo') $('#btnNavBieuDo').addClass('active');
       else if (tabId === 'tab-xe') $('#btnNavXe').addClass('active');
@@ -389,7 +387,6 @@
     }
 
     $(document).ready(function() {
-      // Tự động ghi nhận khách truy cập trang tra cứu biểu đồ
       fetch(`${API_BASE}/api/log-access`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -473,8 +470,7 @@
 
         const $selXn = $('#selXn');
         $selXn.empty().append('<option value="">Chọn xí nghiệp</option>');
-        Array.from(xnSet).sort().forEach(xn => $selXn.append(new Option(xn, xn)));
-        $selXn.trigger('change');
+        Array.from(xnSet).sort().forEach(xn => $selXn.append(new Option(xn, xn))); $selXn.trigger('change');
       } catch (err) {
         console.error("Lỗi khi tải danh mục:", err);
       }
@@ -680,7 +676,6 @@
         const rowString = rawData[i].join(" ");
         if ((valCol0 === "" && rowString.includes(":")) || rowString.toLowerCase().includes("giờ gạch chân")) continue;
 
-        // Giữ nguyên 100% định dạng và nội dung banner gốc từ file Excel tải lên
         const fullText = rawData[i].filter(c => c && c.trim() !== "").join(" - ").trim();
         if (fullText.length > 3 && !fullText.toLowerCase().includes("đầu a-b") && fullText.toLowerCase() !== "nốt" && !fullText.toLowerCase().includes("điểm danh")) {
           bannerLines.push(fullText);
@@ -786,7 +781,7 @@
 
       $('#mainScheduleTable').html(html);
       $('#viewerWrapper').show();
-      $('html, body').animate({ scrollTop:$('#viewerWrapper').offset().top - 20 }, 300);
+      $('html, body').animate({ scrollTop: $('#viewerWrapper').offset().top - 20 }, 300);
     }
 
     function chuyenNhanhSangBieuDo(xn, tenTuyen) {
