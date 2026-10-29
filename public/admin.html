@@ -434,11 +434,11 @@
                 <label style="color:#2980B9; font-weight:bold;">Đội xe Kế hoạch:</label>
                 <div style="width: 100%; min-width: 0;">
                   
-                  <!-- BỔ SUNG: Ô CHỌN NGÀY ÁP DỤNG / THAY DÀN XE -->
+                  <!-- CẬP NHẬT: Ô CHỌN NGÀY ÁP DỤNG / ĐỔI LỘ TRÌNH & DÀN XE -->
                   <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px; background: #FFF8E7; padding: 8px 12px; border: 1px solid #FFE0B2; border-radius: 6px; flex-wrap: wrap;">
-                    <label style="font-weight: bold; color: #D35400; font-size: 11px;"><i class="fa fa-calendar"></i> Ngày áp dụng / Thay dàn xe:</label>
+                    <label style="font-weight: bold; color: #D35400; font-size: 11px;"><i class="fa fa-calendar"></i> Ngày áp dụng / Đổi lộ trình & dàn xe:</label>
                     <input type="date" id="txtNgayApDungDoiXe" class="form-control" style="width: 160px; height: 30px;" title="Để trống hoặc chọn hôm nay nếu muốn áp dụng ngay lập tức">
-                    <span style="font-size: 11px; color: #7F8C8D; font-style: italic;">(Nếu chọn ngày tương lai, hệ thống sẽ tự động tráo xe vào đúng 00:00 ngày đó)</span>
+                    <span style="font-size: 11px; color: #7F8C8D; font-style: italic;">(Nếu chọn ngày tương lai, hệ thống sẽ tự động đổi Lộ trình / Xí nghiệp / Dàn xe vào đúng 00:00 ngày đó)</span>
                   </div>
 
                   <div style="margin-bottom: 12px; background: #F8FAFC; padding: 10px 12px; border: 1px solid #D0D7DE; border-radius: 6px;">
@@ -752,7 +752,6 @@
   </style>
 
   <script>
-    // Hàm hiển thị Popup Custom xịn xò
     function hienXacNhanCustom(noiDung, tieuDe, callback) {
       $('#confirmTitle').text(tieuDe || "Xác nhận thao tác");
       $('#confirmMessage').text(noiDung);
@@ -1438,7 +1437,7 @@
       } catch (err) {}
     }
 
-    // HÀM LƯU TUYẾN & ĐỘI XE CÓ TRUYỀN THÊM NGÀY ÁP DỤNG
+    // HÀM LƯU TUYẾN & ĐỘI XE - CẬP NHẬT TRUYỀN NGÀY ÁP DỤNG CẢ LỘ TRÌNH LẪN ĐỘI XE
     async function xacLapTuyenVaDoiXe() {
       const maTuyen = $('#txtMaTuyen').val().trim();
       
@@ -1494,20 +1493,22 @@
       const loaiXe = Array.from(setLoai).join(' & ');
 
       try {
+        // TRUYỀN NGÀY ÁP DỤNG SANG API LƯU LỘ TRÌNH / XÍ NGHIỆP TUYẾN
         const resTuyen = await fetch(`${API_BASE}/api/tuyen-moi`, {
           method: 'POST', 
           headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
-          body: JSON.stringify({ ...getAdminInfo(), maTuyen, tenTuyen, xn, dauA, dauB, tramDi, tramVe, soXeKh, soXe: soXeKh, loaiXe, status })
+          body: JSON.stringify({ ...getAdminInfo(), maTuyen, tenTuyen, xn, dauA, dauB, tramDi, tramVe, soXeKh, soXe: soXeKh, loaiXe, status, ngayApDung })
         }).then(r => r.json());
 
-        // TRUYỀN NGÀY ÁP DỤNG LÊN SERVER DƯỚI DẠNG PAYLOAD
+        // TRUYỀN NGÀY ÁP DỤNG SANG API LƯU ĐỘI XE
         const resXe = await fetch(`${API_BASE}/api/admin/luu-doi-xe-tuyen`, {
           method: 'POST', 
           headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
           body: JSON.stringify({ ...getAdminInfo(), maTuyen, danhSachXe, ngayApDung })
         }).then(r => r.json());
 
-        showToast("Đã lưu thành công Tuyến & Đội xe!", "success");
+        const msgHienThi = (resTuyen && resTuyen.message) ? resTuyen.message : ((resXe && resXe.message) ? resXe.message : "Lưu thành công!");
+        showToast(msgHienThi, "success");
         await napDuLieuTong(maTuyen);
       } catch (err) {
         showToast("Lỗi kết nối: " + err, "error");
