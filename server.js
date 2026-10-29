@@ -127,7 +127,24 @@ async function cleanAndSyncData(data) {
     });
   }
 
-  // 2. Chuẩn hóa & lọc trùng BKS xe
+  // 2. Tự động đổi thông tin Tuyến (Xí nghiệp, Đầu A/B, Trạm đi/về) khi đến ngày
+  if (Array.isArray(data.scheduledRouteUpdates)) {
+    data.scheduledRouteUpdates.forEach(update => {
+      if (update.status === 'pending' && update.ngayApDung <= todayISO) {
+        const normMaTuyen = String(update.maTuyen).toUpperCase();
+        if (update.tuyenInfo) {
+          data.tuyenList[normMaTuyen] = {
+            ...(data.tuyenList[normMaTuyen] || {}),
+            ...update.tuyenInfo
+          };
+        }
+        update.status = 'applied';
+        isDataChanged = true;
+      }
+    });
+  }
+
+  // 3. Chuẩn hóa & lọc trùng BKS xe
   const uniqueXeMap = new Map();
   data.xeList.forEach(x => {
     if (x && x.bks) {
@@ -140,7 +157,7 @@ async function cleanAndSyncData(data) {
   });
   data.xeList = Array.from(uniqueXeMap.values());
 
-  // 3. Đếm lại xe kế hoạch theo tuyến
+  // 4. Đếm lại xe kế hoạch theo tuyến
   const realKhCounts = {};
   data.xeList.forEach(x => {
     let maT = String(x.maTuyen || '').trim().toUpperCase();
@@ -149,7 +166,7 @@ async function cleanAndSyncData(data) {
     }
   });
 
-  // 4. Lấy số nốt tối đa từ biểu đồ
+  // 5. Lấy số nốt tối đa từ biểu đồ
   const tuyenChartsMap = {};
   if (Array.isArray(data.bieuDoList)) {
     data.bieuDoList.forEach(item => {
@@ -184,7 +201,7 @@ async function cleanAndSyncData(data) {
     }
   }
 
-  // 5. Cập nhật thông tin tuyến
+  // 6. Cập nhật thông tin tuyến
   for (let k in data.tuyenList) {
     let tObj = data.tuyenList[k];
     let maT = (tObj.maTuyen || k).toUpperCase();
@@ -248,7 +265,16 @@ async function getRawData() {
     delete cleaned._isDataChanged;
     return cleaned;
   }
-  return { tuyenList: {}, bieuDoList: [], xeList: [], taiKhoanList: [], danhMucXeMau: [], thongBaoChay: "", scheduledFleetUpdates: [] };
+  return { 
+    tuyenList: {}, 
+    bieuDoList: [], 
+    xeList: [], 
+    taiKhoanList: [], 
+    danhMucXeMau: [], 
+    thongBaoChay: "", 
+    scheduledFleetUpdates: [],
+    scheduledRouteUpdates: [] 
+  };
 }
 
 async function saveRawDataFast(data) {
@@ -721,7 +747,6 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
 
     // 1. TRƯỜNG HỢP HẸN NGÀY TƯƠNG LAI
     if (ngayHieuLuc > today) {
-      // Xóa lịch hẹn pending cũ của tuyến này (nếu có)
       raw.scheduledFleetUpdates = raw.scheduledFleetUpdates.filter(
         item => String(item.maTuyen).trim().toUpperCase() !== normMaTuyen || item.status !== 'pending'
       );
@@ -743,8 +768,7 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
       });
     }
 
-    // 2. TRƯỜNG HỢP ÁP DỤNG NGAY LẬP TỨC (NGÀY HÔM NAY / ĐỂ TRỐNG)
-    // Hủy các lịch hẹn pending cũ nếu có
+    // 2. TRƯỜNG HỢP ÁP DỤNG NGAY LẬP TỨC
     raw.scheduledFleetUpdates = raw.scheduledFleetUpdates.filter(
       item => String(item.maTuyen).trim().toUpperCase() !== normMaTuyen || item.status !== 'pending'
     );
@@ -756,7 +780,6 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
     const finalXeList = [...otherCars];
     finalXeList.push(...newCarsForRoute);
 
-    // Xe cũ không nằm trong dàn mới tự động điều chuyển về bến DP
     xeCuCuaTuyen.forEach(xeCu => {
       if (!bksXeMoiSet.has(xeCu.bks)) {
         finalXeList.push({
@@ -781,6 +804,89 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
     console.error('Lỗi lưu đội xe:', err);
     res.status(500).json({ success: false, message: 'Lỗi server: ' + err.message });
   }
+});
+
+// --- API QUẢN LÝ THÔNG TIN TUYẾN & HẸN NGÀY ĐỔI LỘ TRÌNH / XÍ NGHIỆP ---
+app.post(['/api/save-tuyen', '/api/tuyen-moi'], verifyAdmin, async (req, res) => {
+  try {
+    const { maTuyen, tenTuyen, xn, dauA, dauB, tramDi, tramVe, soXeVd, soXeKh, loaiXe, sucChua, status, ngayApDung } = req.body;
+    if (!maTuyen) return res.status(400).json({ success: false, message: 'Thiếu mã tuyến!' });
+
+    const raw = await getRawData();
+    if (!raw.tuyenList) raw.tuyenList = {};
+    if (!Array.isArray(raw.scheduledRouteUpdates)) raw.scheduledRouteUpdates = [];
+
+    const normMaTuyen = String(maTuyen).trim().toUpperCase();
+    const today = new Date().toISOString().split('T')[0];
+
+    function parseDateToISO(dateStr) {
+      if (!dateStr) return today;
+      let s = String(dateStr).trim();
+      if (s.includes('/')) {
+        const parts = s.split('/');
+        if (parts.length === 3) {
+          let d = parts[0].padStart(2, '0');
+          let m = parts[1].padStart(2, '0');
+          let y = parts[2];
+          if (y.length === 2) y = '20' + y;
+          return `${y}-${m}-${d}`;
+        }
+      }
+      return s;
+    }
+
+    const ngayHieuLuc = ngayApDung ? parseDateToISO(ngayApDung) : today;
+
+    const newTuyenInfo = {
+      maTuyen: normMaTuyen, 
+      tenTuyen: tenTuyen || `${normMaTuyen}. Tuyến ${normMaTuyen}`,
+      xn: xn || "", 
+      dauA: dauA || "", 
+      dauB: dauB || "",
+      tramDi: tramDi || "",
+      tramVe: tramVe || "",
+      soXeVd: parseInt(soXeVd, 10) || raw.tuyenList[normMaTuyen]?.soXeVd || 0,
+      soXeKh: parseInt(soXeKh, 10) || raw.tuyenList[normMaTuyen]?.soXeKh || 0, 
+      soXe: parseInt(soXeKh, 10) || raw.tuyenList[normMaTuyen]?.soXe || 0,
+      loaiXe: loaiXe || "", 
+      sucChua: sucChua || "", 
+      status: status || "active"
+    };
+
+    // 1. NẾU CHỌN NGÀY TƯƠNG LAI -> LƯU VÀO HÀNG CHỜ LỊCH HẸN
+    if (ngayHieuLuc > today) {
+      raw.scheduledRouteUpdates = raw.scheduledRouteUpdates.filter(
+        item => String(item.maTuyen).trim().toUpperCase() !== normMaTuyen || item.status !== 'pending'
+      );
+
+      raw.scheduledRouteUpdates.push({
+        id: Date.now().toString(),
+        maTuyen: normMaTuyen,
+        tuyenInfo: newTuyenInfo,
+        ngayApDung: ngayHieuLuc,
+        status: 'pending',
+        createdAt: new Date()
+      });
+
+      await saveRawData(raw);
+      await recordLog(req, `Lên lịch hẹn thay đổi thông tin/lộ trình tuyến [${normMaTuyen}] từ ngày ${ngayApDung}`);
+      return res.json({ 
+        success: true, 
+        message: `Đã lên lịch thành công! Thông tin/Lộ trình Tuyến ${normMaTuyen} sẽ tự động cập nhật vào ngày ${ngayApDung}. Dữ liệu hiện tại giữ nguyên.` 
+      });
+    }
+
+    // 2. NẾU ĐỂ TRỐNG / NGÀY HÔM NAY -> CẬP NHẬT NGAY LẬP TỨC
+    raw.scheduledRouteUpdates = raw.scheduledRouteUpdates.filter(
+      item => String(item.maTuyen).trim().toUpperCase() !== normMaTuyen || item.status !== 'pending'
+    );
+
+    raw.tuyenList[normMaTuyen] = newTuyenInfo;
+
+    await saveRawDataFast(raw);
+    await recordLog(req, `Lưu thông tin tuyến [${normMaTuyen}]`);
+    res.json({ success: true, message: 'Lưu tuyến thành công!' });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
 // --- TRA CỨU DANH MỤC & DỮ LIỆU TUYẾN ---
@@ -900,7 +1006,6 @@ app.get('/api/chi-tiet-tuyen', async (req, res) => {
     const targetMa = matchMa ? matchMa[1].toUpperCase() : queryTuyen;
 
     if (raw.tuyenList) {
-      // 1. Khớp chính xác 100% Mã tuyến
       for (let k in raw.tuyenList) {
         const t = raw.tuyenList[k];
         const maT = String(t.maTuyen || k).trim().toUpperCase();
@@ -910,7 +1015,6 @@ app.get('/api/chi-tiet-tuyen', async (req, res) => {
         }
       }
 
-      // 2. Nếu chưa thấy mới khớp chính xác đầu tên tuyến (tránh nhầm 04 thành 104)
       if (!tuyenInfo) {
         for (let k in raw.tuyenList) {
           const t = raw.tuyenList[k];
@@ -960,36 +1064,6 @@ app.post(['/api/bus-data', '/api/save-data'], verifyAdmin, async (req, res) => {
     await recordLog(req, 'Lưu dữ liệu tổng hệ thống');
     res.json({ success: true, message: 'Lưu thành công!' }); 
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
-});
-
-app.post(['/api/save-tuyen', '/api/tuyen-moi'], verifyAdmin, async (req, res) => {
-  try {
-    const { maTuyen, tenTuyen, xn, dauA, dauB, tramDi, tramVe, soXeVd, soXeKh, loaiXe, sucChua, status } = req.body;
-    if (!maTuyen) return res.status(400).json({ success: false, message: 'Thiếu mã tuyến!' });
-
-    const raw = await getRawData();
-    if (!raw.tuyenList) raw.tuyenList = {};
-
-    raw.tuyenList[maTuyen] = {
-      maTuyen, 
-      tenTuyen: tenTuyen || `${maTuyen}. Tuyến ${maTuyen}`,
-      xn: xn || "", 
-      dauA: dauA || "", 
-      dauB: dauB || "",
-      tramDi: tramDi || "",
-      tramVe: tramVe || "",
-      soXeVd: parseInt(soXeVd, 10) || raw.tuyenList[maTuyen]?.soXeVd || 0,
-      soXeKh: parseInt(soXeKh, 10) || 0, 
-      soXe: parseInt(soXeKh, 10) || 0,
-      loaiXe: loaiXe || "", 
-      sucChua: sucChua || "", 
-      status: status || "active"
-    };
-
-    await saveRawDataFast(raw);
-    await recordLog(req, `Lưu thông tin tuyến [${maTuyen}]`);
-    res.json({ success: true, message: 'Lưu tuyến thành công!' });
-  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
 app.post('/api/toggle-status-tuyen', verifyAdmin, async (req, res) => {
