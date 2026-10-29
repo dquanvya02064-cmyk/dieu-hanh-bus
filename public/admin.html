@@ -292,11 +292,13 @@
     }
 
     function dangXuatAdmin() {
-      if (confirm("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống quản trị không?")) {
-        sessionStorage.clear();
-        showToast("Đăng xuất thành công!", "success");
-        setTimeout(() => { location.reload(); }, 500);
-      }
+      hienXacNhanCustom("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống quản trị không?", "Đăng xuất hệ thống", function(isConfirmed) {
+        if (isConfirmed) {
+          sessionStorage.clear();
+          showToast("Đăng xuất thành công!", "success");
+          setTimeout(() => { location.reload(); }, 500);
+        }
+      });
     }
   </script>
 
@@ -431,6 +433,14 @@
 
                 <label style="color:#2980B9; font-weight:bold;">Đội xe Kế hoạch:</label>
                 <div style="width: 100%; min-width: 0;">
+                  
+                  <!-- BỔ SUNG: Ô CHỌN NGÀY ÁP DỤNG / THAY DÀN XE -->
+                  <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px; background: #FFF8E7; padding: 8px 12px; border: 1px solid #FFE0B2; border-radius: 6px; flex-wrap: wrap;">
+                    <label style="font-weight: bold; color: #D35400; font-size: 11px;"><i class="fa fa-calendar"></i> Ngày áp dụng / Thay dàn xe:</label>
+                    <input type="date" id="txtNgayApDungDoiXe" class="form-control" style="width: 160px; height: 30px;" title="Để trống hoặc chọn hôm nay nếu muốn áp dụng ngay lập tức">
+                    <span style="font-size: 11px; color: #7F8C8D; font-style: italic;">(Nếu chọn ngày tương lai, hệ thống sẽ tự động tráo xe vào đúng 00:00 ngày đó)</span>
+                  </div>
+
                   <div style="margin-bottom: 12px; background: #F8FAFC; padding: 10px 12px; border: 1px solid #D0D7DE; border-radius: 6px;">
                     <span style="font-size: 11px; color: #2C3E50; font-weight: bold;"><i class="fa fa-file-excel-o" style="color: #27AE60;"></i> Dán nhanh danh sách xe từ Excel cho tuyến này:</span>
                     <div style="font-size: 10px; color: #666; margin-bottom: 4px; font-style: italic;">(Cấu trúc các cột: Biển số | Chủng loại xe | Sức chứa | Năm sản xuất — copy trực tiếp từ Excel dán vào đây)</div>
@@ -721,7 +731,44 @@
     </div>
   </div>
 
+  <!-- BỔ SUNG: MODAL XÁC NHẬN CUSTOM (THAY THẾ POPUP MẶC ĐỊNH) -->
+  <div id="customConfirmModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.35); backdrop-filter:blur(5px); -webkit-backdrop-filter:blur(5px); z-index:9999999; justify-content:center; align-items:center;">
+    <div style="background:#FFFFFF; width:330px; border-radius:14px; padding:20px; box-shadow:0 12px 30px rgba(0,0,0,0.2); text-align:center; animation: iosPopIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+      <div style="font-size:30px; color:#E67E22; margin-bottom:8px;"><i class="fa fa-exclamation-circle"></i></div>
+      <h3 id="confirmTitle" style="font-size:14px; font-weight:bold; color:#2C3E50; margin-bottom:8px;">Xác nhận thao tác</h3>
+      <p id="confirmMessage" style="font-size:12px; color:#555; margin-bottom:20px; line-height:1.4;"></p>
+      <div style="display:flex; gap:10px; justify-content:center;">
+        <button id="btnConfirmCancel" class="btn btn-default" style="flex:1; height:36px; border-radius:8px; font-weight:600;">Hủy bỏ</button>
+        <button id="btnConfirmOk" class="btn btn-primary" style="flex:1; height:36px; border-radius:8px; font-weight:600; background:#3B86C4;">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+  @keyframes iosPopIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  </style>
+
   <script>
+    // Hàm hiển thị Popup Custom xịn xò
+    function hienXacNhanCustom(noiDung, tieuDe, callback) {
+      $('#confirmTitle').text(tieuDe || "Xác nhận thao tác");
+      $('#confirmMessage').text(noiDung);
+      $('#customConfirmModal').css('display', 'flex');
+
+      $('#btnConfirmOk').off('click').on('click', function() {
+        $('#customConfirmModal').hide();
+        if (callback) callback(true);
+      });
+
+      $('#btnConfirmCancel').off('click').on('click', function() {
+        $('#customConfirmModal').hide();
+        if (callback) callback(false);
+      });
+    }
+
     function showToast(message, type = 'success') {
       let $container = $('#toast-container');
       if ($container.length === 0) {
@@ -868,16 +915,18 @@
     }
 
     async function xoaLichThongBao(id) {
-      if (!confirm("Xác nhận xóa mốc lịch thông báo này?")) return;
-      try {
-        const res = await fetch(`${API_BASE}/api/admin/xoa-lich-thong-bao`, {
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
-          body: JSON.stringify({ ...getAdminInfo(), id })
-        }).then(r => r.json());
-        showToast(res.message, "success");
-        if (res.success) { taiTaiThongBaoAdmin(); }
-      } catch (err) { showToast('Lỗi kết nối!', 'error'); }
+      hienXacNhanCustom("Xác nhận xóa mốc lịch thông báo này?", "Xóa lịch thông báo", async function(isConfirmed) {
+        if (!isConfirmed) return;
+        try {
+          const res = await fetch(`${API_BASE}/api/admin/xoa-lich-thong-bao`, {
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
+            body: JSON.stringify({ ...getAdminInfo(), id })
+          }).then(r => r.json());
+          showToast(res.message, "success");
+          if (res.success) { taiTaiThongBaoAdmin(); }
+        } catch (err) { showToast('Lỗi kết nối!', 'error'); }
+      });
     }
 
     function resetFormTuyen() {
@@ -890,6 +939,7 @@
       $('#txtTenTuyen').val("");
       $('#adminTramDi').val("");
       $('#adminTramVe').val("");
+      $('#txtNgayApDungDoiXe').val("");
 
       $('input[name="rdStatus"][value="active"]').prop('checked', true);
       renderBangXeForm([]);
@@ -925,6 +975,7 @@
 
         $('#adminTramDi').val(t.tramDi || '');
         $('#adminTramVe').val(t.tramVe || '');
+        $('#txtNgayApDungDoiXe').val('');
 
         const xeCuaTuyen = tatCaXeHeThong.filter(x => chuanHoaMaTuyen(x.maTuyen) === chuanHoaMaTuyen(t.maTuyen));
         xeCuaTuyen.sort((a, b) => sapXepThongMinh(a.bks, b.bks));
@@ -1087,19 +1138,21 @@
     }
 
     async function xoaXeMau(chungLoai, namSx) {
-      if (!confirm(`Xác nhận xóa mác xe [${chungLoai} - Năm ${namSx || 'N/A'}] khỏi danh mục mẫu?`)) return;
-      try {
-        const res = await fetch(`${API_BASE}/api/admin/xoa-xe-mau`, {
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
-          body: JSON.stringify({ ...getAdminInfo(), chungLoai, namSx })
-        }).then(r => r.json());
-        showToast(res.message, "success");
-        if (res.success) {
-          danhMucXeMau = danhMucXeMau.filter(m => !(m.chungLoai === chungLoai && String(m.namSx || '') === String(namSx || '')));
-          veBangXeMauAdmin();
-        }
-      } catch (e) { showToast("Lỗi kết nối", "error"); }
+      hienXacNhanCustom(`Xác nhận xóa mác xe [${chungLoai} - Năm ${namSx || 'N/A'}] khỏi danh mục mẫu?`, "Xóa mác xe mẫu", async function(isConfirmed) {
+        if (!isConfirmed) return;
+        try {
+          const res = await fetch(`${API_BASE}/api/admin/xoa-xe-mau`, {
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
+            body: JSON.stringify({ ...getAdminInfo(), chungLoai, namSx })
+          }).then(r => r.json());
+          showToast(res.message, "success");
+          if (res.success) {
+            danhMucXeMau = danhMucXeMau.filter(m => !(m.chungLoai === chungLoai && String(m.namSx || '') === String(namSx || '')));
+            veBangXeMauAdmin();
+          }
+        } catch (e) { showToast("Lỗi kết nối", "error"); }
+      });
     }
 
     async function importXeMauExcel() {
@@ -1127,7 +1180,6 @@
         danhSachXe = [{ bks: '', chungLoai: '', sucChua: '', namSx: '' }];
       }
 
-      // Cập nhật danh sách Tuyến mới trong dropdown Điều chuyển hàng loạt
       const $selBatch = $('#selTuyenChuyenHangLoat');
       const curBatchVal = $selBatch.val() || 'DP';
       $selBatch.empty().append('<option value="DP">-- Bến Dự Phòng (DP) --</option>');
@@ -1202,33 +1254,38 @@
       }
 
       const tenTuyenTarget = tuyenMoi === 'DP' ? 'Bến Dự Phòng (DP)' : `Tuyến ${tuyenMoi}`;
-      if (!confirm(`Bạn có chắc chắn muốn điều chuyển ${selectedBks.length} xe đã chọn sang [${tenTuyenTarget}] không?`)) {
-        return;
-      }
 
-      try {
-        const res = await fetch(`${API_BASE}/api/dieu-chuyen-xe-hang-loat`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-admin-user': sessionStorage.getItem('admin_user')
-          },
-          body: JSON.stringify({
-            ...getAdminInfo(),
-            bksList: selectedBks,
-            tuyenMoi: tuyenMoi
-          })
-        }).then(r => r.json());
+      hienXacNhanCustom(
+        `Bạn có chắc chắn muốn điều chuyển ${selectedBks.length} xe đã chọn sang [${tenTuyenTarget}] không?`,
+        "Điều chuyển xe hàng loạt",
+        async function(isConfirmed) {
+          if (!isConfirmed) return;
 
-        if (res.success) {
-          showToast(res.message, "success");
-          await napDuLieuTong($('#txtMaTuyen').val());
-        } else {
-          showToast(res.message || "Lỗi điều chuyển!", "error");
+          try {
+            const res = await fetch(`${API_BASE}/api/dieu-chuyen-xe-hang-loat`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-admin-user': sessionStorage.getItem('admin_user')
+              },
+              body: JSON.stringify({
+                ...getAdminInfo(),
+                bksList: selectedBks,
+                tuyenMoi: tuyenMoi
+              })
+            }).then(r => r.json());
+
+            if (res.success) {
+              showToast(res.message, "success");
+              await napDuLieuTong($('#txtMaTuyen').val());
+            } else {
+              showToast(res.message || "Lỗi điều chuyển!", "error");
+            }
+          } catch (err) {
+            showToast("Lỗi kết nối máy chủ!", "error");
+          }
         }
-      } catch (err) {
-        showToast("Lỗi kết nối máy chủ!", "error");
-      }
+      );
     }
 
     function chonMauXe(selectElem) {
@@ -1347,29 +1404,31 @@
     async function thucHienChuyenTuyenNgay(selectElem, bks) {
       const tuyenMoi = $(selectElem).val();
       if (!bks) {
-        alert("Vui lòng nhập Biển kiểm soát trước khi chuyển tuyến!");
+        showToast("Vui lòng nhập Biển kiểm soát trước khi chuyển tuyến!", "error");
         $(selectElem).val("");
         return;
       }
       if (!tuyenMoi) return;
 
-      if (confirm(`Xác nhận chuyển xe ${bks} sang Tuyến ${tuyenMoi}?`)) {
-        try {
-          const res = await fetch(`${API_BASE}/api/dieu-chuyen-xe`, {
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') }, 
-            body: JSON.stringify({ ...getAdminInfo(), bks, tuyenMoi })
-          }).then(r => r.json());
-          showToast(res.message, res.success ? "success" : "error");
-          if (res.success) {
-            $(selectElem).closest('tr').remove();
-            capNhatLaiSTTForm();
-            await taiToanBoXeAdminQuiet();
-          }
-        } catch (e) { showToast("Lỗi kết nối", "error"); }
-      } else {
-        $(selectElem).val("");
-      }
+      hienXacNhanCustom(`Xác nhận chuyển xe ${bks} sang Tuyến ${tuyenMoi}?`, "Điều chuyển xe", async function(isConfirmed) {
+        if (isConfirmed) {
+          try {
+            const res = await fetch(`${API_BASE}/api/dieu-chuyen-xe`, {
+              method: 'POST', 
+              headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') }, 
+              body: JSON.stringify({ ...getAdminInfo(), bks, tuyenMoi })
+            }).then(r => r.json());
+            showToast(res.message, res.success ? "success" : "error");
+            if (res.success) {
+              $(selectElem).closest('tr').remove();
+              capNhatLaiSTTForm();
+              await taiToanBoXeAdminQuiet();
+            }
+          } catch (e) { showToast("Lỗi kết nối", "error"); }
+        } else {
+          $(selectElem).val("");
+        }
+      });
     }
 
     async function taiToanBoXeAdminQuiet() {
@@ -1379,6 +1438,7 @@
       } catch (err) {}
     }
 
+    // HÀM LƯU TUYẾN & ĐỘI XE CÓ TRUYỀN THÊM NGÀY ÁP DỤNG
     async function xacLapTuyenVaDoiXe() {
       const maTuyen = $('#txtMaTuyen').val().trim();
       
@@ -1395,6 +1455,9 @@
       
       const tramDi = $('#adminTramDi').val().trim();
       const tramVe = $('#adminTramVe').val().trim();
+
+      // LẤY GIÁ TRỊ NGÀY ÁP DỤNG HẸN GIỜ
+      const ngayApDung = $('#txtNgayApDungDoiXe').val();
 
       const status = $('input[name="rdStatus"][value="active"]').prop('checked') ? 'active' : 'locked';
 
@@ -1437,10 +1500,11 @@
           body: JSON.stringify({ ...getAdminInfo(), maTuyen, tenTuyen, xn, dauA, dauB, tramDi, tramVe, soXeKh, soXe: soXeKh, loaiXe, status })
         }).then(r => r.json());
 
+        // TRUYỀN NGÀY ÁP DỤNG LÊN SERVER DƯỚI DẠNG PAYLOAD
         const resXe = await fetch(`${API_BASE}/api/admin/luu-doi-xe-tuyen`, {
           method: 'POST', 
           headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
-          body: JSON.stringify({ ...getAdminInfo(), maTuyen, danhSachXe })
+          body: JSON.stringify({ ...getAdminInfo(), maTuyen, danhSachXe, ngayApDung })
         }).then(r => r.json());
 
         showToast("Đã lưu thành công Tuyến & Đội xe!", "success");
@@ -1519,16 +1583,18 @@
     }
 
     async function xoaBieuDoChiDinh(tenTab) {
-      if (!confirm(`Xác nhận xóa vĩnh viễn biểu đồ [${tenTab}]?`)) return;
-      try {
-        const res = await fetch(`${API_BASE}/api/xoa-bieu-do`, {
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') }, 
-          body: JSON.stringify({ ...getAdminInfo(), tenTab })
-        }).then(r => r.json());
-        showToast(res.message, "success");
-        if (res.success) { await napDuLieuTong(); }
-      } catch (err) { showToast("Lỗi: " + err, "error"); }
+      hienXacNhanCustom(`Xác nhận xóa vĩnh viễn biểu đồ [${tenTab}]?`, "Xóa biểu đồ", async function(isConfirmed) {
+        if (!isConfirmed) return;
+        try {
+          const res = await fetch(`${API_BASE}/api/xoa-bieu-do`, {
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') }, 
+            body: JSON.stringify({ ...getAdminInfo(), tenTab })
+          }).then(r => r.json());
+          showToast(res.message, "success");
+          if (res.success) { await napDuLieuTong(); }
+        } catch (err) { showToast("Lỗi: " + err, "error"); }
+      });
     }
 
     function capNhatThongKe() {
@@ -1599,16 +1665,18 @@
     }
 
     async function doiTrangThai(maTuyen, statusMoi) {
-      if (!confirm(`Xác nhận đổi trạng thái tuyến [${maTuyen}]?`)) return;
-      try {
-        const res = await fetch(`${API_BASE}/api/toggle-status-tuyen`, {
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') }, 
-          body: JSON.stringify({ ...getAdminInfo(), maTuyen, status: statusMoi })
-        }).then(r => r.json());
-        showToast(res.message, "success");
-        await napDuLieuTong();
-      } catch (e) { showToast("Lỗi: " + e, "error"); }
+      hienXacNhanCustom(`Xác nhận đổi trạng thái tuyến [${maTuyen}]?`, "Đổi trạng thái tuyến", async function(isConfirmed) {
+        if (!isConfirmed) return;
+        try {
+          const res = await fetch(`${API_BASE}/api/toggle-status-tuyen`, {
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') }, 
+            body: JSON.stringify({ ...getAdminInfo(), maTuyen, status: statusMoi })
+          }).then(r => r.json());
+          showToast(res.message, "success");
+          await napDuLieuTong();
+        } catch (e) { showToast("Lỗi: " + e, "error"); }
+      });
     }
 
     function doVaoSelect2(elemId, dataSet, label) {
@@ -1744,16 +1812,19 @@
     async function xoaBieuDo() {
       const tenTab = $('#txtTenTab').val().trim();
       if (!tenTab) { showToast("Chưa chọn biểu đồ để xóa!", "error"); return; }
-      if (!confirm(`Xóa vĩnh viễn biểu đồ [${tenTab}]?`)) return;
-      try {
-        const res = await fetch(`${API_BASE}/api/xoa-bieu-do`, {
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') }, 
-          body: JSON.stringify({ ...getAdminInfo(), tenTab })
-        }).then(r => r.json());
-        showToast(res.message, "success");
-        if (res.success) { await napDuLieuTong(); $('#txtRawData').val(""); $('#txtNgayBatDau').val(""); tuDongTaoTenTab(); }
-      } catch (err) { showToast("Lỗi: " + err, "error"); }
+      
+      hienXacNhanCustom(`Xóa vĩnh viễn biểu đồ [${tenTab}]?`, "Xóa biểu đồ", async function(isConfirmed) {
+        if (!isConfirmed) return;
+        try {
+          const res = await fetch(`${API_BASE}/api/xoa-bieu-do`, {
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') }, 
+            body: JSON.stringify({ ...getAdminInfo(), tenTab })
+          }).then(r => r.json());
+          showToast(res.message, "success");
+          if (res.success) { await napDuLieuTong(); $('#txtRawData').val(""); $('#txtNgayBatDau').val(""); tuDongTaoTenTab(); }
+        } catch (err) { showToast("Lỗi: " + err, "error"); }
+      });
     }
 
     async function taiDanhSachLog() {
@@ -1914,38 +1985,42 @@
     }
 
     async function xoaTaiKhoan(targetUsername) {
-      if (!confirm(`Xác nhận xóa tài khoản [${targetUsername}]?`)) return;
-      try {
-        const res = await fetch(`${API_BASE}/api/admin/xoa-tai-khoan`, {
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') }, 
-          body: JSON.stringify({ ...getAdminInfo(), targetUsername })
-        }).then(r => r.json());
-        showToast(res.message, "success"); 
-        taiDanhSachTaiKhoan();
-      } catch (e) { 
-        showToast("Lỗi thao tác", "error"); 
-      }
+      hienXacNhanCustom(`Xác nhận xóa tài khoản [${targetUsername}]?`, "Xóa tài khoản", async function(isConfirmed) {
+        if (!isConfirmed) return;
+        try {
+          const res = await fetch(`${API_BASE}/api/admin/xoa-tai-khoan`, {
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') }, 
+            body: JSON.stringify({ ...getAdminInfo(), targetUsername })
+          }).then(r => r.json());
+          showToast(res.message, "success"); 
+          taiDanhSachTaiKhoan();
+        } catch (e) { 
+          showToast("Lỗi thao tác", "error"); 
+        }
+      });
     }
 
     async function xoaTatCaXeMau() {
-      if (!confirm("Cảnh báo: Thao tác này chỉ xóa danh mục mác xe mẫu, hoàn toàn KHÔNG ảnh hưởng đến xe của các tuyến. Bạn có chắc chắn muốn xóa không?")) return;
-      try {
-        const res = await fetch(`${API_BASE}/api/admin/xoa-tat-ca-xe-mau`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
-          body: JSON.stringify({ ...getAdminInfo() })
-        }).then(r => r.json());
-        
-        if (res.success) {
-          showToast(res.message || "Đã dọn sạch danh mục xe mẫu!", "success");
-          location.reload();
-        } else {
-          showToast(res.message || "Lỗi khi xóa!", "error");
+      hienXacNhanCustom("Cảnh báo: Thao tác này chỉ xóa danh mục mác xe mẫu, hoàn toàn KHÔNG ảnh hưởng đến xe của các tuyến. Bạn có chắc chắn muốn xóa không?", "Xóa sạch mác xe mẫu", async function(isConfirmed) {
+        if (!isConfirmed) return;
+        try {
+          const res = await fetch(`${API_BASE}/api/admin/xoa-tat-ca-xe-mau`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
+            body: JSON.stringify({ ...getAdminInfo() })
+          }).then(r => r.json());
+          
+          if (res.success) {
+            showToast(res.message || "Đã dọn sạch danh mục xe mẫu!", "success");
+            location.reload();
+          } else {
+            showToast(res.message || "Lỗi khi xóa!", "error");
+          }
+        } catch (err) {
+          showToast("Lỗi kết nối máy chủ!", "error");
         }
-      } catch (err) {
-        showToast("Lỗi kết nối máy chủ!", "error");
-      }
+      });
     }
   </script>
 </body>
