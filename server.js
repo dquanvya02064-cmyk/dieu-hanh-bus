@@ -10,7 +10,7 @@ const mongoose = require('mongoose');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Khuyến nghị: Đưa chuỗi kết nối vào biến môi trường trên Render, tránh lộ mật khẩu trong code
+// Chuỗi kết nối MongoDB Atlas
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://dquan4701_db_user:Quanbus123456@cluster0.sur3koa.mongodb.net/dieuhanhbus?retryWrites=true&w=majority';
 
 app.use(cors());
@@ -18,6 +18,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// MONGOOSE SCHEMAS & MODELS
 const busDataSchema = new mongoose.Schema({
   key: { type: String, default: 'main_data' },
   data: Object
@@ -91,6 +92,7 @@ function parseTabDate(tabName) {
   return { sortKey: "00000000", dateObj: new Date(0) };
 }
 
+// --- HÀM LÀM SẠCH, ĐỒNG BỘ DỮ LIỆU & TỰ ĐỘNG KÍCH HOẠT HẸN GIỜ ---
 async function cleanAndSyncData(data) {
   if (!data) return data;
   if (!Array.isArray(data.xeList)) data.xeList = [];
@@ -98,20 +100,20 @@ async function cleanAndSyncData(data) {
   if (!Array.isArray(data.danhMucXeMau)) data.danhMucXeMau = [];
 
   const todayISO = new Date().toISOString().split('T')[0];
+  let isDataChanged = false;
+
+  // 1. Tự động chuyển dàn xe hẹn giờ khi đến ngày
   if (Array.isArray(data.scheduledFleetUpdates)) {
-    let hasScheduleApplied = false;
     data.scheduledFleetUpdates.forEach(update => {
       if (update.status === 'pending' && update.ngayApDung <= todayISO) {
         const normMaTuyen = String(update.maTuyen).toUpperCase();
         const newCars = update.danhSachXe || [];
         const newBksSet = new Set(newCars.map(x => x.bks));
 
-        // Tách xe cũ và xe các tuyến khác
         const otherCars = data.xeList.filter(x => String(x.maTuyen || '').trim().toUpperCase() !== normMaTuyen);
         const xeCuCuaTuyen = data.xeList.filter(x => String(x.maTuyen || '').trim().toUpperCase() === normMaTuyen);
 
         const finalXeList = [...otherCars, ...newCars];
-        // Xe cũ không có trong danh sách mới tự động chuyển về DP
         xeCuCuaTuyen.forEach(xeCu => {
           if (!newBksSet.has(xeCu.bks)) {
             finalXeList.push({ ...xeCu, maTuyen: 'DP', updatedAt: new Date() });
@@ -120,11 +122,12 @@ async function cleanAndSyncData(data) {
 
         data.xeList = finalXeList;
         update.status = 'applied';
-        hasScheduleApplied = true;
+        isDataChanged = true;
       }
     });
   }
 
+  // 2. Chuẩn hóa & lọc trùng BKS xe
   const uniqueXeMap = new Map();
   data.xeList.forEach(x => {
     if (x && x.bks) {
@@ -137,6 +140,7 @@ async function cleanAndSyncData(data) {
   });
   data.xeList = Array.from(uniqueXeMap.values());
 
+  // 3. Đếm lại xe kế hoạch theo tuyến
   const realKhCounts = {};
   data.xeList.forEach(x => {
     let maT = String(x.maTuyen || '').trim().toUpperCase();
@@ -145,6 +149,7 @@ async function cleanAndSyncData(data) {
     }
   });
 
+  // 4. Lấy số nốt tối đa từ biểu đồ
   const tuyenChartsMap = {};
   if (Array.isArray(data.bieuDoList)) {
     data.bieuDoList.forEach(item => {
@@ -179,6 +184,7 @@ async function cleanAndSyncData(data) {
     }
   }
 
+  // 5. Cập nhật thông tin tuyến
   for (let k in data.tuyenList) {
     let tObj = data.tuyenList[k];
     let maT = (tObj.maTuyen || k).toUpperCase();
@@ -195,9 +201,11 @@ async function cleanAndSyncData(data) {
     }
   }
 
+  data._isDataChanged = isDataChanged;
   return data;
 }
 
+// KẾT NỐI MONGODB
 mongoose.connect(MONGO_URI)
   .then(async () => {
     console.log('>>> Kết nối thành công MongoDB Atlas!');
@@ -209,6 +217,7 @@ mongoose.connect(MONGO_URI)
         ];
       }
       const cleanedData = await cleanAndSyncData(doc.data);
+      delete cleanedData._isDataChanged;
       await BusModel.findOneAndUpdate({ key: 'main_data' }, { key: 'main_data', data: cleanedData }, { upsert: true });
       console.log('>>> Đã tự động làm sạch và đồng bộ dữ liệu thành công!');
     }
@@ -219,7 +228,14 @@ async function getRawData() {
   try {
     const doc = await BusModel.findOne({ key: 'main_data' });
     if (doc && doc.data) {
-      return await cleanAndSyncData(doc.data);
+      const cleaned = await cleanAndSyncData(doc.data);
+      if (cleaned._isDataChanged) {
+        delete cleaned._isDataChanged;
+        await BusModel.findOneAndUpdate({ key: 'main_data' }, { key: 'main_data', data: cleaned }, { upsert: true });
+      } else {
+        delete cleaned._isDataChanged;
+      }
+      return cleaned;
     }
   } catch (err) {
     console.error('Lỗi đọc db:', err);
@@ -228,12 +244,15 @@ async function getRawData() {
   const localPath = path.join(__dirname, 'bus_full_data.json');
   if (fs.existsSync(localPath)) {
     const fileData = JSON.parse(fs.readFileSync(localPath, 'utf8'));
-    return await cleanAndSyncData(fileData);
+    const cleaned = await cleanAndSyncData(fileData);
+    delete cleaned._isDataChanged;
+    return cleaned;
   }
-  return { tuyenList: {}, bieuDoList: [], xeList: [], taiKhoanList: [], danhMucXeMau: [], thongBaoChay: "" };
+  return { tuyenList: {}, bieuDoList: [], xeList: [], taiKhoanList: [], danhMucXeMau: [], thongBaoChay: "", scheduledFleetUpdates: [] };
 }
 
 async function saveRawDataFast(data) {
+  delete data._isDataChanged;
   await BusModel.findOneAndUpdate(
     { key: 'main_data' },
     { key: 'main_data', data: data },
@@ -243,6 +262,7 @@ async function saveRawDataFast(data) {
 
 async function saveRawData(data) {
   const cleaned = await cleanAndSyncData(data);
+  delete cleaned._isDataChanged;
   await BusModel.findOneAndUpdate(
     { key: 'main_data' },
     { key: 'main_data', data: cleaned },
@@ -250,7 +270,7 @@ async function saveRawData(data) {
   );
 }
 
-// API Thông báo
+// --- API THÔNG BÁO ---
 app.get('/api/thong-bao', async (req, res) => {
   try {
     const raw = await getRawData();
@@ -384,6 +404,7 @@ app.post('/api/admin/xoa-lich-thong-bao', verifyAdmin, async (req, res) => {
   }
 });
 
+// --- LOG ACCESS & NHẬT KÝ QUẢN TRỊ ---
 app.post('/api/log-access', async (req, res) => {
   try {
     const { username, role, action } = req.body;
@@ -412,6 +433,7 @@ app.get('/api/admin/danh-sach-log', verifyAdmin, async (req, res) => {
   }
 });
 
+// --- AUTHENTICATION & QUẢN TRỊ NGUỜI DÙNG ---
 app.post('/api/admin/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -653,10 +675,11 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
     const raw = await getRawData();
     if (!Array.isArray(raw.xeList)) raw.xeList = [];
     if (!Array.isArray(raw.danhMucXeMau)) raw.danhMucXeMau = [];
+    if (!Array.isArray(raw.scheduledFleetUpdates)) raw.scheduledFleetUpdates = [];
 
     const normMaTuyen = String(maTuyen).trim().toUpperCase();
-
     const today = new Date().toISOString().split('T')[0];
+
     function parseDateToISO(dateStr) {
       if (!dateStr) return today;
       let s = String(dateStr).trim();
@@ -675,6 +698,7 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
 
     const ngayHieuLuc = ngayApDung ? parseDateToISO(ngayApDung) : today;
 
+    // Chuẩn hóa danh sách xe mới
     const newCarsForRoute = (danhSachXe || []).map(x => {
       let bksUpper = String(x.bks || '').trim().toUpperCase();
       let inputChungLoai = x.chungLoai || '';
@@ -695,12 +719,13 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
       };
     }).filter(x => x.bks);
 
-    const bksXeMoiSet = new Set(newCarsForRoute.map(x => x.bks));
-
+    // 1. TRƯỜNG HỢP HẸN NGÀY TƯƠNG LAI
     if (ngayHieuLuc > today) {
-      if (!Array.isArray(raw.scheduledFleetUpdates)) {
-        raw.scheduledFleetUpdates = [];
-      }
+      // Xóa lịch hẹn pending cũ của tuyến này (nếu có)
+      raw.scheduledFleetUpdates = raw.scheduledFleetUpdates.filter(
+        item => String(item.maTuyen).trim().toUpperCase() !== normMaTuyen || item.status !== 'pending'
+      );
+
       raw.scheduledFleetUpdates.push({
         id: Date.now().toString(),
         maTuyen: normMaTuyen,
@@ -714,16 +739,24 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
       await recordLog(req, `Lên lịch hẹn đội xe tuyến [${normMaTuyen}] từ ngày ${ngayApDung}`);
       return res.json({ 
         success: true, 
-        message: `Đã lên lịch thành công! Đội xe sẽ tự động áp dụng và đẩy xe cũ về bến DP vào ngày ${ngayApDung}.` 
+        message: `Đã lên lịch thành công! Đội xe sẽ tự động áp dụng và đẩy xe cũ về bến DP vào ngày ${ngayApDung}. Dàn xe hiện tại vẫn giữ nguyên.` 
       });
     }
 
+    // 2. TRƯỜNG HỢP ÁP DỤNG NGAY LẬP TỨC (NGÀY HÔM NAY / ĐỂ TRỐNG)
+    // Hủy các lịch hẹn pending cũ nếu có
+    raw.scheduledFleetUpdates = raw.scheduledFleetUpdates.filter(
+      item => String(item.maTuyen).trim().toUpperCase() !== normMaTuyen || item.status !== 'pending'
+    );
+
+    const bksXeMoiSet = new Set(newCarsForRoute.map(x => x.bks));
     const otherCars = raw.xeList.filter(x => String(x.maTuyen || '').trim().toUpperCase() !== normMaTuyen);
     const xeCuCuaTuyen = raw.xeList.filter(x => String(x.maTuyen || '').trim().toUpperCase() === normMaTuyen);
 
     const finalXeList = [...otherCars];
     finalXeList.push(...newCarsForRoute);
 
+    // Xe cũ không nằm trong dàn mới tự động điều chuyển về bến DP
     xeCuCuaTuyen.forEach(xeCu => {
       if (!bksXeMoiSet.has(xeCu.bks)) {
         finalXeList.push({
@@ -750,55 +783,55 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
   }
 });
 
+// --- TRA CỨU DANH MỤC & DỮ LIỆU TUYẾN ---
 app.get('/api/danh-muc', async (req, res) => {
-	try {
-		const isAdmin = req.query.admin === 'true';
-		const raw = await getRawData();
-		let danhMucList = [];
-		let allRoutesList = [];
-		const activeRouteNames = new Set();
+  try {
+    const isAdmin = req.query.admin === 'true';
+    const raw = await getRawData();
+    let danhMucList = [];
+    let allRoutesList = [];
+    const activeRouteNames = new Set();
 
-		if (raw.tuyenList && typeof raw.tuyenList === 'object') {
-			for (let k in raw.tuyenList) {
-				const item = raw.tuyenList[k];
-				if (isAdmin || item.status !== 'locked') {
-					activeRouteNames.add(item.tenTuyen || k);
-					allRoutesList.push({
-						maTuyen: item.maTuyen || k,
-						tenTuyen: item.tenTuyen || k,
-						xn: item.xn || "",
-						dauA: item.dauA || "",
-						dauB: item.dauB || "",
-						tramDi: item.tramDi || "",
-						tramVe: item.tramVe || "",
-						soXeVd: item.soXeVd || 0,
-						soXeKh: item.soXeKh || item.soXe || 0,
-						loaiXe: item.loaiXe || "",
-						sucChua: item.sucChua || "",
-						status: item.status || "active"
-					});
-				}
-			}
-		}
+    if (raw.tuyenList && typeof raw.tuyenList === 'object') {
+      for (let k in raw.tuyenList) {
+        const item = raw.tuyenList[k];
+        if (isAdmin || item.status !== 'locked') {
+          activeRouteNames.add(item.tenTuyen || k);
+          allRoutesList.push({
+            maTuyen: item.maTuyen || k,
+            tenTuyen: item.tenTuyen || k,
+            xn: item.xn || "",
+            dauA: item.dauA || "",
+            dauB: item.dauB || "",
+            tramDi: item.tramDi || "",
+            tramVe: item.tramVe || "",
+            soXeVd: item.soXeVd || 0,
+            soXeKh: item.soXeKh || item.soXe || 0,
+            loaiXe: item.loaiXe || "",
+            sucChua: item.sucChua || "",
+            status: item.status || "active"
+          });
+        }
+      }
+    }
 
-		if (Array.isArray(raw.bieuDoList)) {
-			danhMucList = raw.bieuDoList
-				.filter(item => isAdmin || activeRouteNames.has(item.tuyen))
-				.map(item => ({
-					xn: item.xn || "",
-					tuyen: item.tuyen || "",
-					bieuDo: item.bieuDo || "",
-					tenTab: item.tenTab || ""
-				}));
-		}
+    if (Array.isArray(raw.bieuDoList)) {
+      danhMucList = raw.bieuDoList
+        .filter(item => isAdmin || activeRouteNames.has(item.tuyen))
+        .map(item => ({
+          xn: item.xn || "",
+          tuyen: item.tuyen || "",
+          bieuDo: item.bieuDo || "",
+          tenTab: item.tenTab || ""
+        }));
+    }
 
-		res.json({ success: true, data: danhMucList, allRoutes: allRoutesList, bieuDoList: raw.bieuDoList || [] });
-	} catch (err) {
-		res.status(500).json({ success: false, message: err.message });
-	}
+    res.json({ success: true, data: danhMucList, allRoutes: allRoutesList, bieuDoList: raw.bieuDoList || [] });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
-// ✅ ĐƯA API /api/table-data LÊN TRƯỚC /api/chi-tiet-tuyen Ở ĐÂY ĐỂ TRÁNH BỊ 404
 app.get('/api/table-data', async (req, res) => {
   try {
     const tabName = req.query.tab;
@@ -846,51 +879,51 @@ app.get('/api/table-data', async (req, res) => {
 });
 
 app.get('/api/chi-tiet-tuyen', async (req, res) => {
-	try {
-		const queryTuyen = String(req.query.maTuyen || req.query.tuyen || '').trim().toUpperCase();
-		if (!queryTuyen) return res.json({ success: false, message: "Thiếu mã tuyến!" });
+  try {
+    const queryTuyen = String(req.query.maTuyen || req.query.tuyen || '').trim().toUpperCase();
+    if (!queryTuyen) return res.json({ success: false, message: "Thiếu mã tuyến!" });
 
-		const raw = await getRawData();
-		let tuyenInfo = null;
+    const raw = await getRawData();
+    let tuyenInfo = null;
 
-		if (raw.tuyenList) {
-			for (let k in raw.tuyenList) {
-				const t = raw.tuyenList[k];
-				const maT = String(t.maTuyen || k).trim().toUpperCase();
-				const tenT = String(t.tenTuyen || '').trim().toUpperCase();
-				const maTuyenNgan = queryTuyen.split('.')[0].split(' ')[0].trim();
+    if (raw.tuyenList) {
+      for (let k in raw.tuyenList) {
+        const t = raw.tuyenList[k];
+        const maT = String(t.maTuyen || k).trim().toUpperCase();
+        const tenT = String(t.tenTuyen || '').trim().toUpperCase();
+        const maTuyenNgan = queryTuyen.split('.')[0].split(' ')[0].trim();
 
-				if (maT === queryTuyen || maT === maTuyenNgan || tenT.startsWith(queryTuyen) || tenT.includes(maTuyenNgan)) {
-					tuyenInfo = t;
-					break;
-				}
-			}
-		}
+        if (maT === queryTuyen || maT === maTuyenNgan || tenT.startsWith(queryTuyen) || tenT.includes(maTuyenNgan)) {
+          tuyenInfo = t;
+          break;
+        }
+      }
+    }
 
-		if (!tuyenInfo) {
-			return res.json({
-				success: true,
-				maTuyen: queryTuyen,
-				tenTuyen: queryTuyen,
-				dauA: "Đầu A",
-				dauB: "Đầu B",
-				tramDi: "",
-				tramVe: ""
-			});
-		}
+    if (!tuyenInfo) {
+      return res.json({
+        success: true,
+        maTuyen: queryTuyen,
+        tenTuyen: queryTuyen,
+        dauA: "Đầu A",
+        dauB: "Đầu B",
+        tramDi: "",
+        tramVe: ""
+      });
+    }
 
-		res.json({
-			success: true,
-			maTuyen: tuyenInfo.maTuyen || queryTuyen,
-			tenTuyen: tuyenInfo.tenTuyen || queryTuyen,
-			dauA: tuyenInfo.dauA || "Đầu A",
-			dauB: tuyenInfo.dauB || "Đầu B",
-			tramDi: tuyenInfo.tramDi || "",
-			tramVe: tuyenInfo.tramVe || ""
-		});
-	} catch (err) {
-		res.status(500).json({ success: false, message: err.message });
-	}
+    res.json({
+      success: true,
+      maTuyen: tuyenInfo.maTuyen || queryTuyen,
+      tenTuyen: tuyenInfo.tenTuyen || queryTuyen,
+      dauA: tuyenInfo.dauA || "Đầu A",
+      dauB: tuyenInfo.dauB || "Đầu B",
+      tramDi: tuyenInfo.tramDi || "",
+      tramVe: tuyenInfo.tramVe || ""
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 app.get('/api/bus-data', async (req, res) => {
@@ -916,7 +949,7 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], verifyAdmin, async (req, res) =>
     raw.tuyenList[maTuyen] = {
       maTuyen, 
       tenTuyen: tenTuyen || `${maTuyen}. Tuyến ${maTuyen}`,
-      xn:xn || "", 
+      xn: xn || "", 
       dauA: dauA || "", 
       dauB: dauB || "",
       tramDi: tramDi || "",
