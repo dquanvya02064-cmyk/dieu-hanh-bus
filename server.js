@@ -97,6 +97,34 @@ async function cleanAndSyncData(data) {
   if (!data.tuyenList) data.tuyenList = {};
   if (!Array.isArray(data.danhMucXeMau)) data.danhMucXeMau = [];
 
+  const todayISO = new Date().toISOString().split('T')[0];
+  if (Array.isArray(data.scheduledFleetUpdates)) {
+    let hasScheduleApplied = false;
+    data.scheduledFleetUpdates.forEach(update => {
+      if (update.status === 'pending' && update.ngayApDung <= todayISO) {
+        const normMaTuyen = String(update.maTuyen).toUpperCase();
+        const newCars = update.danhSachXe || [];
+        const newBksSet = new Set(newCars.map(x => x.bks));
+
+        // Tách xe cũ và xe các tuyến khác
+        const otherCars = data.xeList.filter(x => String(x.maTuyen || '').trim().toUpperCase() !== normMaTuyen);
+        const xeCuCuaTuyen = data.xeList.filter(x => String(x.maTuyen || '').trim().toUpperCase() === normMaTuyen);
+
+        const finalXeList = [...otherCars, ...newCars];
+        // Xe cũ không có trong danh sách mới tự động chuyển về DP
+        xeCuCuaTuyen.forEach(xeCu => {
+          if (!newBksSet.has(xeCu.bks)) {
+            finalXeList.push({ ...xeCu, maTuyen: 'DP', updatedAt: new Date() });
+          }
+        });
+
+        data.xeList = finalXeList;
+        update.status = 'applied';
+        hasScheduleApplied = true;
+      }
+    });
+  }
+
   const uniqueXeMap = new Map();
   data.xeList.forEach(x => {
     if (x && x.bks) {
