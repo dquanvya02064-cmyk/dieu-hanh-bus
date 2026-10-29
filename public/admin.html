@@ -280,7 +280,7 @@
       const role = sessionStorage.getItem('admin_role');
       const permissions = JSON.parse(sessionStorage.getItem('admin_permissions') || '[]');
 
-      $('#menuTuyen, #menuXeMau, #menuBieudo, #menuThongBao, #menuQuanTriUser, #menuLog, #menuLed').show();
+      $('#menuTuyen, #menuXeMau, #menuBieudo, #menuThongBao, #menuLichHen, #menuQuanTriUser, #menuLog, #menuLed').show();
 
       if (role === 'master' || sessionStorage.getItem('admin_user') === 'quan') {
         $('#menuQuanTriUser, #menuLog').show();
@@ -314,6 +314,7 @@
         <li id="menuXeMau"><a onclick="chuyenTabAdmin('sec-xemau', this)"><i class="fa fa-car"></i> Quản trị Danh mục Xe mẫu</a></li>
         <li id="menuBieudo"><a onclick="chuyenTabAdmin('sec-bieudo', this)"><i class="fa fa-calendar-plus-o"></i> Quản trị Biểu đồ chạy xe</a></li>
         <li id="menuThongBao"><a onclick="chuyenTabAdmin('sec-thongbao', this)"><i class="fa fa-bullhorn"></i> Quản lý Thông báo chạy</a></li>
+        <li id="menuLichHen"><a onclick="chuyenTabAdmin('sec-lichhen', this)"><i class="fa fa-clock-o"></i> Quản lý Lịch hẹn & Lịch sử</a></li>
         <li id="menuQuanTriUser" style="display:none;"><a onclick="chuyenTabAdmin('sec-users', this)"><i class="fa fa-users"></i> Quản trị người dùng</a></li>
         <li id="menuLog" style="display:none;"><a onclick="chuyenTabAdmin('sec-log', this)"><i class="fa fa-history"></i> Nhật ký truy cập web</a></li>
         <li><a href="index.html"><i class="fa fa-arrow-left"></i> Về trang tra cứu</a></li>
@@ -667,6 +668,60 @@
           </div>
         </div>
 
+        <!-- SECTION: QUẢN LÝ LỊCH HẸN & LỊCH SỬ TẬP TRUNG -->
+        <div id="sec-lichhen" class="content-section">
+          <!-- BẢNG 1: LỊCH HẸN ĐANG CHỜ -->
+          <div class="panel-custom">
+            <div class="panel-heading" style="background: #FFF8E7; color: #D35400;">
+              <span><i class="fa fa-hourglass-half"></i> Danh sách Lịch hẹn ĐANG CHỜ ÁP DỤNG (Pending Queue)</span>
+              <button class="btn btn-default" style="height: 26px; padding: 2px 8px; font-size: 11px;" onclick="taiDanhSachLichHen()"><i class="fa fa-refresh"></i> Tải lại</button>
+            </div>
+            <div class="panel-body">
+              <div class="table-responsive-wrapper">
+                <table class="table-custom">
+                  <thead>
+                    <tr>
+                      <th style="width: 40px; text-align: center;">STT</th>
+                      <th style="width: 130px;">Phân loại</th>
+                      <th style="width: 140px;">Mục áp dụng</th>
+                      <th>Nội dung thay đổi chi tiết</th>
+                      <th style="width: 150px; text-align: center;">Thời điểm hẹn áp dụng</th>
+                      <th style="width: 100px;">Người tạo</th>
+                      <th style="width: 160px; text-align: center;">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tblLichHenPending"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- BẢNG 2: NHẬT KÝ LỊCH SỬ -->
+          <div class="panel-custom">
+            <div class="panel-heading">
+              <span><i class="fa fa-history"></i> Nhật ký Lịch sử Đã thực thi & Thao tác (History Log)</span>
+            </div>
+            <div class="panel-body">
+              <div class="table-responsive-wrapper" style="max-height: 450px;">
+                <table class="table-custom">
+                  <thead>
+                    <tr>
+                      <th style="width: 40px; text-align: center;">STT</th>
+                      <th style="width: 150px; text-align: center;">Thời gian ghi nhận</th>
+                      <th style="width: 130px;">Phân loại</th>
+                      <th style="width: 130px;">Mục áp dụng</th>
+                      <th>Chi tiết thao tác / Kết quả</th>
+                      <th style="width: 130px; text-align: center;">Trạng thái</th>
+                      <th style="width: 120px;">Thực hiện bởi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tblLichHenHistory"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- SECTION: QUẢN TRỊ NGƯỜI DÙNG -->
         <div id="sec-users" class="content-section">
           <div class="panel-custom">
@@ -800,6 +855,7 @@
       if (sectionId === 'sec-users') { taiDanhSachTaiKhoan(); }
       else if (sectionId === 'sec-log') { taiDanhSachLog(); }
       else if (sectionId === 'sec-thongbao') { taiTaiThongBaoAdmin(); }
+      else if (sectionId === 'sec-lichhen') { taiDanhSachLichHen(); }
     }
 
     function toggleSidebar() { $('#sidebarMenu').toggleClass('collapsed'); }
@@ -1246,6 +1302,7 @@
       });
 
       const tuyenMoi = $('#selTuyenChuyenHangLoat').val();
+      const ngayApDung = $('#txtNgayApDungDoiXe').val();
 
       if (selectedBks.length === 0) {
         showToast("Vui lòng tích chọn ít nhất 1 xe để điều chuyển!", "error");
@@ -1253,10 +1310,15 @@
       }
 
       const tenTuyenTarget = tuyenMoi === 'DP' ? 'Bến Dự Phòng (DP)' : `Tuyến ${tuyenMoi}`;
+      
+      let thongBaoCanhBao = `Bạn có chắc chắn muốn điều chuyển ${selectedBks.length} xe đã chọn sang [${tenTuyenTarget}] không?`;
+      if (ngayApDung) {
+        thongBaoCanhBao = `⚠️ LƯU Ý: Bạn đang chọn ngày áp dụng là [${ngayApDung}].\n\nNút "Chuyển xe đã chọn" này sẽ điều chuyển xe NGAY LẬP TỨC chứ không hẹn giờ.\n\n(Nếu muốn hẹn ngày tương lai mới chuyển dàn xe, hãy sửa danh sách trong bảng rồi bấm nút "Lưu thông tin Tuyến & Đội xe" ở dưới cùng).\n\nBạn vẫn muốn CHUYỂN NGAY LẬP TỨC chứ?`;
+      }
 
       hienXacNhanCustom(
-        `Bạn có chắc chắn muốn điều chuyển ${selectedBks.length} xe đã chọn sang [${tenTuyenTarget}] không?`,
-        "Điều chuyển xe hàng loạt",
+        thongBaoCanhBao,
+        "Điều chuyển xe tức thì",
         async function(isConfirmed) {
           if (!isConfirmed) return;
 
@@ -1437,7 +1499,7 @@
       } catch (err) {}
     }
 
-    // HÀM LƯU TUYẾN & ĐỘI XE - CẬP NHẬT TRUYỀN NGÀY ÁP DỤNG CẢ LỘ TRÌNH LẪN ĐỘI XE
+    // HÀM LƯU TUYẾN & ĐỘI XE
     async function xacLapTuyenVaDoiXe() {
       const maTuyen = $('#txtMaTuyen').val().trim();
       
@@ -1455,7 +1517,6 @@
       const tramDi = $('#adminTramDi').val().trim();
       const tramVe = $('#adminTramVe').val().trim();
 
-      // LẤY GIÁ TRỊ NGÀY ÁP DỤNG HẸN GIỜ
       const ngayApDung = $('#txtNgayApDungDoiXe').val();
 
       const status = $('input[name="rdStatus"][value="active"]').prop('checked') ? 'active' : 'locked';
@@ -1493,14 +1554,12 @@
       const loaiXe = Array.from(setLoai).join(' & ');
 
       try {
-        // TRUYỀN NGÀY ÁP DỤNG SANG API LƯU LỘ TRÌNH / XÍ NGHIỆP TUYẾN
         const resTuyen = await fetch(`${API_BASE}/api/tuyen-moi`, {
           method: 'POST', 
           headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
           body: JSON.stringify({ ...getAdminInfo(), maTuyen, tenTuyen, xn, dauA, dauB, tramDi, tramVe, soXeKh, soXe: soXeKh, loaiXe, status, ngayApDung })
         }).then(r => r.json());
 
-        // TRUYỀN NGÀY ÁP DỤNG SANG API LƯU ĐỘI XE
         const resXe = await fetch(`${API_BASE}/api/admin/luu-doi-xe-tuyen`, {
           method: 'POST', 
           headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
@@ -1513,6 +1572,117 @@
       } catch (err) {
         showToast("Lỗi kết nối: " + err, "error");
       }
+    }
+
+    // JAVASCRIPT XỬ LÝ LỊCH HẸN & LỊCH SỬ TẬP TRUNG
+    async function taiDanhSachLichHen() {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/lay-danh-sach-lich`, {
+          headers: { 'x-admin-user': sessionStorage.getItem('admin_user') }
+        }).then(r => r.json());
+        
+        if (res.success) {
+          veBangLichPending(res.pending || []);
+          veBangLichHistory(res.history || []);
+        }
+      } catch (err) {
+        showToast("Lỗi khi nạp danh sách lịch hẹn!", "error");
+      }
+    }
+
+    function veBangLichPending(list) {
+      let html = '';
+      if (!list || list.length === 0) {
+        html = '<tr><td colspan="7" style="text-align:center; color:#888; padding:20px;">Hiện tại không có lịch hẹn nào đang chờ!</td></tr>';
+      } else {
+        list.forEach((item, idx) => {
+          let badgeType = '';
+          if (item.type === 'TUYEN_DOI_XE') badgeType = '<span class="status-badge" style="background:#E1F5FE; color:#0288D1;">Tuyến & Dàn xe</span>';
+          else if (item.type === 'BIEU_DO') badgeType = '<span class="status-badge" style="background:#E8F5E9; color:#388E3C;">Biểu đồ chạy</span>';
+          else if (item.type === 'THONG_BAO') badgeType = '<span class="status-badge" style="background:#FFF3E0; color:#F57C00;">Thông báo chữ</span>';
+
+          html += `
+            <tr>
+              <td style="text-align:center; font-weight:bold;">${idx + 1}</td>
+              <td>${badgeType}</td>
+              <td><strong style="color:#2C3E50;">${item.target}</strong></td>
+              <td>${item.details}</td>
+              <td style="text-align:center; color:#D35400; font-weight:bold;"><i class="fa fa-clock-o"></i> ${item.targetTimeStr}</td>
+              <td>${item.createdBy || 'Admin'}</td>
+              <td style="text-align:center;">
+                <div style="display:flex; gap:5px; justify-content:center;">
+                  <button class="btn btn-primary" style="padding:2px 6px; font-size:10px; height:26px;" onclick="chayNgayLichHen('${item.id}', '${item.target}')"><i class="fa fa-play"></i> Chạy ngay</button>
+                  <button class="btn btn-danger" style="padding:2px 6px; font-size:10px; height:26px;" onclick="huyLichHen('${item.id}', '${item.target}')"><i class="fa fa-times"></i> Hủy lịch</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        });
+      }
+      $('#tblLichHenPending').html(html);
+    }
+
+    function veBangLichHistory(list) {
+      let html = '';
+      if (!list || list.length === 0) {
+        html = '<tr><td colspan="7" style="text-align:center; color:#888; padding:20px;">Chưa có nhật ký lịch sử!</td></tr>';
+      } else {
+        list.forEach((item, idx) => {
+          let statusBadge = '';
+          if (item.status === 'success') {
+            statusBadge = '<span class="status-badge status-active"><i class="fa fa-check"></i> Thành công</span>';
+          } else if (item.status === 'cancelled') {
+            statusBadge = '<span class="status-badge status-locked"><i class="fa fa-ban"></i> Đã hủy</span>';
+          } else {
+            statusBadge = '<span class="status-badge" style="background:#FFF3CD; color:#856404;"><i class="fa fa-exclamation-triangle"></i> Thất bại</span>';
+          }
+
+          html += `
+            <tr>
+              <td style="text-align:center; color:#666;">${idx + 1}</td>
+              <td style="text-align:center; font-size:11px; color:#555;">${item.timeStr}</td>
+              <td><strong style="font-size:11px; color:#34495E;">${item.type}</strong></td>
+              <td><strong>${item.target}</strong></td>
+              <td>${item.details} <br><small style="color:#7F8C8D; font-style:italic;">(${item.note || ''})</small></td>
+              <td style="text-align:center;">${statusBadge}</td>
+              <td>${item.executedBy || 'System'}</td>
+            </tr>
+          `;
+        });
+      }
+      $('#tblLichHenHistory').html(html);
+    }
+
+    async function chayNgayLichHen(taskId, targetName) {
+      hienXacNhanCustom(`Bạn có chắc muốn KÍCH HOẠT NGAY tác vụ của [${targetName}] mà không đợi đến mốc hẹn?`, "Áp dụng tức thì", async function(conf) {
+        if (!conf) return;
+        try {
+          const res = await fetch(`${API_BASE}/api/admin/chay-ngay-lich-hen`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
+            body: JSON.stringify({ ...getAdminInfo(), taskId })
+          }).then(r => r.json());
+          
+          showToast(res.message, res.success ? "success" : "error");
+          if (res.success) { taiDanhSachLichHen(); napDuLieuTong(); }
+        } catch (e) { showToast("Lỗi kết nối server!", "error"); }
+      });
+    }
+
+    async function huyLichHen(taskId, targetName) {
+      hienXacNhanCustom(`Xác nhận HỦY lịch hẹn của [${targetName}]? Lịch này sẽ không được áp dụng nữa.`, "Hủy lịch hẹn", async function(conf) {
+        if (!conf) return;
+        try {
+          const res = await fetch(`${API_BASE}/api/admin/huy-lich-hen`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
+            body: JSON.stringify({ ...getAdminInfo(), taskId })
+          }).then(r => r.json());
+
+          showToast(res.message, res.success ? "success" : "error");
+          if (res.success) { taiDanhSachLichHen(); }
+        } catch (e) { showToast("Lỗi kết nối server!", "error"); }
+      });
     }
 
     function veBangTrangThaiBieuDo(sortedRoutes) {
@@ -1584,7 +1754,7 @@
     }
 
     async function xoaBieuDoChiDinh(tenTab) {
-      hienXacNhanCustom(`Xác nhận xóa vĩnh viễn biểu đồ [${tenTab}]?`, "Xóa biểu đồ", async function(isConfirmed) {
+      hienXacNhanCustom(`Xóa vĩnh viễn biểu đồ [${tenTab}]?`, "Xóa biểu đồ", async function(isConfirmed) {
         if (!isConfirmed) return;
         try {
           const res = await fetch(`${API_BASE}/api/xoa-bieu-do`, {
