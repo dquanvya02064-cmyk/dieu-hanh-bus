@@ -846,7 +846,15 @@ app.get('/api/table-data', async (req, res) => {
     let found = bieuDoList.find(b => String(b.tenTab || '').trim() === String(tabName).trim());
     
     if (!found && tuyenQuery) {
-      found = bieuDoList.find(b => String(b.tuyen || '').trim().toUpperCase() === String(tuyenQuery).trim().toUpperCase());
+      const matchMa = tuyenQuery.match(/^([A-Za-z0-9]+)/);
+      const targetMa = matchMa ? matchMa[1].toUpperCase() : tuyenQuery.toUpperCase();
+
+      found = bieuDoList.find(b => {
+        const bTuyen = String(b.tuyen || '').trim().toUpperCase();
+        const bTab = String(b.tenTab || '').trim().toUpperCase();
+        const matchB = bTuyen.match(/^([A-Za-z0-9]+)/) || bTab.match(/^([A-Za-z0-9]+)/);
+        return matchB && matchB[1].toUpperCase() === targetMa;
+      });
     }
 
     if (!found) {
@@ -854,12 +862,14 @@ app.get('/api/table-data', async (req, res) => {
     }
 
     let dauA = "Đầu A", dauB = "Đầu B";
-    if (raw.tuyenList) {
+    if (raw.tuyenList && tuyenQuery) {
+      const matchMa = tuyenQuery.match(/^([A-Za-z0-9]+)/);
+      const targetMa = matchMa ? matchMa[1].toUpperCase() : tuyenQuery.toUpperCase();
+
       for (let k in raw.tuyenList) {
         let t = raw.tuyenList[k];
         let maT = String(t.maTuyen || k).trim().toUpperCase();
-        let tenT = String(t.tenTuyen || '').trim().toUpperCase();
-        if (tuyenQuery && (tenT.includes(tuyenQuery.toUpperCase()) || maT === tuyenQuery.toUpperCase())) {
+        if (maT === targetMa) {
           dauA = t.dauA || "Đầu A";
           dauB = t.dauB || "Đầu B";
           break;
@@ -886,16 +896,30 @@ app.get('/api/chi-tiet-tuyen', async (req, res) => {
     const raw = await getRawData();
     let tuyenInfo = null;
 
+    const matchMa = queryTuyen.match(/^([A-Za-z0-9]+)/);
+    const targetMa = matchMa ? matchMa[1].toUpperCase() : queryTuyen;
+
     if (raw.tuyenList) {
+      // 1. Khớp chính xác 100% Mã tuyến
       for (let k in raw.tuyenList) {
         const t = raw.tuyenList[k];
         const maT = String(t.maTuyen || k).trim().toUpperCase();
-        const tenT = String(t.tenTuyen || '').trim().toUpperCase();
-        const maTuyenNgan = queryTuyen.split('.')[0].split(' ')[0].trim();
-
-        if (maT === queryTuyen || maT === maTuyenNgan || tenT.startsWith(queryTuyen) || tenT.includes(maTuyenNgan)) {
+        if (maT === targetMa) {
           tuyenInfo = t;
           break;
+        }
+      }
+
+      // 2. Nếu chưa thấy mới khớp chính xác đầu tên tuyến (tránh nhầm 04 thành 104)
+      if (!tuyenInfo) {
+        for (let k in raw.tuyenList) {
+          const t = raw.tuyenList[k];
+          const tenT = String(t.tenTuyen || '').trim().toUpperCase();
+          const regex = new RegExp('^' + targetMa + '([\\s\\.-]|$)', 'i');
+          if (regex.test(tenT)) {
+            tuyenInfo = t;
+            break;
+          }
         }
       }
     }
@@ -903,7 +927,7 @@ app.get('/api/chi-tiet-tuyen', async (req, res) => {
     if (!tuyenInfo) {
       return res.json({
         success: true,
-        maTuyen: queryTuyen,
+        maTuyen: targetMa,
         tenTuyen: queryTuyen,
         dauA: "Đầu A",
         dauB: "Đầu B",
@@ -914,7 +938,7 @@ app.get('/api/chi-tiet-tuyen', async (req, res) => {
 
     res.json({
       success: true,
-      maTuyen: tuyenInfo.maTuyen || queryTuyen,
+      maTuyen: tuyenInfo.maTuyen || targetMa,
       tenTuyen: tuyenInfo.tenTuyen || queryTuyen,
       dauA: tuyenInfo.dauA || "Đầu A",
       dauB: tuyenInfo.dauB || "Đầu B",
