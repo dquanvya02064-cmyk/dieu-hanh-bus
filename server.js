@@ -92,12 +92,13 @@ function parseTabDate(tabName) {
   return { sortKey: "00000000", dateObj: new Date(0) };
 }
 
-// --- HÀM LÀM SẠCH, ĐỒNG BỘ DỮ LIỆU & TỰ ĐỘNG KÍCH HOẠT HẸN GIỜ ---
+// --- HÀM LÀM SẠCH, ĐỒNG BỘ DỮ LIỆU & TỰ ĐỘNG KÍCH HOẠT HẸN GIỜ (CRON ENGINE CORE) ---
 async function cleanAndSyncData(data) {
   if (!data) return data;
   if (!Array.isArray(data.xeList)) data.xeList = [];
   if (!data.tuyenList) data.tuyenList = {};
   if (!Array.isArray(data.danhMucXeMau)) data.danhMucXeMau = [];
+  if (!Array.isArray(data.historyLog)) data.historyLog = [];
 
   const todayISO = new Date().toISOString().split('T')[0];
   let isDataChanged = false;
@@ -123,6 +124,18 @@ async function cleanAndSyncData(data) {
         data.xeList = finalXeList;
         update.status = 'applied';
         isDataChanged = true;
+
+        // Ghi lại lịch sử thực thi tự động
+        data.historyLog.unshift({
+          id: update.id || Date.now().toString(),
+          timeStr: new Date().toLocaleString('vi-VN'),
+          type: 'TUYEN_DOI_XE',
+          target: `Tuyến ${update.maTuyen}`,
+          details: `Tự động áp dụng đội xe mới (${newCars.length} xe), tự động đẩy xe cũ về Bến DP`,
+          note: `Thực thi tự động theo mốc hẹn ngày ${update.ngayApDung}`,
+          status: 'success',
+          executedBy: 'Cron / Hệ thống'
+        });
       }
     });
   }
@@ -140,6 +153,18 @@ async function cleanAndSyncData(data) {
         }
         update.status = 'applied';
         isDataChanged = true;
+
+        // Ghi lại lịch sử thực thi tự động
+        data.historyLog.unshift({
+          id: update.id || Date.now().toString(),
+          timeStr: new Date().toLocaleString('vi-VN'),
+          type: 'TUYEN_DOI_XE',
+          target: `Tuyến ${update.maTuyen}`,
+          details: `Tự động cập nhật thông tin / Lộ trình / Xí nghiệp quản lý tuyến`,
+          note: `Thực thi tự động theo mốc hẹn ngày ${update.ngayApDung}`,
+          status: 'success',
+          executedBy: 'Cron / Hệ thống'
+        });
       }
     });
   }
@@ -222,6 +247,15 @@ async function cleanAndSyncData(data) {
   return data;
 }
 
+// CRON ENGINE CHẠY NGẦM MỖI 1 PHÚT
+setInterval(async () => {
+  try {
+    await getRawData();
+  } catch (err) {
+    console.error("Lỗi thực thi Cron Engine ngầm:", err);
+  }
+}, 60000);
+
 // KẾT NỐI MONGODB
 mongoose.connect(MONGO_URI)
   .then(async () => {
@@ -273,7 +307,8 @@ async function getRawData() {
     danhMucXeMau: [], 
     thongBaoChay: "", 
     scheduledFleetUpdates: [],
-    scheduledRouteUpdates: [] 
+    scheduledRouteUpdates: [],
+    historyLog: []
   };
 }
 
@@ -295,6 +330,221 @@ async function saveRawData(data) {
     { upsert: true, returnDocument: 'after' }
   );
 }
+
+// --- API HỆ THỐNG LỊCH HẸN & LỊCH SỬ TẬP TRUNG (DÙNG CHO SECTION 6 ADMIN) ---
+app.get('/api/admin/lay-danh-sach-lich', verifyAdmin, async (req, res) => {
+  try {
+    const raw = await getRawData();
+    const pending = [];
+
+    // 1. Quét danh sách hẹn đổi đội xe
+    if (Array.isArray(raw.scheduledFleetUpdates)) {
+      raw.scheduledFleetUpdates.forEach(item => {
+        if (item.status === 'pending') {
+          pending.push({
+            id: item.id,
+            source: 'fleet',
+            type: 'TUYEN_DOI_XE',
+            target: `Tuyến ${item.maTuyen}`,
+            details: `Thay đổi toàn bộ dàn xe (${(item.danhSachXe || []).length} xe)`,
+            targetTimeStr: item.ngayApDung,
+            createdBy: item.createdBy || 'Admin'
+          });
+        }
+      });
+    }
+
+    // 2. Quét danh sách hẹn đổi thông tin tuyến / lộ trình
+    if (Array.isArray(raw.scheduledRouteUpdates)) {
+      raw.scheduledRouteUpdates.forEach(item => {
+        if (item.status === 'pending') {
+          pending.push({
+            id: item.id,
+            source: 'route',
+            type: 'TUYEN_DOI_XE',
+            target: `Tuyến ${item.maTuyen}`,
+            details: `Thay đổi thông tin / Lộ trình / Đơn vị chủ quản (${item.tuyenInfo?.tenTuyen || ''})`,
+            targetTimeStr: item.ngayApDung,
+            createdBy: item.createdBy || 'Admin'
+          });
+        }
+      });
+    }
+
+    // 3. Quét lịch thông báo chữ nếu có
+    if (Array.isArray(raw.thongBaoScheduleList)) {
+      raw.thongBaoScheduleList.forEach(item => {
+        pending.push({
+          id: item.id,
+          source: 'notification',
+          type: 'THONG_BAO',
+          target: 'Chạy chữ Marquee',
+          details: `Nội dung: "${item.noiDung}"`,
+          targetTimeStr: `${item.tuNgay} ${item.tuGio || '00:00'} ➔ ${item.denNgay} ${item.denGio || '23:59'}`,
+          createdBy: 'Admin'
+        });
+      });
+    }
+
+    res.json({
+      success: true,
+      pending: pending,
+      history: raw.historyLog || []
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.post('/api/admin/chay-ngay-lich-hen', verifyAdmin, async (req, res) => {
+  try {
+    const { taskId } = req.body;
+    if (!taskId) return res.status(400).json({ success: false, message: 'Thiếu mã tác vụ!' });
+
+    const raw = await getRawData();
+    let isExecuted = false;
+    let targetName = '';
+
+    // Kích hoạt ngay lịch đổi đội xe
+    if (Array.isArray(raw.scheduledFleetUpdates)) {
+      const fleetItem = raw.scheduledFleetUpdates.find(f => f.id === taskId && f.status === 'pending');
+      if (fleetItem) {
+        const normMaTuyen = String(fleetItem.maTuyen).toUpperCase();
+        const newCars = fleetItem.danhSachXe || [];
+        const newBksSet = new Set(newCars.map(x => x.bks));
+
+        const otherCars = raw.xeList.filter(x => String(x.maTuyen || '').trim().toUpperCase() !== normMaTuyen);
+        const xeCuCuaTuyen = raw.xeList.filter(x => String(x.maTuyen || '').trim().toUpperCase() === normMaTuyen);
+
+        const finalXeList = [...otherCars, ...newCars];
+        xeCuCuaTuyen.forEach(xeCu => {
+          if (!newBksSet.has(xeCu.bks)) {
+            finalXeList.push({ ...xeCu, maTuyen: 'DP', updatedAt: new Date() });
+          }
+        });
+
+        raw.xeList = finalXeList;
+        fleetItem.status = 'applied';
+        isExecuted = true;
+        targetName = `Tuyến ${fleetItem.maTuyen}`;
+
+        if (!Array.isArray(raw.historyLog)) raw.historyLog = [];
+        raw.historyLog.unshift({
+          id: fleetItem.id,
+          timeStr: new Date().toLocaleString('vi-VN'),
+          type: 'TUYEN_DOI_XE',
+          target: targetName,
+          details: `Kích hoạt ngay áp dụng đội xe mới (${newCars.length} xe), tự động đẩy xe cũ về DP`,
+          note: 'Chạy ngay thủ công trước thời hạn bởi Admin',
+          status: 'success',
+          executedBy: req.adminUser ? req.adminUser.username : 'Admin'
+        });
+      }
+    }
+
+    // Kích hoạt ngay lịch đổi thông tin tuyến
+    if (!isExecuted && Array.isArray(raw.scheduledRouteUpdates)) {
+      const routeItem = raw.scheduledRouteUpdates.find(r => r.id === taskId && r.status === 'pending');
+      if (routeItem) {
+        const normMaTuyen = String(routeItem.maTuyen).toUpperCase();
+        if (routeItem.tuyenInfo) {
+          raw.tuyenList[normMaTuyen] = {
+            ...(raw.tuyenList[normMaTuyen] || {}),
+            ...routeItem.tuyenInfo
+          };
+        }
+        routeItem.status = 'applied';
+        isExecuted = true;
+        targetName = `Tuyến ${routeItem.maTuyen}`;
+
+        if (!Array.isArray(raw.historyLog)) raw.historyLog = [];
+        raw.historyLog.unshift({
+          id: routeItem.id,
+          timeStr: new Date().toLocaleString('vi-VN'),
+          type: 'TUYEN_DOI_XE',
+          target: targetName,
+          details: `Kích hoạt ngay cập nhật thông tin / Lộ trình tuyến`,
+          note: 'Chạy ngay thủ công trước thời hạn bởi Admin',
+          status: 'success',
+          executedBy: req.adminUser ? req.adminUser.username : 'Admin'
+        });
+      }
+    }
+
+    if (isExecuted) {
+      await saveRawData(raw);
+      await recordLog(req, `Kích hoạt ngay tác vụ hẹn giờ [${targetName}]`);
+      return res.json({ success: true, message: `Đã kích hoạt áp dụng tác vụ thành công cho ${targetName}!` });
+    } else {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy tác vụ hẹn giờ hoặc tác vụ đã được thực thi!' });
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.post('/api/admin/huy-lich-hen', verifyAdmin, async (req, res) => {
+  try {
+    const { taskId } = req.body;
+    if (!taskId) return res.status(400).json({ success: false, message: 'Thiếu mã tác vụ!' });
+
+    const raw = await getRawData();
+    let isCancelled = false;
+    let targetName = '';
+
+    if (Array.isArray(raw.scheduledFleetUpdates)) {
+      const fleetItem = raw.scheduledFleetUpdates.find(f => f.id === taskId && f.status === 'pending');
+      if (fleetItem) {
+        fleetItem.status = 'cancelled';
+        isCancelled = true;
+        targetName = `Tuyến ${fleetItem.maTuyen}`;
+
+        if (!Array.isArray(raw.historyLog)) raw.historyLog = [];
+        raw.historyLog.unshift({
+          id: fleetItem.id,
+          timeStr: new Date().toLocaleString('vi-VN'),
+          type: 'TUYEN_DOI_XE',
+          target: targetName,
+          details: `Hủy lịch hẹn thay đổi đội xe (${(fleetItem.danhSachXe || []).length} xe)`,
+          note: 'Đã hủy bởi Admin',
+          status: 'cancelled',
+          executedBy: req.adminUser ? req.adminUser.username : 'Admin'
+        });
+      }
+    }
+
+    if (!isCancelled && Array.isArray(raw.scheduledRouteUpdates)) {
+      const routeItem = raw.scheduledRouteUpdates.find(r => r.id === taskId && r.status === 'pending');
+      if (routeItem) {
+        routeItem.status = 'cancelled';
+        isCancelled = true;
+        targetName = `Tuyến ${routeItem.maTuyen}`;
+
+        if (!Array.isArray(raw.historyLog)) raw.historyLog = [];
+        raw.historyLog.unshift({
+          id: routeItem.id,
+          timeStr: new Date().toLocaleString('vi-VN'),
+          type: 'TUYEN_DOI_XE',
+          target: targetName,
+          details: `Hủy lịch hẹn thay đổi thông tin/lộ trình tuyến`,
+          note: 'Đã hủy bởi Admin',
+          status: 'cancelled',
+          executedBy: req.adminUser ? req.adminUser.username : 'Admin'
+        });
+      }
+    }
+
+    if (isCancelled) {
+      await saveRawDataFast(raw);
+      await recordLog(req, `Hủy tác vụ hẹn giờ [${targetName}]`);
+      return res.json({ success: true, message: `Đã hủy lịch hẹn thành công!` });
+    } else {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy tác vụ hẹn giờ cần hủy!' });
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 // --- API THÔNG BÁO ---
 app.get('/api/thong-bao', async (req, res) => {
@@ -459,7 +709,7 @@ app.get('/api/admin/danh-sach-log', verifyAdmin, async (req, res) => {
   }
 });
 
-// --- AUTHENTICATION & QUẢN TRỊ NGUỜI DÙNG ---
+// --- AUTHENTICATION & QUẢN TRỊ NGƯỜI DÙNG ---
 app.post('/api/admin/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -757,7 +1007,8 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
         danhSachXe: newCarsForRoute,
         ngayApDung: ngayHieuLuc,
         status: 'pending',
-        createdAt: new Date()
+        createdAt: new Date(),
+        createdBy: req.adminUser ? req.adminUser.username : 'Admin'
       });
 
       await saveRawData(raw);
@@ -865,7 +1116,8 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], verifyAdmin, async (req, res) =>
         tuyenInfo: newTuyenInfo,
         ngayApDung: ngayHieuLuc,
         status: 'pending',
-        createdAt: new Date()
+        createdAt: new Date(),
+        createdBy: req.adminUser ? req.adminUser.username : 'Admin'
       });
 
       await saveRawData(raw);
