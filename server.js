@@ -375,9 +375,10 @@ app.get('/api/admin/lay-danh-sach-lich', verifyAdmin, async (req, res) => {
             id: item.id,
             source: 'fleet',
             type: 'TUYEN_DOI_XE',
-            target: `Tuyến ${item.maTuyen}`,
+            target: item.maTuyen === 'DP' ? 'Bến DP' : `Tuyến ${item.maTuyen}`,
             details: `Thay đổi toàn bộ dàn xe (${(item.danhSachXe || []).length} xe)`,
             targetTimeStr: item.ngayApDung,
+            danhSachBks: (item.danhSachXe || []).map(x => String(x.bks || '').trim().toUpperCase()), // Bổ sung mảng BKS để Client khớp biển số
             createdBy: item.createdBy || 'Admin'
           });
         }
