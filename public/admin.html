@@ -154,6 +154,8 @@
     .status-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-weight: bold; font-size: 11px; white-space: nowrap; }
     .status-active { background-color: #E6F4EA; color: #137333; }
     .status-locked { background-color: #FCE8E6; color: #C5221F; }
+    .status-has-chart { background-color: #E6F4EA; color: #137333; }
+    .status-missing-chart { background-color: #FCE8E6; color: #C5221F; }
 
     .select2-container { width: 100% !important; max-width: 100% !important; font-size: 12px !important; }
     .select2-container .select2-selection--single { height: 32px !important; border: 1px solid #ccc !important; border-radius: 6px !important; display: flex; align-items: center; }
@@ -213,94 +215,6 @@
       <div id="authErrorMsg" style="margin-top: 8px; font-size: 12px; color: #E74C3C; font-weight: bold; min-height: 18px;"></div>
     </div>
   </div>
-
-  <script>
-    function onXnSelectChange(sel) {
-      if ($(sel).val() === '__NEW__') {$('#txtXnMoi').show().focus(); }
-      else { $('#txtXnMoi').hide().val(''); }
-    }
-    function onDauASelectChange(sel) {
-      if ($(sel).val() === '__NEW__') {$('#txtDauAMoi').show().focus(); tuDongGoiYTenTuyen(); }
-      else { $('#txtDauAMoi').hide().val(''); tuDongGoiYTenTuyen(); }
-    }
-    function onDauBSelectChange(sel) {
-      if ($(sel).val() === '__NEW__') {$('#txtDauBMoi').show().focus(); tuDongGoiYTenTuyen(); }
-      else { $('#txtDauBMoi').hide().val(''); tuDongGoiYTenTuyen(); }
-    }
-    const API_BASE = "https://dieu-hanh-bus.onrender.com";
-
-    if (sessionStorage.getItem('admin_authenticated') === 'true') {
-      $('#authOverlay').remove();
-      $('body').removeClass('locked');
-      apDungQuyenTruyCap();
-    }
-
-    function getAdminInfo() {
-      const user = sessionStorage.getItem('admin_user');
-      const role = sessionStorage.getItem('admin_role');
-      if (!user || !role) {
-        showToast("Phiên đăng nhập hết hạn hoặc chưa đăng nhập!", "error");
-        setTimeout(() => { location.reload(); }, 1500);
-        throw new Error("Unauthorized");
-      }
-      return { actorUsername: user, role: role };
-    }
-
-    async function xuLyDangNhapAdmin() {
-      const username = $('#txtAdminId').val().trim();
-      const password = $('#txtAdminPass').val().trim();
-      const $errorBox =$('#authErrorMsg');
-
-      try {
-        const res = await fetch(`${API_BASE}/api/admin/login`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
-        }).then(r => r.json());
-
-        if (res.success) {
-          sessionStorage.setItem('admin_authenticated', 'true');
-          sessionStorage.setItem('admin_role', res.role);
-          sessionStorage.setItem('admin_user', username);
-          sessionStorage.setItem('admin_permissions', JSON.stringify(res.permissions || []));
-          
-          $('body').removeClass('locked');
-          $('#authOverlay').fadeOut(300, function() { $(this).remove(); });
-          showToast(res.message, "success");
-          apDungQuyenTruyCap();
-        } else {
-          $errorBox.text(res.message || "Tài khoản không tồn tại trên hệ thống");
-          $('#txtAdminPass').val('').focus();
-        }
-      } catch (err) {
-        $errorBox.text("Tài khoản không tồn tại trên hệ thống");
-      }
-    }
-
-    function apDungQuyenTruyCap() {
-      const role = sessionStorage.getItem('admin_role');
-      const permissions = JSON.parse(sessionStorage.getItem('admin_permissions') || '[]');
-
-      $('#menuTuyen, #menuXeMau, #menuBieudo, #menuThongBao, #menuLichHen, #menuQuanTriUser, #menuLog, #menuLed').show();
-
-      if (role === 'master' || sessionStorage.getItem('admin_user') === 'quan') {
-        $('#menuQuanTriUser, #menuLog').show();
-        return;
-      }
-      $('#menuQuanTriUser, #menuLog').hide();
-      if (!permissions.includes('tuyen')) $('#menuTuyen, #menuXeMau').hide();
-      if (!permissions.includes('bieudo')) $('#menuBieudo').hide();
-    }
-
-    function dangXuatAdmin() {
-      hienXacNhanCustom("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống quản trị không?", "Đăng xuất hệ thống", function(isConfirmed) {
-        if (isConfirmed) {
-          sessionStorage.clear();
-          showToast("Đăng xuất thành công!", "success");
-          setTimeout(() => { location.reload(); }, 500);
-        }
-      });
-    }
-  </script>
 
   <div class="app-container">
     <nav class="sidebar collapsed" id="sidebarMenu">
@@ -435,7 +349,6 @@
                 <label style="color:#2980B9; font-weight:bold;">Đội xe Kế hoạch:</label>
                 <div style="width: 100%; min-width: 0;">
                   
-                  <!-- CẬP NHẬT: Ô CHỌN NGÀY ÁP DỤNG / ĐỔI LỘ TRÌNH & DÀN XE -->
                   <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px; background: #FFF8E7; padding: 8px 12px; border: 1px solid #FFE0B2; border-radius: 6px; flex-wrap: wrap;">
                     <label style="font-weight: bold; color: #D35400; font-size: 11px;"><i class="fa fa-calendar"></i> Ngày áp dụng / Đổi lộ trình & dàn xe:</label>
                     <input type="date" id="txtNgayApDungDoiXe" class="form-control" style="width: 160px; height: 30px;" title="Để trống hoặc chọn hôm nay nếu muốn áp dụng ngay lập tức">
@@ -451,7 +364,6 @@
                     </div>
                   </div>
 
-                  <!-- Thanh công cụ điều chuyển hàng loạt & Thêm xe -->
                   <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; background: #EBF2F8; padding: 8px 12px; border: 1px solid #C4D5E5; border-radius: 6px;">
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                       <span style="font-size: 11px; font-weight: bold; color: #1A5276;"><i class="fa fa-check-square-o"></i> Điều chuyển xe đã chọn sang:</span>
@@ -786,7 +698,7 @@
     </div>
   </div>
 
-  <!-- BỔ SUNG: MODAL XÁC NHẬN CUSTOM (THAY THẾ POPUP MẶC ĐỊNH) -->
+  <!-- MODAL XÁC NHẬN CUSTOM -->
   <div id="customConfirmModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.35); backdrop-filter:blur(5px); -webkit-backdrop-filter:blur(5px); z-index:9999999; justify-content:center; align-items:center;">
     <div style="background:#FFFFFF; width:330px; border-radius:14px; padding:20px; box-shadow:0 12px 30px rgba(0,0,0,0.2); text-align:center; animation: iosPopIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
       <div style="font-size:30px; color:#E67E22; margin-bottom:8px;"><i class="fa fa-exclamation-circle"></i></div>
@@ -807,6 +719,111 @@
   </style>
 
   <script>
+    const API_BASE = "https://dieu-hanh-bus.onrender.com";
+
+    let rawDanhMuc = [];
+    let dsXn = new Set();
+    let dsDauBen = new Set();
+    let mapTuyenChiTiet = new Map();
+    let tatCaXeHeThong = [];
+    let dsBieuDoLuu = [];
+    let danhMucXeMau = [];
+    let dangLamMoi = false;
+
+    // KHI TRANG TẢI XONG
+    $(document).ready(function() {
+      if (sessionStorage.getItem('admin_authenticated') === 'true') {
+        $('#authOverlay').remove();
+        $('body').removeClass('locked');
+        apDungQuyenTruyCap();
+      }
+
+      $('.select2-search').select2({
+        language: { noResults: () => "Không tìm thấy kết quả phù hợp (Nhấn Enter để thêm mới)" },
+        tags: true,
+        createTag: function (params) {
+          var term = $.trim(params.term);
+          if (term === '') { return null; }
+          return { id: term, text: term };
+        }
+      });
+
+      $('#chkCaTuan').prop('checked', true);
+      $('.chk-ngay-le').prop('checked', true);
+      tuDongTaoTenTab();
+
+      napDuLieuTong();
+      $('#selChonTuyen').on('change', onSelectTuyenChange);
+    });
+
+    // BẢO MẬT & ĐĂNG NHẬP
+    function getAdminInfo() {
+      const user = sessionStorage.getItem('admin_user');
+      const role = sessionStorage.getItem('admin_role');
+      if (!user || !role) {
+        showToast("Phiên đăng nhập hết hạn hoặc chưa đăng nhập!", "error");
+        setTimeout(() => { location.reload(); }, 1500);
+        throw new Error("Unauthorized");
+      }
+      return { actorUsername: user, role: role };
+    }
+
+    async function xuLyDangNhapAdmin() {
+      const username = $('#txtAdminId').val().trim();
+      const password = $('#txtAdminPass').val().trim();
+      const $errorBox = $('#authErrorMsg');
+
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/login`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        }).then(r => r.json());
+
+        if (res.success) {
+          sessionStorage.setItem('admin_authenticated', 'true');
+          sessionStorage.setItem('admin_role', res.role);
+          sessionStorage.setItem('admin_user', username);
+          sessionStorage.setItem('admin_permissions', JSON.stringify(res.permissions || []));
+          
+          $('body').removeClass('locked');
+          $('#authOverlay').fadeOut(300, function() { $(this).remove(); });
+          showToast(res.message, "success");
+          apDungQuyenTruyCap();
+        } else {
+          $errorBox.text(res.message || "Tài khoản không tồn tại trên hệ thống");
+          $('#txtAdminPass').val('').focus();
+        }
+      } catch (err) {
+        $errorBox.text("Không thể kết nối máy chủ quản trị!");
+      }
+    }
+
+    function apDungQuyenTruyCap() {
+      const role = sessionStorage.getItem('admin_role');
+      const permissions = JSON.parse(sessionStorage.getItem('admin_permissions') || '[]');
+
+      $('#menuTuyen, #menuXeMau, #menuBieudo, #menuThongBao, #menuLichHen, #menuQuanTriUser, #menuLog').show();
+
+      if (role === 'master' || sessionStorage.getItem('admin_user') === 'quan') {
+        $('#menuQuanTriUser, #menuLog').show();
+        return;
+      }
+      $('#menuQuanTriUser, #menuLog').hide();
+      if (!permissions.includes('tuyen')) $('#menuTuyen, #menuXeMau').hide();
+      if (!permissions.includes('bieudo')) $('#menuBieudo').hide();
+    }
+
+    function dangXuatAdmin() {
+      hienXacNhanCustom("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống quản trị không?", "Đăng xuất hệ thống", function(isConfirmed) {
+        if (isConfirmed) {
+          sessionStorage.clear();
+          showToast("Đăng xuất thành công!", "success");
+          setTimeout(() => { location.reload(); }, 500);
+        }
+      });
+    }
+
+    // UI HELPER FUNCTIONS
     function hienXacNhanCustom(noiDung, tieuDe, callback) {
       $('#confirmTitle').text(tieuDe || "Xác nhận thao tác");
       $('#confirmMessage').text(noiDung);
@@ -835,12 +852,6 @@
       setTimeout(() => { $toast.remove(); }, 3000);
     }
 
-    function togglePermissionCheckboxes() {
-      const role = $('#newAccRole').val();
-      if (role === 'master') { $('#permissionGroup').hide(); }
-      else { $('#permissionGroup').show(); }
-    }
-
     function chuyenTabAdmin(sectionId, element) {
       $('.content-section').removeClass('active');
       $('.sidebar-menu li a').removeClass('active');
@@ -860,14 +871,18 @@
 
     function toggleSidebar() { $('#sidebarMenu').toggleClass('collapsed'); }
 
-    let rawDanhMuc = [];
-    let dsXn = new Set();
-    let dsDauBen = new Set();
-    let mapTuyenChiTiet = new Map();
-    let tatCaXeHeThong = [];
-    let dsBieuDoLuu = [];
-    let danhMucXeMau = [];
-    let dangLamMoi = false;
+    function onXnSelectChange(sel) {
+      if ($(sel).val() === '__NEW__') { $('#txtXnMoi').show().focus(); }
+      else { $('#txtXnMoi').hide().val(''); }
+    }
+    function onDauASelectChange(sel) {
+      if ($(sel).val() === '__NEW__') { $('#txtDauAMoi').show().focus(); tuDongGoiYTenTuyen(); }
+      else { $('#txtDauAMoi').hide().val(''); tuDongGoiYTenTuyen(); }
+    }
+    function onDauBSelectChange(sel) {
+      if ($(sel).val() === '__NEW__') { $('#txtDauBMoi').show().focus(); tuDongGoiYTenTuyen(); }
+      else { $('#txtDauBMoi').hide().val(''); tuDongGoiYTenTuyen(); }
+    }
 
     function chuanHoaMaTuyen(str) {
       if (!str) return "";
@@ -880,184 +895,7 @@
       return strA.localeCompare(strB, 'vi', { numeric: true, sensitivity: 'base' });
     }
 
-    $(document).ready(function() {
-      $('.select2-search').select2({
-        language: { noResults: () => "Không tìm thấy kết quả phù hợp (Nhấn Enter để thêm mới)" },
-        tags: true,
-        createTag: function (params) {
-          var term = $.trim(params.term);
-          if (term === '') { return null; }
-          return { id: term, text: term };
-        }
-      });
-
-      $('#chkCaTuan').prop('checked', true);
-      $('.chk-ngay-le').prop('checked', true);
-      tuDongTaoTenTab();
-
-      napDuLieuTong();
-      $('#selChonTuyen').on('change', onSelectTuyenChange);
-    });
-
-    async function taiTaiThongBaoAdmin() {
-      try {
-        const res = await fetch(`${API_BASE}/api/thong-bao-chi-tiet`).then(r => r.json());
-        if (res.success) {
-          $('#txtNoiDungThongBao').val(res.defaultText || '');
-          veBangLichThongBao(res.scheduleList || []);
-        }
-      } catch (err) {}
-    }
-
-    async function luuThongBaoMacDinh() {
-      const text = $('#txtNoiDungThongBao').val().trim();
-      try {
-        const res = await fetch(`${API_BASE}/api/admin/luu-thong-bao`, {
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
-          body: JSON.stringify({ ...getAdminInfo(), text })
-        }).then(r => r.json());
-        showToast(res.message, res.success ? 'success' : 'error');
-      } catch (err) { showToast('Lỗi kết nối máy chủ!', 'error'); }
-    }
-
-    async function themvaoLichThongBao() {
-      const tuNgay = $('#txtTuNgay').val();
-      const tuGio = $('#txtTuGio').val() || '00:00';
-      const denNgay = $('#txtDenNgay').val();
-      const denGio = $('#txtDenGio').val() || '23:59';
-      const noiDung = $('#txtNoiDungLich').val().trim();
-
-      if (!tuNgay || !denNgay || !noiDung) {
-        showToast("Vui lòng chọn đầy đủ ngày và nội dung!", "error");
-        return;
-      }
-
-      try {
-        const res = await fetch(`${API_BASE}/api/admin/them-lich-thong-bao`, {
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
-          body: JSON.stringify({ ...getAdminInfo(), tuNgay, tuGio, denNgay, denGio, noiDung })
-        }).then(r => r.json());
-        showToast(res.message, res.success ? 'success' : 'error');
-        if (res.success) {
-          $('#txtTuNgay').val(''); $('#txtDenNgay').val(''); $('#txtNoiDungLich').val('');
-          taiTaiThongBaoAdmin();
-        }
-      } catch (err) { showToast('Lỗi kết nối!', 'error'); }
-    }
-
-    function veBangLichThongBao(list) {
-      let html = '';
-      if (!list || list.length === 0) {
-        html = '<tr><td colspan="5" style="text-align:center; color:#999; padding:12px;">Chưa có lịch thông báo nào!</td></tr>';
-      } else {
-        list.forEach((item, idx) => {
-          html += `
-            <tr>
-              <td style="text-align:center; font-weight:bold;">${idx + 1}</td>
-              <td>${item.tuNgay} ${item.tuGio || '00:00'}</td>
-              <td>${item.denNgay} ${item.denGio || '23:59'}</td>
-              <td>${item.noiDung}</td>
-              <td style="text-align:center;">
-                <button class="btn btn-danger" style="padding:2px 6px; font-size:10px; height: 26px;" onclick="xoaLichThongBao('${item.id || idx}')"><i class="fa fa-trash"></i> Xóa</button>
-              </td>
-            </tr>
-          `;
-        });
-      }
-      $('#tblDanhSachLichTB').html(html);
-    }
-
-    async function xoaLichThongBao(id) {
-      hienXacNhanCustom("Xác nhận xóa mốc lịch thông báo này?", "Xóa lịch thông báo", async function(isConfirmed) {
-        if (!isConfirmed) return;
-        try {
-          const res = await fetch(`${API_BASE}/api/admin/xoa-lich-thong-bao`, {
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
-            body: JSON.stringify({ ...getAdminInfo(), id })
-          }).then(r => r.json());
-          showToast(res.message, "success");
-          if (res.success) { taiTaiThongBaoAdmin(); }
-        } catch (err) { showToast('Lỗi kết nối!', 'error'); }
-      });
-    }
-
-    function resetFormTuyen() {
-      dangLamMoi = true;
-      $('#selChonTuyenDeSua').val("").trigger('change.select2');
-      $('#txtMaTuyen').val("").prop('readonly', false);
-      $('#selXn').val("").trigger('change.select2');
-      $('#selDauA').val("").trigger('change.select2');
-      $('#selDauB').val("").trigger('change.select2');
-      $('#txtTenTuyen').val("");
-      $('#adminTramDi').val("");
-      $('#adminTramVe').val("");
-      $('#txtNgayApDungDoiXe').val("");
-
-      $('input[name="rdStatus"][value="active"]').prop('checked', true);
-      renderBangXeForm([]);
-      dangLamMoi = false;
-    }
-
-    function chuanHoaTenXe(xe) {
-      let nhanHieu = (xe.nhanHieu || "").trim();
-      let chungLoai = (xe.chungLoai || "").trim();
-      if (nhanHieu && chungLoai) {
-        if (!chungLoai.toLowerCase().includes(nhanHieu.toLowerCase())) {
-          return `${nhanHieu} ${chungLoai}`;
-        }
-        return chungLoai;
-      }
-      return chungLoai || nhanHieu || "";
-    }
-
-    function onChonTuyenDeSuaChange() {
-      if (dangLamMoi) return;
-      const ma = $('#selChonTuyenDeSua').val();
-      if (!ma) { resetFormTuyen(); return; }
-      
-      const t = mapTuyenChiTiet.get(ma);
-      if (t) {
-        $('#txtMaTuyen').val(t.maTuyen).prop('readonly', true);
-        $('#txtTenTuyen').val(t.tenTuyen);
-        $(`input[name="rdStatus"][value="${t.status || 'active'}"]`).prop('checked', true);
-
-        $('#selXn').val(t.xn).trigger('change.select2');
-        $('#selDauA').val(t.dauA).trigger('change.select2');
-        $('#selDauB').val(t.dauB).trigger('change.select2');
-
-        $('#adminTramDi').val(t.tramDi || '');
-        $('#adminTramVe').val(t.tramVe || '');
-        $('#txtNgayApDungDoiXe').val('');
-
-        const xeCuaTuyen = tatCaXeHeThong.filter(x => chuanHoaMaTuyen(x.maTuyen) === chuanHoaMaTuyen(t.maTuyen));
-        xeCuaTuyen.sort((a, b) => sapXepThongMinh(a.bks, b.bks));
-
-        const formattedXe = xeCuaTuyen.map(x => ({
-          bks: x.bks,
-          chungLoai: chuanHoaTenXe(x),
-          sucChua: x.sucChua ? (String(x.sucChua).toLowerCase().includes('chỗ') ? x.sucChua : `${x.sucChua} chỗ`) : '',
-          namSx: x.namSx || ''
-        }));
-        
-        renderBangXeForm(formattedXe);
-      }
-    }
-
-    function tuDongGoiYTenTuyen() {
-      const ma = $('#txtMaTuyen').val().trim();
-      const selA = $('#selDauA').val();
-      const dauA = selA || "";
-      const selB = $('#selDauB').val();
-      const dauB = selB || "";
-
-      if (ma && dauA && dauB) {
-        $('#txtTenTuyen').val(`${ma}. ${dauA} - ${dauB}`);
-      }
-    }
-
+    // NẠP DỮ LIỆU TỔNG
     async function napDuLieuTong(chonMaTuyenMoi = '') {
       try {
         const [resDM, resXe, resMau] = await Promise.all([
@@ -1142,91 +980,79 @@
       }
     }
 
-    function veBangXeMauAdmin() {
-      let html = '';
-      if (!danhMucXeMau || danhMucXeMau.length === 0) {
-        html = '<tr><td colspan="5" style="text-align:center; color:#999; padding:15px;">Chưa có mác xe mẫu nào! Hãy thêm mới.</td></tr>';
-      } else {
-        danhMucXeMau.sort((a, b) => sapXepThongMinh(a.chungLoai, b.chungLoai));
-        danhMucXeMau.forEach((m, idx) => {
-          html += `
-            <tr>
-              <td style="text-align:center; font-weight:bold;">${idx + 1}</td>
-              <td><strong>${m.chungLoai}</strong></td>
-              <td>${m.sucChua || '-'}</td>
-              <td><strong>${m.namSx || '-'}</strong></td>
-              <td style="text-align:center;">
-                <button class="btn btn-danger" style="padding:2px 6px; font-size:10px; height:26px;" onclick="xoaXeMau('${m.chungLoai.replace(/'/g, "\\'")}', '${m.namSx || ''}')"><i class="fa fa-trash"></i> Xóa</button>
-              </td>
-            </tr>
-          `;
-        });
+    // SECTION: TUYẾN & ĐỘI XE
+    function resetFormTuyen() {
+      dangLamMoi = true;
+      $('#selChonTuyenDeSua').val("").trigger('change.select2');
+      $('#txtMaTuyen').val("").prop('readonly', false);
+      $('#selXn').val("").trigger('change.select2');
+      $('#selDauA').val("").trigger('change.select2');
+      $('#selDauB').val("").trigger('change.select2');
+      $('#txtTenTuyen').val("");
+      $('#adminTramDi').val("");
+      $('#adminTramVe').val("");
+      $('#txtNgayApDungDoiXe').val("");
+
+      $('input[name="rdStatus"][value="active"]').prop('checked', true);
+      renderBangXeForm([]);
+      dangLamMoi = false;
+    }
+
+    function chuanHoaTenXe(xe) {
+      let nhanHieu = (xe.nhanHieu || "").trim();
+      let chungLoai = (xe.chungLoai || "").trim();
+      if (nhanHieu && chungLoai) {
+        if (!chungLoai.toLowerCase().includes(nhanHieu.toLowerCase())) {
+          return `${nhanHieu} ${chungLoai}`;
+        }
+        return chungLoai;
       }
-      $('#tblDanhSachXeMau').html(html);
+      return chungLoai || nhanHieu || "";
     }
 
-    async function themXeMauMoi() {
-      const chungLoai = $('#txtMauChungLoai').val().trim();
-      const sucChua = $('#txtMauSucChua').val().trim();
-      const namSx = $('#txtMauNamSx').val().trim();
-      if (!chungLoai) { showToast("Vui lòng nhập tên chủng loại xe!", "error"); return; }
+    function onChonTuyenDeSuaChange() {
+      if (dangLamMoi) return;
+      const ma = $('#selChonTuyenDeSua').val();
+      if (!ma) { resetFormTuyen(); return; }
+      
+      const t = mapTuyenChiTiet.get(ma);
+      if (t) {
+        $('#txtMaTuyen').val(t.maTuyen).prop('readonly', true);
+        $('#txtTenTuyen').val(t.tenTuyen);
+        $(`input[name="rdStatus"][value="${t.status || 'active'}"]`).prop('checked', true);
 
-      try {
-        const res = await fetch(`${API_BASE}/api/admin/luu-xe-mau`, {
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
-          body: JSON.stringify({ 
-            ...getAdminInfo(),
-            chungLoai, 
-            namSx, 
-            sucChua: sucChua.toLowerCase().includes('chỗ') ? sucChua : (sucChua ? `${sucChua} chỗ` : '')
-          })
-        }).then(r => r.json());
-        showToast(res.message, res.success ? "success" : "error");
-        if (res.success) {
-          $('#txtMauChungLoai').val(''); $('#txtMauSucChua').val(''); $('#txtMauNamSx').val('');
-          const resMau = await fetch(`${API_BASE}/api/admin/danh-sach-xe-mau`).then(r => r.json());
-          if (resMau.success) danhMucXeMau = resMau.data || [];
-          veBangXeMauAdmin();
-        }
-      } catch (e) { showToast("Lỗi kết nối", "error"); }
+        $('#selXn').val(t.xn).trigger('change.select2');
+        $('#selDauA').val(t.dauA).trigger('change.select2');
+        $('#selDauB').val(t.dauB).trigger('change.select2');
+
+        $('#adminTramDi').val(t.tramDi || '');
+        $('#adminTramVe').val(t.tramVe || '');
+        $('#txtNgayApDungDoiXe').val('');
+
+        const xeCuaTuyen = tatCaXeHeThong.filter(x => chuanHoaMaTuyen(x.maTuyen) === chuanHoaMaTuyen(t.maTuyen));
+        xeCuaTuyen.sort((a, b) => sapXepThongMinh(a.bks, b.bks));
+
+        const formattedXe = xeCuaTuyen.map(x => ({
+          bks: x.bks,
+          chungLoai: chuanHoaTenXe(x),
+          sucChua: x.sucChua ? (String(x.sucChua).toLowerCase().includes('chỗ') ? x.sucChua : `${x.sucChua} chỗ`) : '',
+          namSx: x.namSx || ''
+        }));
+        
+        renderBangXeForm(formattedXe);
+      }
     }
 
-    async function xoaXeMau(chungLoai, namSx) {
-      hienXacNhanCustom(`Xác nhận xóa mác xe [${chungLoai} - Năm ${namSx || 'N/A'}] khỏi danh mục mẫu?`, "Xóa mác xe mẫu", async function(isConfirmed) {
-        if (!isConfirmed) return;
-        try {
-          const res = await fetch(`${API_BASE}/api/admin/xoa-xe-mau`, {
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
-            body: JSON.stringify({ ...getAdminInfo(), chungLoai, namSx })
-          }).then(r => r.json());
-          showToast(res.message, "success");
-          if (res.success) {
-            danhMucXeMau = danhMucXeMau.filter(m => !(m.chungLoai === chungLoai && String(m.namSx || '') === String(namSx || '')));
-            veBangXeMauAdmin();
-          }
-        } catch (e) { showToast("Lỗi kết nối", "error"); }
-      });
-    }
+    function tuDongGoiYTenTuyen() {
+      const ma = $('#txtMaTuyen').val().trim();
+      const selA = $('#selDauA').val();
+      const dauA = selA || "";
+      const selB = $('#selDauB').val();
+      const dauB = selB || "";
 
-    async function importXeMauExcel() {
-      const text = $('#txtExcelXeMau').val().trim();
-      if (!text) { showToast("Chưa dán dữ liệu Excel!", "error"); return; }
-      try {
-        const res = await fetch(`${API_BASE}/api/admin/import-xe-mau`, {
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
-          body: JSON.stringify({ ...getAdminInfo(), rawText: text })
-        }).then(r => r.json());
-        showToast(res.message, res.success ? "success" : "error");
-        if (res.success) {
-          $('#txtExcelXeMau').val('');
-          const resMau = await fetch(`${API_BASE}/api/admin/danh-sach-xe-mau`).then(r => r.json());
-          if (resMau.success) danhMucXeMau = resMau.data || [];
-          veBangXeMauAdmin();
-        }
-      } catch (e) { showToast("Lỗi kết nối", "error"); }
+      if (ma && dauA && dauB) {
+        $('#txtTenTuyen').val(`${ma}. ${dauA} - ${dauB}`);
+      }
     }
 
     function renderBangXeForm(danhSachXe = []) {
@@ -1268,7 +1094,7 @@
             <td style="text-align: center; font-weight: bold; color: #555;">${idx + 1}</td>
             <td><input type="text" class="form-control form-bks" value="${xe.bks || ''}" placeholder="VD: 29F-019.79" style="height: 28px;"></td>
             <td>
-              <select class="form-control form-chungloai select2-search" style="height: 28px; font-size: 11px;" onchange="chonMauXe(this)">
+              <select class="form-control form-chungloai select2-search-row" style="height: 28px; font-size: 11px;" onchange="chonMauXe(this)">
                 ${mauOptions}
               </select>
             </td>
@@ -1287,7 +1113,7 @@
       });
       $('#tblFormDanhSachXe').html(html);
       $('#chkSelectAllFormXe').prop('checked', false);
-      $('.select2-search').select2({ language: { noResults: () => "Không tìm thấy kết quả phù hợp" } });
+      $('.select2-search-row').select2({ language: { noResults: () => "Không tìm thấy kết quả phù hợp" } });
     }
 
     function toggleSelectAllFormXe(masterChk) {
@@ -1303,7 +1129,9 @@
 
       const tuyenMoi = $('#selTuyenChuyenHangLoat').val();
       const ngayApDung = $('#txtNgayApDungDoiXe').val();
-      const today = new Date().toISOString().split('T')[0];
+      
+      // Đổi sang múi giờ chuẩn Client YYYY-MM-DD
+      const today = new Date().toLocaleDateString('en-CA');
 
       if (selectedBks.length === 0) {
         showToast("Vui lòng tích chọn ít nhất 1 xe để điều chuyển!", "error");
@@ -1312,7 +1140,6 @@
 
       const tenTuyenTarget = tuyenMoi === 'DP' ? 'Bến Dự Phòng (DP)' : `Tuyến ${tuyenMoi}`;
 
-      // TRƯỜNG HỢP 1: NGÀY TƯƠNG LAI -> TỰ ĐỘNG HẸN GIỜ ĐIỀU CHUYỂN
       if (ngayApDung && ngayApDung > today) {
         hienXacNhanCustom(
           `Bạn có chắc chắn muốn LÊN LỊCH HẸN điều chuyển ${selectedBks.length} xe đã chọn sang [${tenTuyenTarget}] vào ngày ${ngayApDung}?`,
@@ -1321,7 +1148,6 @@
             if (!isConfirmed) return;
 
             try {
-              // Lấy dàn xe hiện tại của tuyến mới
               const xeTuyenMoi = tatCaXeHeThong.filter(x => chuanHoaMaTuyen(x.maTuyen) === chuanHoaMaTuyen(tuyenMoi));
               const danhSachXeMoi = [...xeTuyenMoi];
 
@@ -1362,7 +1188,6 @@
         return;
       }
 
-      // TRƯỜNG HỢP 2: NGÀY HÔM NAY HOẶC ĐỂ TRỐNG -> ĐIỀU CHUYỂN NGAY LẬP TỨC
       hienXacNhanCustom(
         `Bạn có chắc chắn muốn điều chuyển NGAY LẬP TỨC ${selectedBks.length} xe đã chọn sang [${tenTuyenTarget}] không?`,
         "Điều chuyển xe tức thì",
@@ -1546,7 +1371,6 @@
       } catch (err) {}
     }
 
-    // HÀM LƯU TUYẾN & ĐỘI XE
     async function xacLapTuyenVaDoiXe() {
       const maTuyen = $('#txtMaTuyen').val().trim();
       
@@ -1621,7 +1445,423 @@
       }
     }
 
-    // JAVASCRIPT XỬ LÝ LỊCH HẸN & LỊCH SỬ TẬP TRUNG
+    // SECTION: MÁC XE MẪU
+    function veBangXeMauAdmin() {
+      let html = '';
+      if (!danhMucXeMau || danhMucXeMau.length === 0) {
+        html = '<tr><td colspan="5" style="text-align:center; color:#999; padding:15px;">Chưa có mác xe mẫu nào! Hãy thêm mới.</td></tr>';
+      } else {
+        danhMucXeMau.sort((a, b) => sapXepThongMinh(a.chungLoai, b.chungLoai));
+        danhMucXeMau.forEach((m, idx) => {
+          html += `
+            <tr>
+              <td style="text-align:center; font-weight:bold;">${idx + 1}</td>
+              <td><strong>${m.chungLoai}</strong></td>
+              <td>${m.sucChua || '-'}</td>
+              <td><strong>${m.namSx || '-'}</strong></td>
+              <td style="text-align:center;">
+                <button class="btn btn-danger" style="padding:2px 6px; font-size:10px; height:26px;" onclick="xoaXeMau('${m.chungLoai.replace(/'/g, "\\'")}', '${m.namSx || ''}')"><i class="fa fa-trash"></i> Xóa</button>
+              </td>
+            </tr>
+          `;
+        });
+      }
+      $('#tblDanhSachXeMau').html(html);
+    }
+
+    async function themXeMauMoi() {
+      const chungLoai = $('#txtMauChungLoai').val().trim();
+      const sucChua = $('#txtMauSucChua').val().trim();
+      const namSx = $('#txtMauNamSx').val().trim();
+      if (!chungLoai) { showToast("Vui lòng nhập tên chủng loại xe!", "error"); return; }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/luu-xe-mau`, {
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
+          body: JSON.stringify({ 
+            ...getAdminInfo(),
+            chungLoai, 
+            namSx, 
+            sucChua: sucChua.toLowerCase().includes('chỗ') ? sucChua : (sucChua ? `${sucChua} chỗ` : '')
+          })
+        }).then(r => r.json());
+        showToast(res.message, res.success ? "success" : "error");
+        if (res.success) {
+          $('#txtMauChungLoai').val(''); $('#txtMauSucChua').val(''); $('#txtMauNamSx').val('');
+          const resMau = await fetch(`${API_BASE}/api/admin/danh-sach-xe-mau`).then(r => r.json());
+          if (resMau.success) danhMucXeMau = resMau.data || [];
+          veBangXeMauAdmin();
+        }
+      } catch (e) { showToast("Lỗi kết nối", "error"); }
+    }
+
+    async function xoaXeMau(chungLoai, namSx) {
+      hienXacNhanCustom(`Xác nhận xóa mác xe [${chungLoai} - Năm ${namSx || 'N/A'}] khỏi danh mục mẫu?`, "Xóa mác xe mẫu", async function(isConfirmed) {
+        if (!isConfirmed) return;
+        try {
+          const res = await fetch(`${API_BASE}/api/admin/xoa-xe-mau`, {
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
+            body: JSON.stringify({ ...getAdminInfo(), chungLoai, namSx })
+          }).then(r => r.json());
+          showToast(res.message, "success");
+          if (res.success) {
+            danhMucXeMau = danhMucXeMau.filter(m => !(m.chungLoai === chungLoai && String(m.namSx || '') === String(namSx || '')));
+            veBangXeMauAdmin();
+          }
+        } catch (e) { showToast("Lỗi kết nối", "error"); }
+      });
+    }
+
+    async function importXeMauExcel() {
+      const text = $('#txtExcelXeMau').val().trim();
+      if (!text) { showToast("Chưa dán dữ liệu Excel!", "error"); return; }
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/import-xe-mau`, {
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
+          body: JSON.stringify({ ...getAdminInfo(), rawText: text })
+        }).then(r => r.json());
+        showToast(res.message, res.success ? "success" : "error");
+        if (res.success) {
+          $('#txtExcelXeMau').val('');
+          const resMau = await fetch(`${API_BASE}/api/admin/danh-sach-xe-mau`).then(r => r.json());
+          if (resMau.success) danhMucXeMau = resMau.data || [];
+          veBangXeMauAdmin();
+        }
+      } catch (e) { showToast("Lỗi kết nối", "error"); }
+    }
+
+    async function xoaTatCaXeMau() {
+      hienXacNhanCustom("Cảnh báo: Thao tác này chỉ xóa danh mục mác xe mẫu, hoàn toàn KHÔNG ảnh hưởng đến xe của các tuyến. Bạn có chắc chắn muốn xóa không?", "Xóa sạch mác xe mẫu", async function(isConfirmed) {
+        if (!isConfirmed) return;
+        try {
+          const res = await fetch(`${API_BASE}/api/admin/xoa-tat-ca-xe-mau`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
+            body: JSON.stringify({ ...getAdminInfo() })
+          }).then(r => r.json());
+          
+          if (res.success) {
+            showToast(res.message || "Đã dọn sạch danh mục xe mẫu!", "success");
+            location.reload();
+          } else {
+            showToast(res.message || "Lỗi khi xóa!", "error");
+          }
+        } catch (err) {
+          showToast("Lỗi kết nối máy chủ!", "error");
+        }
+      });
+    }
+
+    // SECTION: BIỂU ĐỒ CHẠY XE
+    function onSelectTuyenChange() {
+      const opt = $('#selChonTuyen').find(':selected');
+      $('#txtBieuDoXn').val(opt.attr('data-xn') || "");
+      tuDongTaoTenTab();
+    }
+
+    function toggleCaTuan(elem) {
+      const isChecked = $(elem).prop('checked'); $('.chk-ngay-le').prop('checked', isChecked);
+      tuDongTaoTenTab();
+    }
+
+    function onCheckboxDayChange() {
+      const allChecked = $('.chk-ngay-le').length === $('.chk-ngay-le:checked').length;
+      $('#chkCaTuan').prop('checked', allChecked);
+      tuDongTaoTenTab();
+    }
+
+    function tuDongTaoTenTab() {
+      const tuyen = $('#selChonTuyen').val();
+      const ngayBatDauInput = $('#txtNgayBatDau').val().trim();
+
+      if (!tuyen) { $('#txtTenTab').val(""); return; }
+      const match = tuyen.match(/^([A-Za-z0-9]+)/);
+      const maNgan = match ? match[1] : tuyen;
+
+      const shortDate = formatShortDateCustom(ngayBatDauInput);
+
+      const selectedDays = [];
+      $('.chk-ngay-le:checked').each(function() {
+        selectedDays.push($(this).val());
+      });
+
+      let dayStr = "";
+      const isFullWeek = (selectedDays.length === 7);
+
+      if (isFullWeek || selectedDays.length === 0) {
+        $('#txtTenTab').val(shortDate ? `${maNgan} (${shortDate})` : maNgan);
+        return;
+      }
+
+      if (selectedDays.length === 1 && selectedDays[0] === 'CN') {
+        $('#txtTenTab').val(shortDate ? `${maNgan} (${shortDate}, CN)` : `${maNgan} (CN)`);
+        return;
+      }
+
+      const weekDays = ["2", "3", "4", "5", "6", "7"];
+      const isMonToSat = weekDays.every(d => selectedDays.includes(d)) && !selectedDays.includes('CN');
+      if (isMonToSat) {
+        $('#txtTenTab').val(shortDate ? `${maNgan} (${shortDate}, 2-7)` : `${maNgan} (2-7)`);
+        return;
+      }
+
+      let ranges = [];
+      let start = null;
+      let prev = null;
+      const allPossible = ["2", "3", "4", "5", "6", "7", "CN"];
+
+      allPossible.forEach(d => {
+        if (selectedDays.includes(d)) {
+          if (!start) start = d;
+          prev = d;
+        } else {
+          if (start) {
+            ranges.push(start === prev ? start : `${start}-${prev}`);
+            start = null;
+            prev = null;
+          }
+        }
+      });
+      if (start) {
+        ranges.push(start === prev ? start : `${start}-${prev}`);
+      }
+      dayStr = ranges.join(", ");
+
+      $('#txtTenTab').val(shortDate ? `${maNgan} (${shortDate}, ${dayStr})` : `${maNgan} (${dayStr})`);
+    }
+
+    function formatShortDateCustom(dateStr) {
+      if (!dateStr) return "";
+      dateStr = dateStr.trim();
+      const parts = dateStr.split(/[\/\-\.]/);
+      if (parts.length === 3) {
+        let d = parseInt(parts[0], 10);
+        let m = parseInt(parts[1], 10);
+        let y = parseInt(parts[2], 10);
+        if (y >= 2000) y -= 2000;
+        else if (y >= 1900) y -= 1900;
+        return `${d}.${m}.${y}`;
+      }
+      return dateStr;
+    }
+
+    async function luuBieuDo() {
+      const tuyen = $('#selChonTuyen').val();
+      const xn = $('#txtBieuDoXn').val();
+      const ngayApDung = $('#txtNgayBatDau').val().trim();
+      const tenTab = $('#txtTenTab').val().trim();
+      const rawText = $('#txtRawData').val().trim();
+
+      if (!tuyen) { showToast("Vui lòng chọn Tuyến!", "error"); return; }
+      if (!ngayApDung || !rawText || !tenTab) { showToast("Vui lòng điền Ngày hiệu lực và dán Dữ liệu giờ!", "error"); return; }
+
+      const lines = rawText.split("\n"); const rawData = []; let maxCols = 0;
+      lines.forEach(l => { if (l.trim()) { const cols = l.split("\t"); if (cols.length > maxCols) maxCols = cols.length; rawData.push(cols); } });
+      rawData.forEach(row => { while (row.length < maxCols) row.push(""); });
+
+      try {
+        const res = await fetch(`${API_BASE}/api/luu-bieu-do`, {
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
+          body: JSON.stringify({ ...getAdminInfo(), xn, tuyen, bieuDo: ngayApDung, tenTab, rawData, ngayApDung })
+        }).then(r => r.json());
+        showToast(res.message, "success");
+        $('#txtRawData').val("");
+        await napDuLieuTong();
+      } catch (err) { showToast("Lỗi: " + err, "error"); }
+    }
+
+    async function xoaBieuDo() {
+      const tenTab = $('#txtTenTab').val().trim();
+      if (!tenTab) { showToast("Chưa chọn biểu đồ để xóa!", "error"); return; }
+      
+      hienXacNhanCustom(`Xóa vĩnh viễn biểu đồ [${tenTab}]?`, "Xóa biểu đồ", async function(isConfirmed) {
+        if (!isConfirmed) return;
+        try {
+          const res = await fetch(`${API_BASE}/api/xoa-bieu-do`, {
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') }, 
+            body: JSON.stringify({ ...getAdminInfo(), tenTab })
+          }).then(r => r.json());
+          showToast(res.message, "success");
+          if (res.success) { await napDuLieuTong(); $('#txtRawData').val(""); $('#txtNgayBatDau').val(""); tuDongTaoTenTab(); }
+        } catch (err) { showToast("Lỗi: " + err, "error"); }
+      });
+    }
+
+    function veBangTrangThaiBieuDo(sortedRoutes) {
+      let html = '';
+      if (!sortedRoutes || sortedRoutes.length === 0) {
+        html = '<tr><td colspan="5" style="text-align:center; color:#999; padding:15px;">Chưa có tuyến nào!</td></tr>';
+      } else {
+        sortedRoutes.forEach(t => {
+          let maTuyenCurrentNorm = chuanHoaMaTuyen(t.maTuyen);
+          let tenTuyenCurrent = String(t.tenTuyen || '').trim().toUpperCase();
+          
+          const matchedCharts = dsBieuDoLuu.filter(b => {
+            let bTuyen = String(b.tuyen || '').trim().toUpperCase();
+            let bTab = String(b.tenTab || '').trim().toUpperCase();
+            const isMatchTuyenField = (bTuyen === tenTuyenCurrent || chuanHoaMaTuyen(bTuyen) === maTuyenCurrentNorm);
+            let matchPrefix = bTab.match(/^([0-9A-Za-z]+)/);
+            let maTabPrefixNorm = matchPrefix ? chuanHoaMaTuyen(matchPrefix[1]) : "";
+            const isMatchPrefix = (maTabPrefixNorm === maTuyenCurrentNorm);
+            return isMatchTuyenField || isMatchPrefix;
+          });
+
+          if (matchedCharts.length > 0) {
+            matchedCharts.forEach((chart, idx) => {
+              const badge = '<span class="status-badge status-has-chart"><i class="fa fa-check-circle"></i> Đã có biểu đồ</span>';
+              const actionBtns = `
+                <div style="display:flex; gap:6px; justify-content:center;">
+                  <button class="btn btn-primary" style="padding:3px 8px; font-size:11px; height:26px;" onclick="napBieuDoLenSua('${chart.tenTab}')"><i class="fa fa-pencil"></i> Sửa</button>
+                  <button class="btn btn-danger" style="padding:3px 8px; font-size:11px; height:26px;" onclick="xoaBieuDoChiDinh('${chart.tenTab}')"><i class="fa fa-trash"></i> Xóa</button>
+                </div>
+              `;
+              html += `
+                <tr>
+                  <td style="text-align:center; font-weight:bold; color:#3B86C4;">${idx === 0 ? t.maTuyen : ''}</td>
+                  <td><strong>${idx === 0 ? t.tenTuyen : ''}</strong></td>
+                  <td><code style="color:#0F86DB; font-weight:bold;">${chart.tenTab}</code></td>
+                  <td style="text-align:center;">${badge}</td>
+                  <td style="text-align:center;">${actionBtns}</td>
+                </tr>
+              `;
+            });
+          } else {
+            const badge = '<span class="status-badge status-missing-chart"><i class="fa fa-exclamation-circle"></i> Thiếu biểu đồ</span>';
+            html += `
+              <tr>
+                <td style="text-align:center; font-weight:bold; color:#3B86C4;">${t.maTuyen}</td>
+                <td><strong>${t.tenTuyen}</strong></td>
+                <td><span style="color:#aaa; font-style:italic;">Chưa có file</span></td>
+                <td style="text-align:center;">${badge}</td>
+                <td style="text-align:center;"><span style="color:#ccc;">-</span></td>
+              </tr>
+            `;
+          }
+        });
+      }
+      $('#tblTrangThaiBieuDo').html(html);
+    }
+
+    function napBieuDoLenSua(tenTab) {
+      const chart = dsBieuDoLuu.find(b => b.tenTab === tenTab);
+      if (!chart) return;
+      $('#selChonTuyen').val(chart.tuyen).trigger('change.select2');
+      $('#txtNgayBatDau').val(chart.ngayApDung || "");
+      $('#txtTenTab').val(chart.tenTab);
+      if (chart.rawData && Array.isArray(chart.rawData)) {
+        $('#txtRawData').val(chart.rawData.map(row => row.join("\t")).join("\n"));
+      }
+      chuyenTabAdmin('sec-bieudo', $('.sidebar-menu li a')[3]);
+      showToast(`Đã nạp biểu đồ [${tenTab}] lên form chỉnh sửa!`, "success");
+    }
+
+    async function xoaBieuDoChiDinh(tenTab) {
+      hienXacNhanCustom(`Xóa vĩnh viễn biểu đồ [${tenTab}]?`, "Xóa biểu đồ", async function(isConfirmed) {
+        if (!isConfirmed) return;
+        try {
+          const res = await fetch(`${API_BASE}/api/xoa-bieu-do`, {
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') }, 
+            body: JSON.stringify({ ...getAdminInfo(), tenTab })
+          }).then(r => r.json());
+          showToast(res.message, "success");
+          if (res.success) { await napDuLieuTong(); }
+        } catch (err) { showToast("Lỗi: " + err, "error"); }
+      });
+    }
+
+    // SECTION: THÔNG BÁO MARQUEE
+    async function taiTaiThongBaoAdmin() {
+      try {
+        const res = await fetch(`${API_BASE}/api/thong-bao-chi-tiet`).then(r => r.json());
+        if (res.success) {
+          $('#txtNoiDungThongBao').val(res.defaultText || '');
+          veBangLichThongBao(res.scheduleList || []);
+        }
+      } catch (err) {}
+    }
+
+    async function luuThongBaoMacDinh() {
+      const text = $('#txtNoiDungThongBao').val().trim();
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/luu-thong-bao`, {
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
+          body: JSON.stringify({ ...getAdminInfo(), text })
+        }).then(r => r.json());
+        showToast(res.message, res.success ? 'success' : 'error');
+      } catch (err) { showToast('Lỗi kết nối máy chủ!', 'error'); }
+    }
+
+    async function themvaoLichThongBao() {
+      const tuNgay = $('#txtTuNgay').val();
+      const tuGio = $('#txtTuGio').val() || '00:00';
+      const denNgay = $('#txtDenNgay').val();
+      const denGio = $('#txtDenGio').val() || '23:59';
+      const noiDung = $('#txtNoiDungLich').val().trim();
+
+      if (!tuNgay || !denNgay || !noiDung) {
+        showToast("Vui lòng chọn đầy đủ ngày và nội dung!", "error");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/them-lich-thong-bao`, {
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
+          body: JSON.stringify({ ...getAdminInfo(), tuNgay, tuGio, denNgay, denGio, noiDung })
+        }).then(r => r.json());
+        showToast(res.message, res.success ? 'success' : 'error');
+        if (res.success) {
+          $('#txtTuNgay').val(''); $('#txtDenNgay').val(''); $('#txtNoiDungLich').val('');
+          taiTaiThongBaoAdmin();
+        }
+      } catch (err) { showToast('Lỗi kết nối!', 'error'); }
+    }
+
+    function veBangLichThongBao(list) {
+      let html = '';
+      if (!list || list.length === 0) {
+        html = '<tr><td colspan="5" style="text-align:center; color:#999; padding:12px;">Chưa có lịch thông báo nào!</td></tr>';
+      } else {
+        list.forEach((item, idx) => {
+          html += `
+            <tr>
+              <td style="text-align:center; font-weight:bold;">${idx + 1}</td>
+              <td>${item.tuNgay} ${item.tuGio || '00:00'}</td>
+              <td>${item.denNgay} ${item.denGio || '23:59'}</td>
+              <td>${item.noiDung}</td>
+              <td style="text-align:center;">
+                <button class="btn btn-danger" style="padding:2px 6px; font-size:10px; height: 26px;" onclick="xoaLichThongBao('${item.id || idx}')"><i class="fa fa-trash"></i> Xóa</button>
+              </td>
+            </tr>
+          `;
+        });
+      }
+      $('#tblDanhSachLichTB').html(html);
+    }
+
+    async function xoaLichThongBao(id) {
+      hienXacNhanCustom("Xác nhận xóa mốc lịch thông báo này?", "Xóa lịch thông báo", async function(isConfirmed) {
+        if (!isConfirmed) return;
+        try {
+          const res = await fetch(`${API_BASE}/api/admin/xoa-lich-thong-bao`, {
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
+            body: JSON.stringify({ ...getAdminInfo(), id })
+          }).then(r => r.json());
+          showToast(res.message, "success");
+          if (res.success) { taiTaiThongBaoAdmin(); }
+        } catch (err) { showToast('Lỗi kết nối!', 'error'); }
+      });
+    }
+
+    // SECTION: LỊCH HẸN & LỊCH SỬ
     async function taiDanhSachLichHen() {
       try {
         const res = await fetch(`${API_BASE}/api/admin/lay-danh-sach-lich`, {
@@ -1732,89 +1972,7 @@
       });
     }
 
-    function veBangTrangThaiBieuDo(sortedRoutes) {
-      let html = '';
-      if (!sortedRoutes || sortedRoutes.length === 0) {
-        html = '<tr><td colspan="5" style="text-align:center; color:#999; padding:15px;">Chưa có tuyến nào!</td></tr>';
-      } else {
-        sortedRoutes.forEach(t => {
-          let maTuyenCurrentNorm = chuanHoaMaTuyen(t.maTuyen);
-          let tenTuyenCurrent = String(t.tenTuyen || '').trim().toUpperCase();
-          
-          const matchedCharts = dsBieuDoLuu.filter(b => {
-            let bTuyen = String(b.tuyen || '').trim().toUpperCase();
-            let bTab = String(b.tenTab || '').trim().toUpperCase();
-            const isMatchTuyenField = (bTuyen === tenTuyenCurrent || chuanHoaMaTuyen(bTuyen) === maTuyenCurrentNorm);
-            let matchPrefix = bTab.match(/^([0-9A-Za-z]+)/);
-            let maTabPrefixNorm = matchPrefix ? chuanHoaMaTuyen(matchPrefix[1]) : "";
-            const isMatchPrefix = (maTabPrefixNorm === maTuyenCurrentNorm);
-            return isMatchTuyenField || isMatchPrefix;
-          });
-
-          if (matchedCharts.length > 0) {
-            matchedCharts.forEach((chart, idx) => {
-              const badge = '<span class="status-badge status-has-chart"><i class="fa fa-check-circle"></i> Đã có biểu đồ</span>';
-              const actionBtns = `
-                <div style="display:flex; gap:6px; justify-content:center;">
-                  <button class="btn btn-primary" style="padding:3px 8px; font-size:11px; height:26px;" onclick="napBieuDoLenSua('${chart.tenTab}')"><i class="fa fa-pencil"></i> Sửa</button>
-                  <button class="btn btn-danger" style="padding:3px 8px; font-size:11px; height:26px;" onclick="xoaBieuDoChiDinh('${chart.tenTab}')"><i class="fa fa-trash"></i> Xóa</button>
-                </div>
-              `;
-              html += `
-                <tr>
-                  <td style="text-align:center; font-weight:bold; color:#3B86C4;">${idx === 0 ? t.maTuyen : ''}</td>
-                  <td><strong>${idx === 0 ? t.tenTuyen : ''}</strong></td>
-                  <td><code style="color:#0F86DB; font-weight:bold;">${chart.tenTab}</code></td>
-                  <td style="text-align:center;">${badge}</td>
-                  <td style="text-align:center;">${actionBtns}</td>
-                </tr>
-              `;
-            });
-          } else {
-            const badge = '<span class="status-badge status-missing-chart" style="background:#FCE8E6; color:#C5221F;"><i class="fa fa-exclamation-circle"></i> Thiếu biểu đồ</span>';
-            html += `
-              <tr>
-                <td style="text-align:center; font-weight:bold; color:#3B86C4;">${t.maTuyen}</td>
-                <td><strong>${t.tenTuyen}</strong></td>
-                <td><span style="color:#aaa; font-style:italic;">Chưa có file</span></td>
-                <td style="text-align:center;">${badge}</td>
-                <td style="text-align:center;"><span style="color:#ccc;">-</span></td>
-              </tr>
-            `;
-          }
-        });
-      }
-      $('#tblTrangThaiBieuDo').html(html);
-    }
-
-    function napBieuDoLenSua(tenTab) {
-      const chart = dsBieuDoLuu.find(b => b.tenTab === tenTab);
-      if (!chart) return;
-      $('#selChonTuyen').val(chart.tuyen).trigger('change.select2');
-      $('#txtNgayBatDau').val(chart.ngayApDung || "");
-      $('#txtTenTab').val(chart.tenTab);
-      if (chart.rawData && Array.isArray(chart.rawData)) {
-        $('#txtRawData').val(chart.rawData.map(row => row.join("\t")).join("\n"));
-      }
-      chuyenTabAdmin('sec-bieudo', $('.sidebar-menu li a')[3]);
-      showToast(`Đã nạp biểu đồ [${tenTab}] lên form chỉnh sửa!`, "success");
-    }
-
-    async function xoaBieuDoChiDinh(tenTab) {
-      hienXacNhanCustom(`Xóa vĩnh viễn biểu đồ [${tenTab}]?`, "Xóa biểu đồ", async function(isConfirmed) {
-        if (!isConfirmed) return;
-        try {
-          const res = await fetch(`${API_BASE}/api/xoa-bieu-do`, {
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') }, 
-            body: JSON.stringify({ ...getAdminInfo(), tenTab })
-          }).then(r => r.json());
-          showToast(res.message, "success");
-          if (res.success) { await napDuLieuTong(); }
-        } catch (err) { showToast("Lỗi: " + err, "error"); }
-      });
-    }
-
+    // DASHBOARD & TỔNG QUAN
     function capNhatThongKe() {
       let tongTuyen = mapTuyenChiTiet.size;
       let tuyenActive = 0, tuyenLocked = 0, tongXeVdActive = 0, tongXeKhActive = 0, tongXeLocked = 0;
@@ -1909,140 +2067,11 @@
       if (currentVal) $sel.val(currentVal);
     }
 
-    function onSelectTuyenChange() {
-      const opt = $('#selChonTuyen').find(':selected');
-      $('#txtBieuDoXn').val(opt.attr('data-xn') || "");
-      tuDongTaoTenTab();
-    }
-
-    function toggleCaTuan(elem) {
-      const isChecked = $(elem).prop('checked'); $('.chk-ngay-le').prop('checked', isChecked);
-      tuDongTaoTenTab();
-    }
-
-    function onCheckboxDayChange() {
-      const allChecked = $('.chk-ngay-le').length === $('.chk-ngay-le:checked').length;
-      $('#chkCaTuan').prop('checked', allChecked);
-      tuDongTaoTenTab();
-    }
-
-    function tuDongTaoTenTab() {
-      const tuyen = $('#selChonTuyen').val();
-      const ngayBatDauInput = $('#txtNgayBatDau').val().trim();
-
-      if (!tuyen) { $('#txtTenTab').val(""); return; }
-      const match = tuyen.match(/^([A-Za-z0-9]+)/);
-      const maNgan = match ? match[1] : tuyen;
-
-      const shortDate = formatShortDateCustom(ngayBatDauInput);
-
-      const selectedDays = [];
-      $('.chk-ngay-le:checked').each(function() {
-        selectedDays.push($(this).val());
-      });
-
-      let dayStr = "";
-      const isFullWeek = (selectedDays.length === 7);
-
-      if (isFullWeek || selectedDays.length === 0) {
-        $('#txtTenTab').val(shortDate ? `${maNgan} (${shortDate})` : maNgan);
-        return;
-      }
-
-      if (selectedDays.length === 1 && selectedDays[0] === 'CN') {
-        $('#txtTenTab').val(shortDate ? `${maNgan} (${shortDate}, CN)` : `${maNgan} (CN)`);
-        return;
-      }
-
-      const weekDays = ["2", "3", "4", "5", "6", "7"];
-      const isMonToSat = weekDays.every(d => selectedDays.includes(d)) && !selectedDays.includes('CN');
-      if (isMonToSat) {
-        $('#txtTenTab').val(shortDate ? `${maNgan} (${shortDate}, 2-7)` : `${maNgan} (2-7)`);
-        return;
-      }
-
-      let ranges = [];
-      let start = null;
-      let prev = null;
-      const allPossible = ["2", "3", "4", "5", "6", "7", "CN"];
-
-      allPossible.forEach(d => {
-        if (selectedDays.includes(d)) {
-          if (!start) start = d;
-          prev = d;
-        } else {
-          if (start) {
-            ranges.push(start === prev ? start : `${start}-${prev}`);
-            start = null;
-            prev = null;
-          }
-        }
-      });
-      if (start) {
-        ranges.push(start === prev ? start : `${start}-${prev}`);
-      }
-      dayStr = ranges.join(", ");
-
-      $('#txtTenTab').val(shortDate ? `${maNgan} (${shortDate}, ${dayStr})` : `${maNgan} (${dayStr})`);
-    }
-    
-    function formatShortDateCustom(dateStr) {
-      if (!dateStr) return "";
-      dateStr = dateStr.trim();
-      const parts = dateStr.split(/[\/\-\.]/);
-      if (parts.length === 3) {
-        let d = parseInt(parts[0], 10);
-        let m = parseInt(parts[1], 10);
-        let y = parseInt(parts[2], 10);
-        if (y >= 2000) y -= 2000;
-        else if (y >= 1900) y -= 1900;
-        return `${d}.${m}.${y}`;
-      }
-      return dateStr;
-    }
-
-    async function luuBieuDo() {
-      const tuyen = $('#selChonTuyen').val();
-      const xn = $('#txtBieuDoXn').val();
-      const ngayApDung = $('#txtNgayBatDau').val().trim();
-      const tenTab = $('#txtTenTab').val().trim();
-      const rawText = $('#txtRawData').val().trim();
-
-      if (!tuyen) { showToast("Vui lòng chọn Tuyến!", "error"); return; }
-      if (!ngayApDung || !rawText || !tenTab) { showToast("Vui lòng điền Ngày hiệu lực và dán Dữ liệu giờ!", "error"); return; }
-
-      const lines = rawText.split("\n"); const rawData = []; let maxCols = 0;
-      lines.forEach(l => { if (l.trim()) { const cols = l.split("\t"); if (cols.length > maxCols) maxCols = cols.length; rawData.push(cols); } });
-      rawData.forEach(row => { while (row.length < maxCols) row.push(""); });
-
-      try {
-        const res = await fetch(`${API_BASE}/api/luu-bieu-do`, {
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
-          body: JSON.stringify({ ...getAdminInfo(), xn, tuyen, bieuDo: ngayApDung, tenTab, rawData, ngayApDung })
-        }).then(r => r.json());
-        showToast(res.message, "success");
-        $('#txtRawData').val("");
-        await napDuLieuTong();
-      } catch (err) { showToast("Lỗi: " + err, "error"); }
-    }
-
-    async function xoaBieuDo() {
-      const tenTab = $('#txtTenTab').val().trim();
-      if (!tenTab) { showToast("Chưa chọn biểu đồ để xóa!", "error"); return; }
-      
-      hienXacNhanCustom(`Xóa vĩnh viễn biểu đồ [${tenTab}]?`, "Xóa biểu đồ", async function(isConfirmed) {
-        if (!isConfirmed) return;
-        try {
-          const res = await fetch(`${API_BASE}/api/xoa-bieu-do`, {
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') }, 
-            body: JSON.stringify({ ...getAdminInfo(), tenTab })
-          }).then(r => r.json());
-          showToast(res.message, "success");
-          if (res.success) { await napDuLieuTong(); $('#txtRawData').val(""); $('#txtNgayBatDau').val(""); tuDongTaoTenTab(); }
-        } catch (err) { showToast("Lỗi: " + err, "error"); }
-      });
+    // SECTION: QUẢN TRỊ NGƯỜI DÙNG & LOGS
+    function togglePermissionCheckboxes() {
+      const role = $('#newAccRole').val();
+      if (role === 'master') { $('#permissionGroup').hide(); }
+      else { $('#permissionGroup').show(); }
     }
 
     async function taiDanhSachLog() {
@@ -2215,28 +2244,6 @@
           taiDanhSachTaiKhoan();
         } catch (e) { 
           showToast("Lỗi thao tác", "error"); 
-        }
-      });
-    }
-
-    async function xoaTatCaXeMau() {
-      hienXacNhanCustom("Cảnh báo: Thao tác này chỉ xóa danh mục mác xe mẫu, hoàn toàn KHÔNG ảnh hưởng đến xe của các tuyến. Bạn có chắc chắn muốn xóa không?", "Xóa sạch mác xe mẫu", async function(isConfirmed) {
-        if (!isConfirmed) return;
-        try {
-          const res = await fetch(`${API_BASE}/api/admin/xoa-tat-ca-xe-mau`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
-            body: JSON.stringify({ ...getAdminInfo() })
-          }).then(r => r.json());
-          
-          if (res.success) {
-            showToast(res.message || "Đã dọn sạch danh mục xe mẫu!", "success");
-            location.reload();
-          } else {
-            showToast(res.message || "Lỗi khi xóa!", "error");
-          }
-        } catch (err) {
-          showToast("Lỗi kết nối máy chủ!", "error");
         }
       });
     }
