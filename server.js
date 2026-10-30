@@ -10,7 +10,7 @@ const mongoose = require('mongoose');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Chuỗi kết nối MongoDB Atlas (Khuyên dùng Environment Variable trên Render)
+// Chuỗi kết nối MongoDB Atlas
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://dquan4701_db_user:Quanbus123456@cluster0.sur3koa.mongodb.net/dieuhanhbus?retryWrites=true&w=majority';
 
 app.use(cors());
@@ -26,6 +26,22 @@ function getVietnamTodayISO() {
 // HELPER: Lấy chuỗi thời gian hiển thị tiếng Việt múi giờ Việt Nam
 function getVietnamTimeString() {
   return new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+}
+
+// HELPER: Chuẩn hóa mọi định dạng ngày (DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY) về YYYY-MM-DD
+function parseDateToISO(dateStr) {
+  if (!dateStr) return getVietnamTodayISO();
+  let s = String(dateStr).trim();
+  const parts = s.split(/[\/\-\.]/);
+  if (parts.length === 3) {
+    if (parts[0].length <= 2 && parts[2].length >= 2) {
+      let d = parts[0].padStart(2, '0');
+      let m = parts[1].padStart(2, '0');
+      let y = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+      return `${y}-${m}-${d}`;
+    }
+  }
+  return s;
 }
 
 // MONGOOSE SCHEMAS & MODELS
@@ -113,7 +129,7 @@ async function cleanAndSyncData(data) {
   const todayISO = getVietnamTodayISO();
   let isDataChanged = false;
 
-  // STEP A: Chuẩn hóa & lọc trùng BKS xe trước khi xử lý tráo xe
+  // STEP A: Chuẩn hóa & lọc trùng BKS xe
   const uniqueXeMap = new Map();
   data.xeList.forEach(x => {
     if (x && x.bks) {
@@ -127,10 +143,11 @@ async function cleanAndSyncData(data) {
   });
   data.xeList = Array.from(uniqueXeMap.values());
 
-  // STEP B: Tự động chuyển dàn xe hẹn giờ khi đến ngày (Chuẩn múi giờ VN)
+  // STEP B: Tự động chuyển dàn xe hẹn giờ khi đến ngày
   if (Array.isArray(data.scheduledFleetUpdates)) {
     data.scheduledFleetUpdates.forEach(update => {
-      if (update.status === 'pending' && update.ngayApDung <= todayISO) {
+      const targetDateISO = parseDateToISO(update.ngayApDung);
+      if (update.status === 'pending' && targetDateISO <= todayISO) {
         const normMaTuyen = String(update.maTuyen).toUpperCase();
         const newCars = (update.danhSachXe || []).map(x => ({
           ...x,
@@ -153,7 +170,6 @@ async function cleanAndSyncData(data) {
         update.status = 'applied';
         isDataChanged = true;
 
-        // Ghi lại lịch sử thực thi tự động
         data.historyLog.unshift({
           id: update.id || Date.now().toString(),
           timeStr: getVietnamTimeString(),
@@ -171,7 +187,8 @@ async function cleanAndSyncData(data) {
   // STEP C: Tự động đổi thông tin Tuyến khi đến ngày
   if (Array.isArray(data.scheduledRouteUpdates)) {
     data.scheduledRouteUpdates.forEach(update => {
-      if (update.status === 'pending' && update.ngayApDung <= todayISO) {
+      const targetDateISO = parseDateToISO(update.ngayApDung);
+      if (update.status === 'pending' && targetDateISO <= todayISO) {
         const normMaTuyen = String(update.maTuyen).toUpperCase();
         if (update.tuyenInfo) {
           data.tuyenList[normMaTuyen] = {
@@ -964,23 +981,6 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
 
     const normMaTuyen = String(maTuyen).trim().toUpperCase();
     const today = getVietnamTodayISO();
-
-    function parseDateToISO(dateStr) {
-      if (!dateStr) return today;
-      let s = String(dateStr).trim();
-      if (s.includes('/')) {
-        const parts = s.split('/');
-        if (parts.length === 3) {
-          let d = parts[0].padStart(2, '0');
-          let m = parts[1].padStart(2, '0');
-          let y = parts[2];
-          if (y.length === 2) y = '20' + y;
-          return `${y}-${m}-${d}`;
-        }
-      }
-      return s;
-    }
-
     const ngayHieuLuc = ngayApDung ? parseDateToISO(ngayApDung) : today;
 
     const newCarsForRoute = (danhSachXe || []).map(x => {
@@ -1075,23 +1075,6 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], verifyAdmin, async (req, res) =>
 
     const normMaTuyen = String(maTuyen).trim().toUpperCase();
     const today = getVietnamTodayISO();
-
-    function parseDateToISO(dateStr) {
-      if (!dateStr) return today;
-      let s = String(dateStr).trim();
-      if (s.includes('/')) {
-        const parts = s.split('/');
-        if (parts.length === 3) {
-          let d = parts[0].padStart(2, '0');
-          let m = parts[1].padStart(2, '0');
-          let y = parts[2];
-          if (y.length === 2) y = '20' + y;
-          return `${y}-${m}-${d}`;
-        }
-      }
-      return s;
-    }
-
     const ngayHieuLuc = ngayApDung ? parseDateToISO(ngayApDung) : today;
 
     const newTuyenInfo = {
