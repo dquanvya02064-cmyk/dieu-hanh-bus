@@ -10,13 +10,23 @@ const mongoose = require('mongoose');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Chuỗi kết nối MongoDB Atlas
+// Chuỗi kết nối MongoDB Atlas (Khuyên dùng Environment Variable trên Render)
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://dquan4701_db_user:Quanbus123456@cluster0.sur3koa.mongodb.net/dieuhanhbus?retryWrites=true&w=majority';
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// HELPER: Lấy ngày ISO YYYY-MM-DD chuẩn múi giờ Việt Nam (UTC+7)
+function getVietnamTodayISO() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+}
+
+// HELPER: Lấy chuỗi thời gian hiển thị tiếng Việt múi giờ Việt Nam
+function getVietnamTimeString() {
+  return new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+}
 
 // MONGOOSE SCHEMAS & MODELS
 const busDataSchema = new mongoose.Schema({
@@ -100,15 +110,33 @@ async function cleanAndSyncData(data) {
   if (!Array.isArray(data.danhMucXeMau)) data.danhMucXeMau = [];
   if (!Array.isArray(data.historyLog)) data.historyLog = [];
 
-  const todayISO = new Date().toISOString().split('T')[0];
+  const todayISO = getVietnamTodayISO();
   let isDataChanged = false;
 
-  // 1. Tự động chuyển dàn xe hẹn giờ khi đến ngày
+  // STEP A: Chuẩn hóa & lọc trùng BKS xe trước khi xử lý tráo xe
+  const uniqueXeMap = new Map();
+  data.xeList.forEach(x => {
+    if (x && x.bks) {
+      const bksNorm = String(x.bks).trim().toUpperCase();
+      uniqueXeMap.set(bksNorm, {
+        ...x,
+        bks: bksNorm,
+        maTuyen: String(x.maTuyen || '').trim().toUpperCase()
+      });
+    }
+  });
+  data.xeList = Array.from(uniqueXeMap.values());
+
+  // STEP B: Tự động chuyển dàn xe hẹn giờ khi đến ngày (Chuẩn múi giờ VN)
   if (Array.isArray(data.scheduledFleetUpdates)) {
     data.scheduledFleetUpdates.forEach(update => {
       if (update.status === 'pending' && update.ngayApDung <= todayISO) {
         const normMaTuyen = String(update.maTuyen).toUpperCase();
-        const newCars = update.danhSachXe || [];
+        const newCars = (update.danhSachXe || []).map(x => ({
+          ...x,
+          bks: String(x.bks || '').trim().toUpperCase(),
+          maTuyen: normMaTuyen
+        }));
         const newBksSet = new Set(newCars.map(x => x.bks));
 
         const otherCars = data.xeList.filter(x => String(x.maTuyen || '').trim().toUpperCase() !== normMaTuyen);
@@ -128,7 +156,7 @@ async function cleanAndSyncData(data) {
         // Ghi lại lịch sử thực thi tự động
         data.historyLog.unshift({
           id: update.id || Date.now().toString(),
-          timeStr: new Date().toLocaleString('vi-VN'),
+          timeStr: getVietnamTimeString(),
           type: 'TUYEN_DOI_XE',
           target: `Tuyến ${update.maTuyen}`,
           details: `Tự động áp dụng đội xe mới (${newCars.length} xe), tự động đẩy xe cũ về Bến DP`,
@@ -140,7 +168,7 @@ async function cleanAndSyncData(data) {
     });
   }
 
-  // 2. Tự động đổi thông tin Tuyến (Xí nghiệp, Đầu A/B, Trạm đi/về) khi đến ngày
+  // STEP C: Tự động đổi thông tin Tuyến khi đến ngày
   if (Array.isArray(data.scheduledRouteUpdates)) {
     data.scheduledRouteUpdates.forEach(update => {
       if (update.status === 'pending' && update.ngayApDung <= todayISO) {
@@ -154,10 +182,9 @@ async function cleanAndSyncData(data) {
         update.status = 'applied';
         isDataChanged = true;
 
-        // Ghi lại lịch sử thực thi tự động
         data.historyLog.unshift({
           id: update.id || Date.now().toString(),
-          timeStr: new Date().toLocaleString('vi-VN'),
+          timeStr: getVietnamTimeString(),
           type: 'TUYEN_DOI_XE',
           target: `Tuyến ${update.maTuyen}`,
           details: `Tự động cập nhật thông tin / Lộ trình / Xí nghiệp quản lý tuyến`,
@@ -169,20 +196,7 @@ async function cleanAndSyncData(data) {
     });
   }
 
-  // 3. Chuẩn hóa & lọc trùng BKS xe
-  const uniqueXeMap = new Map();
-  data.xeList.forEach(x => {
-    if (x && x.bks) {
-      uniqueXeMap.set(x.bks.trim().toUpperCase(), {
-        ...x,
-        bks: x.bks.trim().toUpperCase(),
-        maTuyen: String(x.maTuyen || '').trim().toUpperCase()
-      });
-    }
-  });
-  data.xeList = Array.from(uniqueXeMap.values());
-
-  // 4. Đếm lại xe kế hoạch theo tuyến
+  // STEP D: Đếm lại xe kế hoạch theo tuyến
   const realKhCounts = {};
   data.xeList.forEach(x => {
     let maT = String(x.maTuyen || '').trim().toUpperCase();
@@ -191,7 +205,7 @@ async function cleanAndSyncData(data) {
     }
   });
 
-  // 5. Lấy số nốt tối đa từ biểu đồ
+  // STEP E: Lấy số nốt tối đa từ biểu đồ
   const tuyenChartsMap = {};
   if (Array.isArray(data.bieuDoList)) {
     data.bieuDoList.forEach(item => {
@@ -226,7 +240,7 @@ async function cleanAndSyncData(data) {
     }
   }
 
-  // 6. Cập nhật thông tin tuyến
+  // STEP F: Cập nhật thông tin tuyến
   for (let k in data.tuyenList) {
     let tObj = data.tuyenList[k];
     let maT = (tObj.maTuyen || k).toUpperCase();
@@ -331,13 +345,12 @@ async function saveRawData(data) {
   );
 }
 
-// --- API HỆ THỐNG LỊCH HẸN & LỊCH SỬ TẬP TRUNG (DÙNG CHO SECTION 6 ADMIN) ---
+// --- API HỆ THỐNG LỊCH HẸN & LỊCH SỬ TẬP TRUNG ---
 app.get('/api/admin/lay-danh-sach-lich', verifyAdmin, async (req, res) => {
   try {
     const raw = await getRawData();
     const pending = [];
 
-    // 1. Quét danh sách hẹn đổi đội xe
     if (Array.isArray(raw.scheduledFleetUpdates)) {
       raw.scheduledFleetUpdates.forEach(item => {
         if (item.status === 'pending') {
@@ -354,7 +367,6 @@ app.get('/api/admin/lay-danh-sach-lich', verifyAdmin, async (req, res) => {
       });
     }
 
-    // 2. Quét danh sách hẹn đổi thông tin tuyến / lộ trình
     if (Array.isArray(raw.scheduledRouteUpdates)) {
       raw.scheduledRouteUpdates.forEach(item => {
         if (item.status === 'pending') {
@@ -371,7 +383,6 @@ app.get('/api/admin/lay-danh-sach-lich', verifyAdmin, async (req, res) => {
       });
     }
 
-    // 3. Quét lịch thông báo chữ nếu có
     if (Array.isArray(raw.thongBaoScheduleList)) {
       raw.thongBaoScheduleList.forEach(item => {
         pending.push({
@@ -405,12 +416,11 @@ app.post('/api/admin/chay-ngay-lich-hen', verifyAdmin, async (req, res) => {
     let isExecuted = false;
     let targetName = '';
 
-    // Kích hoạt ngay lịch đổi đội xe
     if (Array.isArray(raw.scheduledFleetUpdates)) {
       const fleetItem = raw.scheduledFleetUpdates.find(f => f.id === taskId && f.status === 'pending');
       if (fleetItem) {
         const normMaTuyen = String(fleetItem.maTuyen).toUpperCase();
-        const newCars = fleetItem.danhSachXe || [];
+        const newCars = (fleetItem.danhSachXe || []).map(x => ({ ...x, bks: String(x.bks || '').trim().toUpperCase(), maTuyen: normMaTuyen }));
         const newBksSet = new Set(newCars.map(x => x.bks));
 
         const otherCars = raw.xeList.filter(x => String(x.maTuyen || '').trim().toUpperCase() !== normMaTuyen);
@@ -431,7 +441,7 @@ app.post('/api/admin/chay-ngay-lich-hen', verifyAdmin, async (req, res) => {
         if (!Array.isArray(raw.historyLog)) raw.historyLog = [];
         raw.historyLog.unshift({
           id: fleetItem.id,
-          timeStr: new Date().toLocaleString('vi-VN'),
+          timeStr: getVietnamTimeString(),
           type: 'TUYEN_DOI_XE',
           target: targetName,
           details: `Kích hoạt ngay áp dụng đội xe mới (${newCars.length} xe), tự động đẩy xe cũ về DP`,
@@ -442,7 +452,6 @@ app.post('/api/admin/chay-ngay-lich-hen', verifyAdmin, async (req, res) => {
       }
     }
 
-    // Kích hoạt ngay lịch đổi thông tin tuyến
     if (!isExecuted && Array.isArray(raw.scheduledRouteUpdates)) {
       const routeItem = raw.scheduledRouteUpdates.find(r => r.id === taskId && r.status === 'pending');
       if (routeItem) {
@@ -460,7 +469,7 @@ app.post('/api/admin/chay-ngay-lich-hen', verifyAdmin, async (req, res) => {
         if (!Array.isArray(raw.historyLog)) raw.historyLog = [];
         raw.historyLog.unshift({
           id: routeItem.id,
-          timeStr: new Date().toLocaleString('vi-VN'),
+          timeStr: getVietnamTimeString(),
           type: 'TUYEN_DOI_XE',
           target: targetName,
           details: `Kích hoạt ngay cập nhật thông tin / Lộ trình tuyến`,
@@ -502,7 +511,7 @@ app.post('/api/admin/huy-lich-hen', verifyAdmin, async (req, res) => {
         if (!Array.isArray(raw.historyLog)) raw.historyLog = [];
         raw.historyLog.unshift({
           id: fleetItem.id,
-          timeStr: new Date().toLocaleString('vi-VN'),
+          timeStr: getVietnamTimeString(),
           type: 'TUYEN_DOI_XE',
           target: targetName,
           details: `Hủy lịch hẹn thay đổi đội xe (${(fleetItem.danhSachXe || []).length} xe)`,
@@ -523,7 +532,7 @@ app.post('/api/admin/huy-lich-hen', verifyAdmin, async (req, res) => {
         if (!Array.isArray(raw.historyLog)) raw.historyLog = [];
         raw.historyLog.unshift({
           id: routeItem.id,
-          timeStr: new Date().toLocaleString('vi-VN'),
+          timeStr: getVietnamTimeString(),
           type: 'TUYEN_DOI_XE',
           target: targetName,
           details: `Hủy lịch hẹn thay đổi thông tin/lộ trình tuyến`,
@@ -554,7 +563,7 @@ app.get('/api/thong-bao', async (req, res) => {
     const scheduleList = raw.thongBaoScheduleList || [];
     
     const now = new Date();
-    const todayDate = now.toISOString().split('T')[0];
+    const todayDate = getVietnamTodayISO();
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const currentTime = `${hours}:${minutes}`;
@@ -954,7 +963,7 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
     if (!Array.isArray(raw.scheduledFleetUpdates)) raw.scheduledFleetUpdates = [];
 
     const normMaTuyen = String(maTuyen).trim().toUpperCase();
-    const today = new Date().toISOString().split('T')[0];
+    const today = getVietnamTodayISO();
 
     function parseDateToISO(dateStr) {
       if (!dateStr) return today;
@@ -974,7 +983,6 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
 
     const ngayHieuLuc = ngayApDung ? parseDateToISO(ngayApDung) : today;
 
-    // Chuẩn hóa danh sách xe mới
     const newCarsForRoute = (danhSachXe || []).map(x => {
       let bksUpper = String(x.bks || '').trim().toUpperCase();
       let inputChungLoai = x.chungLoai || '';
@@ -995,7 +1003,6 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
       };
     }).filter(x => x.bks);
 
-    // 1. TRƯỜNG HỢP HẸN NGÀY TƯƠNG LAI
     if (ngayHieuLuc > today) {
       raw.scheduledFleetUpdates = raw.scheduledFleetUpdates.filter(
         item => String(item.maTuyen).trim().toUpperCase() !== normMaTuyen || item.status !== 'pending'
@@ -1019,7 +1026,6 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
       });
     }
 
-    // 2. TRƯỜNG HỢP ÁP DỤNG NGAY LẬP TỨC
     raw.scheduledFleetUpdates = raw.scheduledFleetUpdates.filter(
       item => String(item.maTuyen).trim().toUpperCase() !== normMaTuyen || item.status !== 'pending'
     );
@@ -1068,7 +1074,7 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], verifyAdmin, async (req, res) =>
     if (!Array.isArray(raw.scheduledRouteUpdates)) raw.scheduledRouteUpdates = [];
 
     const normMaTuyen = String(maTuyen).trim().toUpperCase();
-    const today = new Date().toISOString().split('T')[0];
+    const today = getVietnamTodayISO();
 
     function parseDateToISO(dateStr) {
       if (!dateStr) return today;
@@ -1104,7 +1110,6 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], verifyAdmin, async (req, res) =>
       status: status || "active"
     };
 
-    // 1. NẾU CHỌN NGÀY TƯƠNG LAI -> LƯU VÀO HÀNG CHỜ LỊCH HẸN
     if (ngayHieuLuc > today) {
       raw.scheduledRouteUpdates = raw.scheduledRouteUpdates.filter(
         item => String(item.maTuyen).trim().toUpperCase() !== normMaTuyen || item.status !== 'pending'
@@ -1128,7 +1133,6 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], verifyAdmin, async (req, res) =>
       });
     }
 
-    // 2. NẾU ĐỂ TRỐNG / NGÀY HÔM NAY -> CẬP NHẬT NGAY LẬP TỨC
     raw.scheduledRouteUpdates = raw.scheduledRouteUpdates.filter(
       item => String(item.maTuyen).trim().toUpperCase() !== normMaTuyen || item.status !== 'pending'
     );
@@ -1463,7 +1467,7 @@ app.post(['/api/import-xe-excel', '/api/import-danh-sach-xe'], verifyAdmin, asyn
       }
 
       const existingMap = new Map();
-      raw.xeList.forEach(x => existingMap.set(x.bks.toUpperCase(), x));
+      raw.xeList.forEach(x => existingMap.set(String(x.bks || '').trim().toUpperCase(), x));
       importedCars.forEach(x => existingMap.set(x.bks, x));
       raw.xeList = Array.from(existingMap.values());
     }
@@ -1519,10 +1523,14 @@ app.post('/api/dieu-chuyen-xe-hang-loat', verifyAdmin, async (req, res) => {
     if (!Array.isArray(raw.xeList)) raw.xeList = [];
 
     const normTuyenMoi = String(tuyenMoi).trim().toUpperCase();
+    const targetBksSet = new Set(bksList.map(b => String(b || '').trim().toUpperCase()));
+
     let count = 0;
     raw.xeList.forEach(x => {
-      if (bksList.includes(String(x.bks || '').trim().toUpperCase())) {
+      const normBks = String(x.bks || '').trim().toUpperCase();
+      if (targetBksSet.has(normBks)) {
         x.maTuyen = normTuyenMoi;
+        x.updatedAt = new Date();
         count++;
       }
     });
