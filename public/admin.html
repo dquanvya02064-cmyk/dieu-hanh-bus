@@ -1303,6 +1303,7 @@
 
       const tuyenMoi = $('#selTuyenChuyenHangLoat').val();
       const ngayApDung = $('#txtNgayApDungDoiXe').val();
+      const today = new Date().toISOString().split('T')[0];
 
       if (selectedBks.length === 0) {
         showToast("Vui lòng tích chọn ít nhất 1 xe để điều chuyển!", "error");
@@ -1310,14 +1311,60 @@
       }
 
       const tenTuyenTarget = tuyenMoi === 'DP' ? 'Bến Dự Phòng (DP)' : `Tuyến ${tuyenMoi}`;
-      
-      let thongBaoCanhBao = `Bạn có chắc chắn muốn điều chuyển ${selectedBks.length} xe đã chọn sang [${tenTuyenTarget}] không?`;
-      if (ngayApDung) {
-        thongBaoCanhBao = `⚠️ LƯU Ý: Bạn đang chọn ngày áp dụng là [${ngayApDung}].\n\nNút "Chuyển xe đã chọn" này sẽ điều chuyển xe NGAY LẬP TỨC chứ không hẹn giờ.\n\n(Nếu muốn hẹn ngày tương lai mới chuyển dàn xe, hãy sửa danh sách trong bảng rồi bấm nút "Lưu thông tin Tuyến & Đội xe" ở dưới cùng).\n\nBạn vẫn muốn CHUYỂN NGAY LẬP TỨC chứ?`;
+
+      // TRƯỜNG HỢP 1: NGÀY TƯƠNG LAI -> TỰ ĐỘNG HẸN GIỜ ĐIỀU CHUYỂN
+      if (ngayApDung && ngayApDung > today) {
+        hienXacNhanCustom(
+          `Bạn có chắc chắn muốn LÊN LỊCH HẸN điều chuyển ${selectedBks.length} xe đã chọn sang [${tenTuyenTarget}] vào ngày ${ngayApDung}?`,
+          "Lên lịch hẹn điều chuyển xe",
+          async function(isConfirmed) {
+            if (!isConfirmed) return;
+
+            try {
+              // Lấy dàn xe hiện tại của tuyến mới
+              const xeTuyenMoi = tatCaXeHeThong.filter(x => chuanHoaMaTuyen(x.maTuyen) === chuanHoaMaTuyen(tuyenMoi));
+              const danhSachXeMoi = [...xeTuyenMoi];
+
+              selectedBks.forEach(bks => {
+                const xeObj = tatCaXeHeThong.find(x => x.bks.toUpperCase() === bks.toUpperCase());
+                if (xeObj) {
+                  danhSachXeMoi.push({ ...xeObj, maTuyen: tuyenMoi });
+                } else {
+                  danhSachXeMoi.push({ bks, maTuyen: tuyenMoi });
+                }
+              });
+
+              const res = await fetch(`${API_BASE}/api/admin/luu-doi-xe-tuyen`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'x-admin-user': sessionStorage.getItem('admin_user')
+                },
+                body: JSON.stringify({
+                  ...getAdminInfo(),
+                  maTuyen: tuyenMoi,
+                  danhSachXe: danhSachXeMoi,
+                  ngayApDung: ngayApDung
+                })
+              }).then(r => r.json());
+
+              if (res.success) {
+                showToast(`Đã lên lịch hẹn điều chuyển ${selectedBks.length} xe sang [${tenTuyenTarget}] vào ngày ${ngayApDung}!`, "success");
+                await napDuLieuTong($('#txtMaTuyen').val());
+              } else {
+                showToast(res.message || "Lỗi lên lịch hẹn!", "error");
+              }
+            } catch (err) {
+              showToast("Lỗi kết nối máy chủ!", "error");
+            }
+          }
+        );
+        return;
       }
 
+      // TRƯỜNG HỢP 2: NGÀY HÔM NAY HOẶC ĐỂ TRỐNG -> ĐIỀU CHUYỂN NGAY LẬP TỨC
       hienXacNhanCustom(
-        thongBaoCanhBao,
+        `Bạn có chắc chắn muốn điều chuyển NGAY LẬP TỨC ${selectedBks.length} xe đã chọn sang [${tenTuyenTarget}] không?`,
         "Điều chuyển xe tức thì",
         async function(isConfirmed) {
           if (!isConfirmed) return;
