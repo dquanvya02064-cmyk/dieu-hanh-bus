@@ -19,9 +19,12 @@
       color: #333;
       padding: 12px;
       padding-bottom: 75px;
+      -webkit-font-smoothing: antialiased;
     }
 
     button, .btn-view, select, input, .nav-btn {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 12px;
       -webkit-tap-highlight-color: transparent;
       transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.2s ease, box-shadow 0.2s ease;
     }
@@ -166,6 +169,7 @@
       overflow-x: auto;
       background: #FFFFFF;
       border: 1px solid #CCCCCC;
+      border-radius: 6px;
       -webkit-overflow-scrolling: touch;
     }
 
@@ -224,6 +228,12 @@
       margin-top: 12px;
       padding: 14px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      animation: iosFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes iosFadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .bottom-nav {
@@ -353,7 +363,7 @@
             <i class="fa fa-map-o" style="color: #3B86C4;"></i> Sơ đồ định hướng tuyến: <span id="schemaTitle" style="color: #E74C3C;"></span>
           </div>
           <div id="schemaSvgContainer" style="width: 100%; overflow-x: auto;">
-            <!-- Sơ đồ sẽ được vẽ tự động động ở đây -->
+            <!-- Sơ đồ sẽ được vẽ tự động ở đây -->
           </div>
         </div>
 
@@ -792,7 +802,7 @@
         <svg viewBox="0 0 ${dynamicWidth} ${totalHeight}" style="width: 100%; height: auto; min-width: 950px; overflow: visible;">
           <style>
             text {
-              font-family: "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+              font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
               text-rendering: geometricPrecision;
               -webkit-font-smoothing: antialiased;
             }
@@ -859,6 +869,7 @@
       }
       return str;
     }
+
     function chuyenPhut(t) {
       if (!t) return 0;
       const p = t.split(":");
@@ -976,7 +987,7 @@
       let html = '<thead>';
 
       if (bannerLines.length > 0) {
-        bannerLines.forEach((line, idx) => {
+        bannerLines.forEach((line) => {
           html += `<tr><th colspan="${totalCols}" style="font-size:12px; font-weight:bold; padding:6px; background:#FFFFFF; border:1px solid #CCCCCC; text-align:center; color:#111;">${line}</th></tr>`;
         });
       }
