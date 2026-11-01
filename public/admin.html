@@ -10,6 +10,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+  <!-- THƯ VIỆN SHEETJS XỬ LÝ EXCEL 1-CLICK CLIENT-SIDE -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -347,9 +349,20 @@
                     <span style="font-size: 11px; color: #7F8C8D; font-style: italic;">(Nếu chọn ngày tương lai, hệ thống sẽ tự động đổi Lộ trình / Xí nghiệp / Dàn xe vào đúng 00:00 ngày đó)</span>
                   </div>
 
+                  <!-- CỤM NHẬP / XUẤT EXCEL 1-CLICK CHO ĐỘI XE -->
                   <div style="margin-bottom: 12px; background: #F8FAFC; padding: 10px 12px; border: 1px solid #D0D7DE; border-radius: 6px;">
-                    <span style="font-size: 11px; color: #2C3E50; font-weight: bold;"><i class="fa fa-file-excel-o" style="color: #27AE60;"></i> Dán nhanh danh sách xe từ Excel cho tuyến này:</span>
-                    <div style="font-size: 10px; color: #666; margin-bottom: 4px; font-style: italic;">(Cấu trúc các cột: Biển số | Chủng loại xe | Sức chứa | Năm sản xuất — copy trực tiếp từ Excel dán vào đây)</div>
+                    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+                      <input type="file" id="fileExcelDoiXe" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyImportExcelXe(this)">
+                      <button type="button" class="btn btn-success btn-sm" onclick="$('#fileExcelDoiXe').click()">
+                        <i class="fa fa-file-excel-o"></i> Nhập Excel 1-Click
+                      </button>
+                      <button type="button" class="btn btn-primary btn-sm" onclick="xuatExcelDoiXeHienTai()">
+                        <i class="fa fa-download"></i> Xuất Excel 1-Click
+                      </button>
+                    </div>
+
+                    <span style="font-size: 11px; color: #2C3E50; font-weight: bold;"><i class="fa fa-clipboard" style="color: #27AE60;"></i> Hoặc dán nhanh từ Excel cho tuyến này:</span>
+                    <div style="font-size: 10px; color: #666; margin-bottom: 4px; font-style: italic;">(Cấu trúc các cột: Biển số | Chủng loại xe | Sức chứa | Năm sản xuất)</div>
                     <div style="display: flex; gap: 8px;">
                       <textarea id="txtImportXeTuyenRieng" class="form-control" style="height: 48px; font-size: 11px;" placeholder="Ví dụ:&#10;29F-019.79	Vinfast Green Bus BNE1ELRVN	68 chỗ	2024&#10;29F-020.12	Thaco TB85S	40 chỗ	2023"></textarea>
                       <button type="button" class="btn btn-success" style="height: 48px; font-size: 11px;" onclick="importXeChoTuyenHienTai()"><i class="fa fa-upload"></i> Import vào tuyến</button>
@@ -417,7 +430,13 @@
                 </div>
               </div>
 
-              <div style="margin-bottom: 15px;">
+              <!-- CỤM EXCEL 1-CLICK CHO XE MẪU -->
+              <div style="margin-bottom: 15px; background: #F8FAFC; padding: 12px; border: 1px solid #D0D7DE; border-radius: 6px;">
+                <div style="margin-bottom: 8px; display: flex; gap: 8px; align-items: center;">
+                  <input type="file" id="fileExcelXeMau" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyImportExcelXeMau(this)">
+                  <button type="button" class="btn btn-success btn-sm" onclick="$('#fileExcelXeMau').click()"><i class="fa fa-file-excel-o"></i> Nhập Excel 1-Click</button>
+                  <button type="button" class="btn btn-primary btn-sm" onclick="xuatExcelDanhMucXeMau()"><i class="fa fa-download"></i> Xuất Excel 1-Click</button>
+                </div>
                 <span style="font-size: 11px; color: #666; font-style: italic;">Hoặc dán nhanh từ Excel (Cột 1: Chủng loại | Cột 2: Sức chứa | Cột 3: Năm sản xuất):</span>
                 <div style="display: flex; gap: 10px; margin-top: 4px;">
                   <textarea id="txtExcelXeMau" class="form-control" style="height: 50px;" placeholder="Dán danh sách mác xe mẫu từ Excel vào đây..."></textarea>
@@ -482,7 +501,14 @@
                 <div class="input-combo"><input type="text" id="txtTenTab" class="form-control" readonly placeholder="Hệ thống tự động sinh theo chuẩn cấu trúc..." style="background: #EBF2F8; font-weight: bold; color: #0F86DB;"></div>
                 
                 <label>Dữ liệu giờ (Excel):</label>
-                <textarea id="txtRawData" class="form-control" placeholder="Copy cả bảng từ Excel/Sheets dán vào đây..."></textarea>
+                <div>
+                  <!-- NÚT IMPORT EXCEL 1-CLICK CHO BIỂU ĐỒ -->
+                  <div style="margin-bottom: 8px; display: flex; gap: 8px; align-items: center;">
+                    <input type="file" id="fileExcelBieuDo" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyImportExcelBieuDo(this)">
+                    <button type="button" class="btn btn-success btn-sm" onclick="$('#fileExcelBieuDo').click()"><i class="fa fa-file-excel-o"></i> Nhập file Excel 1-Click</button>
+                  </div>
+                  <textarea id="txtRawData" class="form-control" placeholder="Copy cả bảng từ Excel/Sheets hoặc bấm Nhập file Excel 1-Click ở trên..."></textarea>
+                </div>
                 
                 <div></div>
                 <div style="display: flex; gap: 12px; align-items: center;">
@@ -1083,7 +1109,15 @@
       }
     }
 
+    // HÀM RENDER BẢNG XE CÓ TRIỆT TIÊU MEMORY LEAK SELECT2 VÀ SỬA ĐÚNG SELECTOR
     function renderBangXeForm(danhSachXe = []) {
+      // 1. Destroy toàn bộ instance Select2 cũ để tránh ngốn bộ nhớ DOM
+      $('#tblFormDanhSachXe .select2-search-row').each(function() {
+        if ($(this).data('select2')) {
+          $(this).select2('destroy');
+        }
+      });
+
       let html = '';
       if (danhSachXe.length === 0) {
         danhSachXe = [{ bks: '', chungLoai: '', sucChua: '', namSx: '' }];
@@ -1150,9 +1184,10 @@
         `;
       });
       
+      // 2. Trỏ đúng ID tbody '#tblFormDanhSachXe'
       $('#tblFormDanhSachXe').html(html);
       $('#chkSelectAllFormXe').prop('checked', false);
-      $('.select2-search-row').select2({ language: { noResults: () => "Không tìm thấy kết quả phù hợp" } });
+      $('#tblFormDanhSachXe .select2-search-row').select2({ width: '100%', language: { noResults: () => "Không tìm thấy kết quả phù hợp" } });
     }
 
     function toggleSelectAllFormXe(masterChk) {
@@ -1297,7 +1332,152 @@
       });
     }
 
-    // IMPORT XE THÔNG MINH (4 HOẶC 5-6 CỘT)
+    // HELPER SHEETJS 1-CLICK READ/WRITE FILE EXCEL (.XLSX / .CSV)
+    function docFileExcelTuyen(fileInput, callback) {
+      const file = fileInput.files ? fileInput.files[0] : null;
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rawMatrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+          callback(rawMatrix);
+        } catch (err) {
+          showToast("File Excel không đúng định dạng hoặc bị hỏng!", "error");
+        } finally {
+          fileInput.value = '';
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function xuatFileExcelTieuchuan(data, filename = 'Du_lieu.xlsx', sheetName = 'Sheet1') {
+      try {
+        let worksheet = Array.isArray(data[0]) ? XLSX.utils.aoa_to_sheet(data) : XLSX.utils.json_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+        XLSX.writeFile(workbook, filename);
+        showToast("Đã tải xuống file Excel thành công!", "success");
+      } catch (err) {
+        showToast("Lỗi khi xuất file Excel!", "error");
+      }
+    }
+
+    // NHẬP / XUẤT EXCEL ĐỘI XE 1-CLICK
+    function xuLyImportExcelXe(fileInput) {
+      docFileExcelTuyen(fileInput, function(matrix) {
+        if (!matrix || matrix.length === 0) return;
+        let xeHienTai = [], count = 0;
+
+        matrix.forEach((cols, idx) => {
+          if (idx === 0 && (String(cols[0]).toUpperCase().includes('BIỂN') || String(cols[0]).toUpperCase().includes('BKS'))) return;
+          const bksInput = String(cols[0] || '').trim().toUpperCase();
+          if (!bksInput || bksInput.length < 5) return;
+
+          let chungLoaiInput = String(cols[1] || '').trim();
+          let sucChuaInput = String(cols[2] || '').trim();
+          let namSxInput = String(cols[3] || '').trim();
+
+          let mauChuan = danhMucXeMau.find(m => 
+            m.chungLoai.toLowerCase() === chungLoaiInput.toLowerCase() && 
+            (!namSxInput || String(m.namSx) === String(namSxInput))
+          );
+          if (!mauChuan) {
+            mauChuan = danhMucXeMau.find(m => m.chungLoai.toLowerCase().includes(chungLoaiInput.toLowerCase()));
+          }
+
+          let finalChungLoai = mauChuan ? mauChuan.chungLoai : chungLoaiInput;
+          let finalSucChua = mauChuan ? mauChuan.sucChua : (sucChuaInput ? (sucChuaInput.toLowerCase().includes('chỗ') ? sucChuaInput : `${sucChuaInput} chỗ`) : '');
+          let finalNamSx = mauChuan ? mauChuan.namSx : namSxInput;
+
+          xeHienTai.push({
+            bks: bksInput,
+            chungLoai: finalChungLoai,
+            sucChua: finalSucChua,
+            namSx: finalNamSx
+          });
+          count++;
+        });
+
+        if (count > 0) {
+          renderBangXeForm(xeHienTai);
+          showToast(`Đã nhập thành công ${count} xe từ file Excel!`, "success");
+        } else {
+          showToast("Không tìm thấy dữ liệu xe hợp lệ trong file Excel!", "error");
+        }
+      });
+    }
+
+    function xuatExcelDoiXeHienTai() {
+      const maTuyen = $('#txtMaTuyen').val().trim() || 'Tuyen';
+      const dataExport = [["Biển kiểm soát", "Chủng loại xe", "Sức chứa", "Năm sản xuất"]];
+
+      $('#tblFormDanhSachXe .xe-row-item').each(function() {
+        const bks = $(this).find('.form-bks').val().trim();
+        if (bks) {
+          const $sel = $(this).find('.form-chungloai');
+          let chungLoai = $sel.val() || "";
+          if (chungLoai.includes('___')) chungLoai = chungLoai.split('___')[0];
+          else {
+            const $opt = $sel.find(':selected');
+            chungLoai = $opt.attr('data-chungloai') || $opt.text() || chungLoai;
+          }
+          dataExport.push([
+            bks,
+            chungLoai.trim(),
+            $(this).find('.form-succhua').val().trim(),
+            $(this).find('.form-namsx').val().trim()
+          ]);
+        }
+      });
+
+      if (dataExport.length <= 1) return showToast("Không có dữ liệu xe để xuất!", "error");
+      xuatFileExcelTieuchuan(dataExport, `Danh_sach_xe_${maTuyen}.xlsx`);
+    }
+
+    // NHẬP / XUẤT EXCEL MÁC XE MẪU 1-CLICK
+    function xuLyImportExcelXeMau(fileInput) {
+      docFileExcelTuyen(fileInput, async function(matrix) {
+        if (!matrix || matrix.length === 0) return;
+        const rawText = matrix.map(row => row.join('\t')).join('\n');
+        try {
+          const res = await fetch(`${API_BASE}/api/admin/import-xe-mau`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
+            body: JSON.stringify({ ...getAdminInfo(), rawText })
+          }).then(r => r.json());
+          showToast(res.message, res.success ? "success" : "error");
+          if (res.success) {
+            const resMau = await fetch(`${API_BASE}/api/admin/danh-sach-xe-mau`).then(r => r.json());
+            if (resMau.success) danhMucXeMau = resMau.data || [];
+            veBangXeMauAdmin();
+          }
+        } catch (e) { showToast("Lỗi kết nối máy chủ!", "error"); }
+      });
+    }
+
+    function xuatExcelDanhMucXeMau() {
+      if (!danhMucXeMau || danhMucXeMau.length === 0) return showToast("Danh mục mác xe mẫu rỗng!", "error");
+      const dataExport = [["Chủng loại xe (Nhãn hiệu + Model)", "Sức chứa chuẩn", "Năm sản xuất"]];
+      danhMucXeMau.forEach(m => {
+        dataExport.push([m.chungLoai || '', m.sucChua || '', m.namSx || '']);
+      });
+      xuatFileExcelTieuchuan(dataExport, "Danh_muc_xe_mau.xlsx");
+    }
+
+    // NHẬP EXCEL BIỂU ĐỒ 1-CLICK
+    function xuLyImportExcelBieuDo(fileInput) {
+      docFileExcelTuyen(fileInput, function(matrix) {
+        if (!matrix || matrix.length === 0) return;
+        $('#txtRawData').val(matrix.map(row => row.join('\t')).join('\n'));
+        showToast(`Đã tải ${matrix.length} dòng dữ liệu từ file Excel!`, "success");
+      });
+    }
+
+    // IMPORT XE THỦ CÔNG TỪ TEXTAREA
     function importXeChoTuyenHienTai() {
       const rawText = $('#txtImportXeTuyenRieng').val().trim();
       if (!rawText) {
