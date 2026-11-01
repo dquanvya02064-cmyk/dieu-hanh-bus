@@ -263,7 +263,7 @@ async function cleanAndSyncData(data) {
     let maT = (tObj.maTuyen || k).toUpperCase();
 
     let realKh = realKhCounts[maT] || 0;
-    tObj.soXeKh = realKh; 
+    tObj.soXeKh = realKh;
     tObj.soXe = realKh;
 
     let foundVd = maxNotMap[maT];
@@ -378,7 +378,7 @@ app.get('/api/admin/lay-danh-sach-lich', verifyAdmin, async (req, res) => {
             target: item.maTuyen === 'DP' ? 'Bến DP' : `Tuyến ${item.maTuyen}`,
             details: `Thay đổi toàn bộ dàn xe (${(item.danhSachXe || []).length} xe)`,
             targetTimeStr: item.ngayApDung,
-            danhSachBks: (item.danhSachXe || []).map(x => String(x.bks || '').trim().toUpperCase()), // Bổ sung mảng BKS để Client khớp biển số
+            danhSachBks: (item.danhSachXe || []).map(x => String(x.bks || '').trim().toUpperCase()),
             createdBy: item.createdBy || 'Admin'
           });
         }
