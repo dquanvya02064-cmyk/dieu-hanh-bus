@@ -18,6 +18,15 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// --- BỘ NHỚ TẠM TRONG RAM & KHÓA CHỐNG XUNG ĐỘT HÀNG CỜ (SINGLE-FLIGHT PROMISE) ---
+let cachedData = null;
+let activeFetchPromise = null; // Giúp các API gọi cùng lúc dùng chung 1 lần query DB
+
+function clearCache() {
+  cachedData = null;
+  activeFetchPromise = null;
+}
+
 // HELPER: Lấy ngày ISO YYYY-MM-DD chuẩn múi giờ Việt Nam (UTC+7)
 function getVietnamTodayISO() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
@@ -51,7 +60,6 @@ const busDataSchema = new mongoose.Schema({
 });
 const BusModel = mongoose.model('BusData', busDataSchema);
 
-// Đã vô hiệu hóa ghi log vào DB để hệ thống nhẹ nhất
 async function recordLog(req, actionDesc) {}
 
 // --- MIDDLEWARE BẢO MẬT & XÁC THỰC QUẢN TRỊ ---
@@ -252,7 +260,7 @@ async function cleanAndSyncData(data) {
 // CRON ENGINE CHẠY NGẦM MỖI 1 PHÚT
 setInterval(async () => {
   try {
-    await getRawData();
+    await getRawData(true);
   } catch (err) {
     console.error("Lỗi thực thi Cron Engine ngầm:", err);
   }
@@ -262,7 +270,11 @@ setInterval(async () => {
 mongoose.connect(MONGO_URI)
   .then(async () => {
     console.log('>>> Kết nối thành công MongoDB Atlas!');
-    const doc = await BusModel.findOne({ key: 'main_data' });
+    try {
+      await mongoose.connection.db.collection('accesslogs').drop().catch(() => {});
+    } catch(e) {}
+
+    const doc = await BusModel.findOne({ key: 'main_data' }).lean();
     if (doc && doc.data) {
       if (!doc.data.taiKhoanList || doc.data.taiKhoanList.length === 0) {
         doc.data.taiKhoanList = [
@@ -272,50 +284,65 @@ mongoose.connect(MONGO_URI)
       const cleanedData = await cleanAndSyncData(doc.data);
       delete cleanedData._isDataChanged;
       await BusModel.findOneAndUpdate({ key: 'main_data' }, { key: 'main_data', data: cleanedData }, { upsert: true });
+      cachedData = cleanedData;
       console.log('>>> Đã tự động làm sạch và đồng bộ dữ liệu thành công!');
     }
   })
   .catch(err => console.error('>>> Lỗi kết nối MongoDB:', err));
 
-async function getRawData() {
-  try {
-    const doc = await BusModel.findOne({ key: 'main_data' });
-    if (doc && doc.data) {
-      const cleaned = await cleanAndSyncData(doc.data);
-      if (cleaned._isDataChanged) {
-        delete cleaned._isDataChanged;
-        await BusModel.findOneAndUpdate({ key: 'main_data' }, { key: 'main_data', data: cleaned }, { upsert: true });
-      } else {
-        delete cleaned._isDataChanged;
+async function getRawData(forceRefresh = false) {
+  // 1. Đã có cache trong RAM -> Trả về NGAY LẬP TỨC (<1ms)
+  if (!forceRefresh && cachedData) {
+    return cachedData;
+  }
+
+  // 2. Nếu đang có request khác fetch DB -> Dùng chung Promise (Chống gọi trùng)
+  if (activeFetchPromise) {
+    return activeFetchPromise;
+  }
+
+  activeFetchPromise = (async () => {
+    try {
+      // Dùng .lean() giúp Mongoose đọc JSON thuần cực nhanh
+      const doc = await BusModel.findOne({ key: 'main_data' }).lean();
+      if (doc && doc.data) {
+        const cleaned = await cleanAndSyncData(doc.data);
+        if (cleaned._isDataChanged) {
+          delete cleaned._isDataChanged;
+          BusModel.findOneAndUpdate({ key: 'main_data' }, { key: 'main_data', data: cleaned }, { upsert: true }).catch(() => {});
+        } else {
+          delete cleaned._isDataChanged;
+        }
+        cachedData = cleaned;
+        return cachedData;
       }
-      return cleaned;
+    } catch (err) {
+      console.error('Lỗi đọc db:', err);
+    } finally {
+      activeFetchPromise = null; // Giải phóng lock
     }
-  } catch (err) {
-    console.error('Lỗi đọc db:', err);
-  }
-  
-  const localPath = path.join(__dirname, 'bus_full_data.json');
-  if (fs.existsSync(localPath)) {
-    const fileData = JSON.parse(fs.readFileSync(localPath, 'utf8'));
-    const cleaned = await cleanAndSyncData(fileData);
-    delete cleaned._isDataChanged;
-    return cleaned;
-  }
-  return { 
-    tuyenList: {}, 
-    bieuDoList: [], 
-    xeList: [], 
-    taiKhoanList: [], 
-    danhMucXeMau: [], 
-    thongBaoChay: "", 
-    scheduledFleetUpdates: [],
-    scheduledRouteUpdates: [],
-    historyLog: []
-  };
+    
+    const localPath = path.join(__dirname, 'bus_full_data.json');
+    if (fs.existsSync(localPath)) {
+      const fileData = JSON.parse(fs.readFileSync(localPath, 'utf8'));
+      const cleaned = await cleanAndSyncData(fileData);
+      delete cleaned._isDataChanged;
+      cachedData = cleaned;
+      return cachedData;
+    }
+    return { 
+      tuyenList: {}, bieuDoList: [], xeList: [], taiKhoanList: [], 
+      danhMucXeMau: [], thongBaoChay: "", scheduledFleetUpdates: [], 
+      scheduledRouteUpdates: [], historyLog: [] 
+    };
+  })();
+
+  return activeFetchPromise;
 }
 
 async function saveRawDataFast(data) {
   delete data._isDataChanged;
+  cachedData = data;
   await BusModel.findOneAndUpdate(
     { key: 'main_data' },
     { key: 'main_data', data: data },
@@ -326,6 +353,7 @@ async function saveRawDataFast(data) {
 async function saveRawData(data) {
   const cleaned = await cleanAndSyncData(data);
   delete cleaned._isDataChanged;
+  cachedData = cleaned;
   await BusModel.findOneAndUpdate(
     { key: 'main_data' },
     { key: 'main_data', data: cleaned },
@@ -401,7 +429,7 @@ app.post('/api/admin/chay-ngay-lich-hen', verifyAdmin, async (req, res) => {
     const { taskId } = req.body;
     if (!taskId) return res.status(400).json({ success: false, message: 'Thiếu mã tác vụ!' });
 
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     let isExecuted = false;
     let targetName = '';
 
@@ -486,7 +514,7 @@ app.post('/api/admin/huy-lich-hen', verifyAdmin, async (req, res) => {
     const { taskId } = req.body;
     if (!taskId) return res.status(400).json({ success: false, message: 'Thiếu mã tác vụ!' });
 
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     let isCancelled = false;
     let targetName = '';
 
@@ -625,7 +653,7 @@ app.get('/api/thong-bao-chi-tiet', async (req, res) => {
 app.post('/api/admin/luu-thong-bao', verifyAdmin, async (req, res) => {
   try {
     const { text } = req.body;
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     raw.thongBaoChay = text !== undefined ? text : "";
     await saveRawDataFast(raw);
     await recordLog(req, 'Cập nhật thông báo mặc định');
@@ -642,7 +670,7 @@ app.post('/api/admin/them-lich-thong-bao', verifyAdmin, async (req, res) => {
       return res.json({ success: false, message: "Thiếu thông tin ngày hoặc nội dung!" });
     }
 
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     if (!raw.thongBaoScheduleList) raw.thongBaoScheduleList = [];
 
     raw.thongBaoScheduleList.push({
@@ -665,7 +693,7 @@ app.post('/api/admin/them-lich-thong-bao', verifyAdmin, async (req, res) => {
 app.post('/api/admin/xoa-lich-thong-bao', verifyAdmin, async (req, res) => {
   try {
     const { id } = req.body;
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     
     if (raw.thongBaoScheduleList) {
       raw.thongBaoScheduleList = raw.thongBaoScheduleList.filter(item => item.id !== id);
@@ -732,7 +760,7 @@ app.post('/api/admin/dang-ky', verifyAdmin, async (req, res) => {
     const { targetUsername, password, role, permissions } = req.body;
     if (!targetUsername || !password) return res.status(400).json({ success: false, message: 'Thiếu thông tin tài khoản mới!' });
 
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     if (!raw.taiKhoanList) raw.taiKhoanList = [];
 
     if (raw.taiKhoanList.some(u => u.username === targetUsername)) {
@@ -758,7 +786,7 @@ app.post('/api/admin/dang-ky', verifyAdmin, async (req, res) => {
 app.post('/api/admin/sua-tai-khoan', verifyAdmin, async (req, res) => {
   try {
     const { targetUsername, status, role, permissions } = req.body;
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     if (!raw.taiKhoanList) raw.taiKhoanList = [];
 
     const user = raw.taiKhoanList.find(u => u.username === targetUsername);
@@ -781,7 +809,7 @@ app.post('/api/admin/doi-mat-khau', verifyAdmin, async (req, res) => {
     const { targetUsername, newPassword } = req.body;
     if (!targetUsername || !newPassword) return res.status(400).json({ success: false, message: 'Thiếu thông tin mật khẩu mới!' });
 
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     if (!raw.taiKhoanList) raw.taiKhoanList = [];
 
     const user = raw.taiKhoanList.find(u => u.username === targetUsername);
@@ -799,7 +827,7 @@ app.post('/api/admin/doi-mat-khau', verifyAdmin, async (req, res) => {
 app.post('/api/admin/xoa-tai-khoan', verifyAdmin, async (req, res) => {
   try {
     const { targetUsername } = req.body;
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     if (!raw.taiKhoanList) raw.taiKhoanList = [];
 
     raw.taiKhoanList = raw.taiKhoanList.filter(u => u.username !== targetUsername);
@@ -825,7 +853,7 @@ app.post('/api/admin/luu-xe-mau', verifyAdmin, async (req, res) => {
   try {
     const { chungLoai, sucChua, namSx } = req.body;
     if (!chungLoai) return res.status(400).json({ success: false, message: 'Thiếu chủng loại xe mẫu!' });
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     if (!Array.isArray(raw.danhMucXeMau)) raw.danhMucXeMau = [];
     
     const cleanNamSx = String(namSx || '').trim();
@@ -851,7 +879,7 @@ app.post('/api/admin/luu-xe-mau', verifyAdmin, async (req, res) => {
 app.post('/api/admin/xoa-xe-mau', verifyAdmin, async (req, res) => {
   try {
     const { chungLoai, namSx } = req.body;
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     if (!Array.isArray(raw.danhMucXeMau)) raw.danhMucXeMau = [];
     const cleanNamSx = String(namSx || '').trim();
     
@@ -869,7 +897,7 @@ app.post('/api/admin/import-xe-mau', verifyAdmin, async (req, res) => {
   try {
     const { rawText } = req.body;
     if (!rawText) return res.status(400).json({ success: false, message: 'Thiếu dữ liệu!' });
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     if (!Array.isArray(raw.danhMucXeMau)) raw.danhMucXeMau = [];
 
     const lines = rawText.split('\n');
@@ -903,7 +931,7 @@ app.post('/api/admin/import-xe-mau', verifyAdmin, async (req, res) => {
 
 app.post('/api/admin/xoa-tat-ca-xe-mau', verifyAdmin, async (req, res) => {
   try {
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     raw.danhMucXeMau = [];
     await saveRawDataFast(raw);
     await recordLog(req, 'Xóa tất cả danh mục mác xe mẫu');
@@ -918,7 +946,7 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
   try {
     const { maTuyen, danhSachXe, ngayApDung } = req.body;
     if (!maTuyen) return res.status(400).json({ success: false, message: 'Thiếu mã tuyến!' });
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     if (!Array.isArray(raw.xeList)) raw.xeList = [];
     if (!Array.isArray(raw.danhMucXeMau)) raw.danhMucXeMau = [];
     if (!Array.isArray(raw.scheduledFleetUpdates)) raw.scheduledFleetUpdates = [];
@@ -1013,7 +1041,7 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], verifyAdmin, async (req, res) =>
     const { maTuyen, tenTuyen, xn, dauA, dauB, tramDi, tramVe, soXeVd, soXeKh, loaiXe, sucChua, status, ngayApDung } = req.body;
     if (!maTuyen) return res.status(400).json({ success: false, message: 'Thiếu mã tuyến!' });
 
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     if (!raw.tuyenList) raw.tuyenList = {};
     if (!Array.isArray(raw.scheduledRouteUpdates)) raw.scheduledRouteUpdates = [];
 
@@ -1252,7 +1280,7 @@ app.post(['/api/bus-data', '/api/save-data'], verifyAdmin, async (req, res) => {
 app.post('/api/toggle-status-tuyen', verifyAdmin, async (req, res) => {
   try {
     const { maTuyen, status } = req.body;
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     if (!raw.tuyenList || !raw.tuyenList[maTuyen]) return res.status(404).json({ success: false, message: 'Không tìm thấy mã tuyến!' });
     raw.tuyenList[maTuyen].status = status;
     await saveRawDataFast(raw);
@@ -1265,7 +1293,7 @@ app.post('/api/luu-bieu-do', verifyAdmin, async (req, res) => {
   try {
     const { xn, tuyen, bieuDo, tenTab, rawData } = req.body;
     if (!tenTab || !rawData) return res.status(400).json({ success: false, message: 'Thiếu dữ liệu!' });
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     if (!Array.isArray(raw.bieuDoList)) raw.bieuDoList = [];
     const newTabObj = { xn: xn || "", tuyen: tuyen || "", bieuDo: bieuDo || "", tenTab, rawData };
     const idx = raw.bieuDoList.findIndex(b => String(b.tenTab || '').trim() === String(tenTab).trim());
@@ -1280,7 +1308,7 @@ app.post('/api/luu-bieu-do', verifyAdmin, async (req, res) => {
 app.post('/api/xoa-bieu-do', verifyAdmin, async (req, res) => {
   try {
     const { tenTab } = req.body;
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     if (!Array.isArray(raw.bieuDoList)) raw.bieuDoList = [];
     raw.bieuDoList = raw.bieuDoList.filter(b => String(b.tenTab || '').trim() !== String(tenTab).trim());
     await saveRawDataFast(raw);
@@ -1324,7 +1352,7 @@ app.post(['/api/import-xe-excel', '/api/import-danh-sach-xe'], verifyAdmin, asyn
   try {
     const { rawText } = req.body;
     if (!rawText) return res.status(400).json({ success: false, message: 'Thiếu dữ liệu!' });
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     if (!raw.tuyenList) raw.tuyenList = {};
     if (!Array.isArray(raw.xeList)) raw.xeList = [];
     
@@ -1409,7 +1437,7 @@ app.post('/api/xoa-xe', verifyAdmin, async (req, res) => {
   try {
     const { bks } = req.body;
     if (!bks) return res.status(400).json({ success: false, message: 'Thiếu biển kiểm soát xe cần xóa!' });
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     if (!Array.isArray(raw.xeList)) raw.xeList = [];
     
     const initialLen = raw.xeList.length;
@@ -1429,7 +1457,7 @@ app.post('/api/dieu-chuyen-xe', verifyAdmin, async (req, res) => {
   try {
     const { bks, tuyenMoi } = req.body;
     if (!bks || !tuyenMoi) return res.status(400).json({ success: false, message: 'Thiếu thông tin điều chuyển!' });
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     if (!Array.isArray(raw.xeList)) raw.xeList = [];
     const xe = raw.xeList.find(x => String(x.bks || '').trim().toUpperCase() === String(bks).trim().toUpperCase());
     if (!xe) return res.status(404).json({ success: false, message: 'Không tìm thấy biển kiểm soát xe!' });
@@ -1446,7 +1474,7 @@ app.post('/api/dieu-chuyen-xe-hang-loat', verifyAdmin, async (req, res) => {
     if (!bksList || !Array.isArray(bksList) || bksList.length === 0 || !tuyenMoi) {
       return res.status(400).json({ success: false, message: 'Dữ liệu không hợp lệ!' });
     }
-    const raw = await getRawData();
+    const raw = await getRawData(true);
     if (!Array.isArray(raw.xeList)) raw.xeList = [];
 
     const normTuyenMoi = String(tuyenMoi).trim().toUpperCase();
