@@ -1,5 +1,10 @@
+// Comment bỏ DNS Google để tránh treo timeout 15-30s trên hạ tầng Render
+// const dns = require('dns');
+// dns.setServers(['8.8.8.8', '8.8.4.4']);
+
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression'); // Tích hợp nén dữ liệu giúp tải siêu tốc
 const path = require('path');
 const fs = require('fs');
 const mongoose = require('mongoose');
@@ -10,6 +15,7 @@ const PORT = process.env.PORT || 3000;
 // Chuỗi kết nối MongoDB Atlas
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://dquan4701_db_user:Quanbus123456@cluster0.sur3koa.mongodb.net/dieuhanhbus?retryWrites=true&w=majority';
 
+app.use(compression()); // Nén toàn bộ phản hồi JSON giúp giảm dung lượng mạng
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -120,7 +126,7 @@ function parseTabDate(tabName) {
   return { sortKey: "00000000", dateObj: new Date(0) };
 }
 
-// --- HÀM LÀM SẠCH & ĐỒNG BỘ NẶNG (CHỈ CHẠY ĐỊNH KỲ HOẶC KHI SAVE) ---
+// --- HÀM LÀM SẠCH & ĐỒNG BỘ NẶNG ---
 async function cleanAndSyncData(data) {
   if (!data) return data;
   if (!Array.isArray(data.xeList)) data.xeList = [];
@@ -291,7 +297,6 @@ async function cleanAndSyncData(data) {
 // HÀM ĐỌC DỮ LIỆU SIÊU TỐC VỚI RAM CACHE & LEAN QUERY
 async function getRawData(forceRefresh = false) {
   const now = Date.now();
-  // Nếu đã có cache và chưa quá 30 giây -> Trả về NGAY LẬP TỨC từ RAM (~0.001s)
   if (!forceRefresh && memoryCache && (now - cacheTime < CACHE_TTL)) {
     return memoryCache;
   }
@@ -343,7 +348,7 @@ async function saveRawData(data) {
   cacheTime = Date.now();
 }
 
-// CRON ENGINE CHẠY NGẦM MỖI 5 PHÚT (TỰ ĐỘNG LÀM SẠCH & ĐỒNG BỘ DỮ LIỆU Ở BACKGROUND)
+// CRON ENGINE CHẠY NGẦM MỖI 5 PHÚT
 setInterval(async () => {
   try {
     const doc = await BusModel.findOne({ key: 'main_data' });
@@ -1192,7 +1197,15 @@ app.get('/api/danh-muc', async (req, res) => {
         }));
     }
 
-    res.json({ success: true, data: danhMucList, allRoutes: allRoutesList, bieuDoList: raw.bieuDoList || [] });
+    // TỐI ƯU SIÊU TỐC: Lọc bỏ thuộc tính rawData nặng hàng nghìn KB trước khi phản hồi
+    const cleanBieuDoList = (raw.bieuDoList || []).map(({ rawData, ...rest }) => rest);
+
+    res.json({ 
+      success: true, 
+      data: danhMucList, 
+      allRoutes: allRoutesList, 
+      bieuDoList: cleanBieuDoList 
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
