@@ -62,8 +62,8 @@ const AccessLogModel = mongoose.model('AccessLog', accessLogSchema);
 
 async function cleanOldLogs() {
   try {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    await AccessLogModel.deleteMany({ createdAt: { $lt: thirtyDaysAgo } });
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    await AccessLogModel.deleteMany({ createdAt: { $lt: sevenDaysAgo } });
   } catch (e) {
     console.error("Lỗi dọn dẹp log cũ:", e);
   }
@@ -125,6 +125,14 @@ async function cleanAndSyncData(data) {
   if (!data.tuyenList) data.tuyenList = {};
   if (!Array.isArray(data.danhMucXeMau)) data.danhMucXeMau = [];
   if (!Array.isArray(data.historyLog)) data.historyLog = [];
+
+  // Dọn dẹp nhật ký thao tác quá 7 ngày
+  const sevenDaysAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  data.historyLog = data.historyLog.filter(item => {
+    if (!item.id) return true;
+    const itemTime = parseInt(item.id, 10);
+    return !isNaN(itemTime) ? itemTime >= sevenDaysAgoMs : true;
+  }).slice(0, 30);
 
   const todayISO = getVietnamTodayISO();
   let isDataChanged = false;
@@ -278,14 +286,14 @@ async function cleanAndSyncData(data) {
   return data;
 }
 
-// CRON ENGINE CHẠY NGẦM MỖI 1 PHÚT
+// CRON ENGINE CHẠY NGẦM MỖI 10 PHÚT
 setInterval(async () => {
   try {
     await getRawData();
   } catch (err) {
     console.error("Lỗi thực thi Cron Engine ngầm:", err);
   }
-}, 60000);
+}, 600000);
 
 // KẾT NỐI MONGODB
 mongoose.connect(MONGO_URI)
