@@ -406,7 +406,7 @@
                 </div>
                 <div></div>
                 <div>
-                  <button class="btn btn-success" style="padding: 10px 24px; height: 38px;" onclick="xacLapTuyenVaDoiXe()"><i class="fa fa-save"></i> Lưu thông tin Tuyến & Đội xe</button>
+                  <button class="btn btn-success" style="padding: 10px 24px; height: 38px;" onclick="xacLapTuyenVaDoiXe(this)"><i class="fa fa-save"></i> Lưu thông tin Tuyến & Đội xe</button>
                 </div>
               </div>
             </div>
@@ -511,7 +511,7 @@
                 
                 <div></div>
                 <div style="display: flex; gap: 12px; align-items: center;">
-                  <button class="btn btn-primary" onclick="luuBieuDo()"><i class="fa fa-upload"></i> Lưu biểu đồ</button>
+                  <button class="btn btn-primary" onclick="luuBieuDo(this)"><i class="fa fa-upload"></i> Lưu biểu đồ</button>
                   <button class="btn btn-danger" type="button" onclick="xoaBieuDo()"><i class="fa fa-trash"></i> Xóa biểu đồ này</button>
                 </div>
               </div>
@@ -696,6 +696,28 @@
 
   <script>
     const API_BASE = "https://dieu-hanh-bus.onrender.com";
+    const apiOrigin = new URL(API_BASE, window.location.href).origin;
+    const browserFetch = window.fetch.bind(window);
+
+    window.fetch = async (input, init = {}) => {
+      const requestUrl = input instanceof Request ? input.url : input;
+      const url = new URL(requestUrl, window.location.href);
+      if (url.origin !== apiOrigin) {
+        return browserFetch(input, init);
+      }
+
+      const headers = new Headers(input instanceof Request ? input.headers : undefined);
+      new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+      headers.delete('x-admin-user');
+      const token = sessionStorage.getItem('admin_token');
+      if (token) headers.set('Authorization', `Bearer ${token}`);
+      const response = await browserFetch(input, { ...init, headers });
+      if (token && response.status === 401 && url.pathname !== '/api/admin/login') {
+        sessionStorage.clear();
+        window.location.reload();
+      }
+      return response;
+    };
 
     let rawDanhMuc = [];
     let dsXn = new Set();
@@ -709,10 +731,12 @@
 
     // KHI TRANG TẢI XONG
     $(document).ready(function() {
-      if (sessionStorage.getItem('admin_authenticated') === 'true') {
+      if (sessionStorage.getItem('admin_token')) {
         $('#authOverlay').remove();
         $('body').removeClass('locked');
         apDungQuyenTruyCap();
+      } else {
+        sessionStorage.clear();
       }
 
       $('.select2-search').select2({
@@ -736,7 +760,7 @@
         setTimeout(() => { location.reload(); }, 1500);
         throw new Error("Unauthorized");
       }
-      return { actorUsername: user, role: role };
+      return {};
     }
 
     async function xuLyDangNhapAdmin() {
@@ -751,7 +775,7 @@
         }).then(r => r.json());
 
         if (res.success) {
-          sessionStorage.setItem('admin_authenticated', 'true');
+          sessionStorage.setItem('admin_token', res.token);
           sessionStorage.setItem('admin_role', res.role);
           sessionStorage.setItem('admin_user', username);
           sessionStorage.setItem('admin_permissions', JSON.stringify(res.permissions || []));
@@ -773,15 +797,15 @@
       const role = sessionStorage.getItem('admin_role');
       const permissions = JSON.parse(sessionStorage.getItem('admin_permissions') || '[]');
 
-      $('#menuTuyen, #menuXeMau, #menuBieudo, #menuThongBao, #menuLichHen, #menuQuanTriUser').show();
-
       if (role === 'master') {
-        $('#menuQuanTriUser').show();
+        $('#menuTuyen, #menuXeMau, #menuBieudo, #menuThongBao, #menuLichHen, #menuQuanTriUser').show();
         return;
       }
-      $('#menuQuanTriUser').hide();
-      if (!permissions.includes('tuyen')) $('#menuTuyen, #menuXeMau').hide();
-      if (!permissions.includes('bieudo')) $('#menuBieudo').hide();
+      const canManageFleet = permissions.includes('tuyen') || permissions.includes('xe');
+      $('#menuTuyen, #menuXeMau').toggle(canManageFleet);
+      $('#menuLichHen').toggle(canManageFleet);
+      $('#menuBieudo').toggle(permissions.includes('bieudo'));
+      $('#menuThongBao, #menuQuanTriUser').hide();
     }
 
     function dangXuatAdmin() {
@@ -906,7 +930,7 @@
         const adminUser = sessionStorage.getItem('admin_user');
         const [resDM, resXe, resMau, resLich] = await Promise.all([
           fetch(`${API_BASE}/api/danh-muc?admin=true`).then(r => r.json()),
-          fetch(`${API_BASE}/api/tim-kiem-xe?q=`).then(r => r.json()),
+          fetch(`${API_BASE}/api/tim-kiem-xe?all=true`).then(r => r.json()),
           fetch(`${API_BASE}/api/admin/danh-sach-xe-mau`).then(r => r.json()).catch(() => ({ success: true, data: [] })),
           adminUser ? fetch(`${API_BASE}/api/admin/lay-danh-sach-lich`, { headers: { 'x-admin-user': adminUser } }).then(r => r.json()).catch(() => ({ success: true, pending: [] })) : Promise.resolve({ success: true, pending: [] })
         ]);
@@ -1518,7 +1542,7 @@
       }
     }
 
-    async function xacLapTuyenVaDoiXe() {
+    async function xacLapTuyenVaDoiXe(button) {
       const maTuyen = $('#txtMaTuyen').val().trim();
       const xn = $('#selXn').val() || "";
       const dauA = $('#selDauA').val() || "";
@@ -1562,6 +1586,10 @@
       const setLoai = new Set();
       danhSachXe.forEach(x => { if (x.chungLoai && !x.chungLoai.includes('--')) setLoai.add(x.chungLoai); });
       const loaiXe = Array.from(setLoai).join(' & ');
+      const $button = $(button);
+      const originalHtml = $button.html();
+      $button.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Đang lưu...');
+      let routeSaved = false;
 
       try {
         const resTuyen = await fetch(`${API_BASE}/api/tuyen-moi`, {
@@ -1569,18 +1597,33 @@
           headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
           body: JSON.stringify({ ...getAdminInfo(), maTuyen, tenTuyen, xn, dauA, dauB, tramDi, tramVe, soXeKh, soXe: soXeKh, loaiXe, status, ngayApDung })
         }).then(r => r.json());
+        if (!resTuyen?.success) {
+          showToast(resTuyen?.message || 'Không lưu được thông tin tuyến.', 'error');
+          return;
+        }
+        routeSaved = true;
 
         const resXe = await fetch(`${API_BASE}/api/admin/luu-doi-xe-tuyen`, {
           method: 'POST', 
           headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
           body: JSON.stringify({ ...getAdminInfo(), maTuyen, danhSachXe, ngayApDung })
         }).then(r => r.json());
+        if (!resXe?.success) {
+          showToast(`Thông tin tuyến đã lưu, nhưng đội xe chưa lưu: ${resXe?.message || 'Lỗi không xác định.'}`, 'error');
+          await napDuLieuTong(maTuyen);
+          return;
+        }
 
-        const msgHienThi = (resTuyen && resTuyen.message) ? resTuyen.message : ((resXe && resXe.message) ? resXe.message : "Lưu thành công!");
-        showToast(msgHienThi, "success");
+        showToast(resXe.message || resTuyen.message || 'Lưu tuyến và đội xe thành công!', 'success');
         await napDuLieuTong(maTuyen);
       } catch (err) {
-        showToast("Lỗi kết nối: " + err, "error");
+        const message = routeSaved
+          ? 'Thông tin tuyến đã lưu, nhưng không thể xác nhận việc lưu đội xe. Hãy tải lại dữ liệu để kiểm tra.'
+          : `Lỗi kết nối: ${err}`;
+        showToast(message, 'error');
+        if (routeSaved) await napDuLieuTong(maTuyen);
+      } finally {
+        $button.prop('disabled', false).html(originalHtml);
       }
     }
 
@@ -1644,7 +1687,7 @@
             headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
             body: JSON.stringify({ ...getAdminInfo(), chungLoai, namSx })
           }).then(r => r.json());
-          showToast(res.message, "success");
+          showToast(res.message, res.success ? "success" : "error");
           if (res.success) {
             danhMucXeMau = danhMucXeMau.filter(m => !(m.chungLoai === chungLoai && String(m.namSx || '') === String(namSx || '')));
             veBangXeMauAdmin();
@@ -1787,7 +1830,7 @@
       return dateStr;
     }
 
-    async function luuBieuDo() {
+    async function luuBieuDo(button) {
       const tuyen = $('#selChonTuyen').val();
       const xn = $('#txtBieuDoXn').val();
       const ngayApDung = $('#txtNgayBatDau').val().trim();
@@ -1800,6 +1843,9 @@
       const lines = rawText.split("\n"); const rawData = []; let maxCols = 0;
       lines.forEach(l => { if (l.trim()) { const cols = l.split("\t"); if (cols.length > maxCols) maxCols = cols.length; rawData.push(cols); } });
       rawData.forEach(row => { while (row.length < maxCols) row.push(""); });
+      const $button = $(button);
+      const originalHtml = $button.html();
+      $button.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Đang lưu...');
 
       try {
         const res = await fetch(`${API_BASE}/api/luu-bieu-do`, {
@@ -1807,10 +1853,18 @@
           headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
           body: JSON.stringify({ ...getAdminInfo(), xn, tuyen, bieuDo: ngayApDung, tenTab, rawData, ngayApDung })
         }).then(r => r.json());
-        showToast(res.message, "success");
+        if (!res?.success) {
+          showToast(res?.message || 'Không lưu được biểu đồ.', 'error');
+          return;
+        }
+        showToast(res.message || 'Lưu biểu đồ thành công!', 'success');
         $('#txtRawData').val("");
         await napDuLieuTong();
-      } catch (err) { showToast("Lỗi: " + err, "error"); }
+      } catch (err) {
+        showToast("Lỗi: " + err, "error");
+      } finally {
+        $button.prop('disabled', false).html(originalHtml);
+      }
     }
 
     async function xoaBieuDo() {
@@ -1825,7 +1879,7 @@
             headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') }, 
             body: JSON.stringify({ ...getAdminInfo(), tenTab })
           }).then(r => r.json());
-          showToast(res.message, "success");
+          showToast(res.message, res.success ? "success" : "error");
           if (res.success) { await napDuLieuTong(); $('#txtRawData').val(""); $('#txtNgayBatDau').val(""); tuDongTaoTenTab(); }
         } catch (err) { showToast("Lỗi: " + err, "error"); }
       });
@@ -1908,7 +1962,7 @@
             headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') }, 
             body: JSON.stringify({ ...getAdminInfo(), tenTab })
           }).then(r => r.json());
-          showToast(res.message, "success");
+          showToast(res.message, res.success ? "success" : "error");
           if (res.success) { await napDuLieuTong(); }
         } catch (err) { showToast("Lỗi: " + err, "error"); }
       });
@@ -1994,7 +2048,7 @@
             headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
             body: JSON.stringify({ ...getAdminInfo(), id })
           }).then(r => r.json());
-          showToast(res.message, "success");
+          showToast(res.message, res.success ? "success" : "error");
           if (res.success) { taiTaiThongBaoAdmin(); }
         } catch (err) { showToast('Lỗi kết nối!', 'error'); }
       });
@@ -2156,8 +2210,8 @@
             headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') }, 
             body: JSON.stringify({ ...getAdminInfo(), maTuyen, status: statusMoi })
           }).then(r => r.json());
-          showToast(res.message, "success");
-          await napDuLieuTong();
+          showToast(res.message, res.success ? "success" : "error");
+          if (res.success) await napDuLieuTong();
         } catch (e) { showToast("Lỗi: " + e, "error"); }
       });
     }
@@ -2284,7 +2338,8 @@
           headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
           body: JSON.stringify({ ...getAdminInfo(), targetUsername, status: newStatus })
         }).then(r => r.json());
-        showToast(res.message, "success"); taiDanhSachTaiKhoan();
+        showToast(res.message, res.success ? "success" : "error");
+        if (res.success) taiDanhSachTaiKhoan();
       } catch (e) { showToast("Lỗi thao tác", "error"); }
     }
 
@@ -2295,7 +2350,8 @@
           headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
           body: JSON.stringify({ ...getAdminInfo(), targetUsername, role: newRole })
         }).then(r => r.json());
-        showToast(res.message, "success"); taiDanhSachTaiKhoan();
+        showToast(res.message, res.success ? "success" : "error");
+        if (res.success) taiDanhSachTaiKhoan();
       } catch (e) { showToast("Lỗi thao tác", "error"); }
     }
 
@@ -2322,8 +2378,8 @@
             headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') }, 
             body: JSON.stringify({ ...getAdminInfo(), targetUsername })
           }).then(r => r.json());
-          showToast(res.message, "success"); 
-          taiDanhSachTaiKhoan();
+          showToast(res.message, res.success ? "success" : "error");
+          if (res.success) taiDanhSachTaiKhoan();
         } catch (e) { 
           showToast("Lỗi thao tác", "error"); 
         }

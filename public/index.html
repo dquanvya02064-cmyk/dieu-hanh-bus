@@ -477,7 +477,7 @@
         $box.html('<p style="text-align:center; padding:15px; color:#777;"><i class="fa fa-spinner fa-spin"></i> Đang tìm kiếm...</p>');
         try {
           const cleanQuery = q.replace(/[\s\-\.]/g, '').toLowerCase();
-          const res = await fetch(`${API_BASE}/api/tim-kiem-xe?q=`).then(r => r.json());
+          const res = await fetch(`${API_BASE}/api/tim-kiem-xe?q=${encodeURIComponent(cleanQuery)}`).then(r => r.json());
           if (!res.success || !res.data) {
             $box.html('<p style="text-align:center; color:#d9534f; padding:15px; font-weight:bold;">Không tìm thấy biển số phù hợp!</p>');
             return;

@@ -4,7 +4,8 @@
   "description": "He thong dieu hanh bieu do xe buyt",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test security.test.js"
   },
   "keywords": [],
   "author": "",
@@ -12,6 +13,7 @@
   "type": "commonjs",
   "dependencies": {
     "cors": "^2.8.5",
+    "dotenv": "^18.0.9",
     "express": "^4.19.2",
     "mongoose": "^9.11.0"
   }

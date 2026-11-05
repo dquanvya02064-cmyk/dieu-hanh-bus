@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const dns = require('dns');
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
@@ -6,14 +8,25 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const mongoose = require('mongoose');
+const { canAccessAdminRequest, createAdminToken, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Chuỗi kết nối MongoDB Atlas
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://dquan4701_db_user:Quanbus123456@cluster0.sur3koa.mongodb.net/dieuhanhbus?retryWrites=true&w=majority';
+const MONGO_URI = process.env.MONGO_URI;
+const AUTH_TOKEN_SECRET = process.env.AUTH_TOKEN_SECRET || '';
+if (!MONGO_URI) throw new Error('MONGO_URI must be configured in the environment.');
 
-app.use(cors());
+const allowedOrigins = new Set((process.env.ALLOWED_ORIGINS || 'https://dieu-hanh-bus.onrender.com,http://localhost:3000')
+  .split(',').map(origin => origin.trim()).filter(Boolean));
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.has(origin)) return callback(null, true);
+    return callback(new Error('Origin not allowed.'));
+  },
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'OPTIONS']
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -60,20 +73,48 @@ const BusModel = mongoose.model('BusData', busDataSchema);
 // --- MIDDLEWARE BẢO MẬT & XÁC THỰC QUẢN TRỊ ---
 async function verifyAdmin(req, res, next) {
   try {
-    const username = req.headers['x-admin-user'] || req.body.actorUsername;
-    if (!username) {
+    if (Buffer.byteLength(AUTH_TOKEN_SECRET) < 32) {
+      return res.status(503).json({ success: false, message: 'Hệ thống chưa cấu hình xác thực quản trị.' });
+    }
+    const token = (req.get('authorization') || '').match(/^Bearer\s+(.+)$/i)?.[1];
+    const claims = verifyAdminToken(token, AUTH_TOKEN_SECRET);
+    if (!claims) {
       return res.status(401).json({ success: false, message: 'Chưa xác thực danh tính quản trị viên!' });
     }
     const raw = await getRawData();
-    const user = (raw.taiKhoanList || []).find(u => u.username === username && u.status === 'active');
+    const user = (raw.taiKhoanList || []).find(u => u.username === claims.username && u.status === 'active');
     if (!user) {
       return res.status(403).json({ success: false, message: 'Tài khoản không hợp lệ hoặc đã bị tạm khóa!' });
     }
+    if ((user.tokenVersion || 0) !== claims.tokenVersion) {
+      return res.status(401).json({ success: false, message: 'Phiên đăng nhập đã hết hiệu lực.' });
+    }
+    if (!canAccessAdminRequest(req.path, req.query, user)) {
+      return res.status(403).json({ success: false, message: 'Tài khoản không có quyền thực hiện thao tác này.' });
+    }
     req.adminUser = user;
-    next();
+    return next();
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Lỗi xác thực hệ thống: ' + err.message });
+    console.error('Lỗi xác thực quản trị:', err.message);
+    return res.status(500).json({ success: false, message: 'Lỗi xác thực hệ thống.' });
   }
+}
+
+async function ensureBootstrapAdmin(raw) {
+  if (!Array.isArray(raw.taiKhoanList)) raw.taiKhoanList = [];
+  const username = process.env.BOOTSTRAP_ADMIN_USERNAME;
+  const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
+  if (raw.taiKhoanList.length || !username || !password) return false;
+  if (password.length < 12) throw new Error('BOOTSTRAP_ADMIN_PASSWORD must contain at least 12 characters.');
+  raw.taiKhoanList.push({
+    username,
+    password: await hashPassword(password),
+    role: 'master',
+    permissions: ['tuyen', 'xe', 'bieudo'],
+    status: 'active'
+  });
+  await saveRawDataFast(raw);
+  return true;
 }
 
 function parseTabDate(tabName) {
@@ -249,11 +290,6 @@ mongoose.connect(MONGO_URI)
 
     const doc = await BusModel.findOne({ key: 'main_data' }).lean();
     if (doc && doc.data) {
-      if (!doc.data.taiKhoanList || doc.data.taiKhoanList.length === 0) {
-        doc.data.taiKhoanList = [
-          { username: 'quan', password: '123', role: 'master', permissions: ['tuyen', 'xe', 'bieudo'], status: 'active' }
-        ];
-      }
       const cleanedData = await cleanAndSyncData(doc.data);
       delete cleanedData._isDataChanged;
       await BusModel.findOneAndUpdate({ key: 'main_data' }, { key: 'main_data', data: cleanedData }, { upsert: true });
@@ -631,37 +667,64 @@ app.post('/api/admin/xoa-lich-thong-bao', verifyAdmin, async (req, res) => {
 app.post('/api/admin/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    const raw = await getRawData();
-    if (!raw.taiKhoanList || raw.taiKhoanList.length === 0) {
-      raw.taiKhoanList = [
-        { username: 'quan', password: '123', role: 'master', permissions: ['tuyen', 'xe', 'bieudo'], status: 'active' }
-      ];
-      await saveRawDataFast(raw);
+    if (Buffer.byteLength(AUTH_TOKEN_SECRET) < 32) {
+      return res.status(503).json({ success: false, message: 'Hệ thống chưa cấu hình xác thực quản trị.' });
+    }
+    if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập tài khoản và mật khẩu.' });
     }
 
-    const user = raw.taiKhoanList.find(u => u.username === username && u.password === password);
-    if (!user) {
-      return res.status(401).json({ success: false, message: 'Tài khoản không tồn tại trên hệ thống' });
+    const raw = await getRawData(true);
+    if (!Array.isArray(raw.taiKhoanList)) raw.taiKhoanList = [];
+
+    if (raw.taiKhoanList.length === 0 && username === process.env.BOOTSTRAP_ADMIN_USERNAME && password === process.env.BOOTSTRAP_ADMIN_PASSWORD) {
+      await ensureBootstrapAdmin(raw);
     }
-    if (user.status === 'locked') {
+
+    const user = raw.taiKhoanList.find(u => u.username === username);
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Tài khoản hoặc mật khẩu không đúng.' });
+    }
+    if (user.status !== 'active') {
       return res.status(403).json({ success: false, message: 'Tài khoản của bạn đang bị tạm khóa!' });
     }
 
-    res.json({ 
+    if (user.username === 'quan' && user.password === '123') {
+      const replacementPassword = process.env.BOOTSTRAP_ADMIN_PASSWORD;
+      if (!replacementPassword || replacementPassword.length < 12) {
+        return res.status(503).json({ success: false, message: 'Tài khoản mặc định đã bị vô hiệu hóa. Hãy cấu hình mật khẩu quản trị mới.' });
+      }
+      user.password = await hashPassword(replacementPassword);
+      await saveRawDataFast(raw);
+    }
+
+    const passwordCheck = await verifyPassword(password, user.password);
+    if (!passwordCheck.valid) {
+      return res.status(401).json({ success: false, message: 'Tài khoản hoặc mật khẩu không đúng.' });
+    }
+    if (passwordCheck.needsRehash) {
+      user.password = await hashPassword(password);
+      await saveRawDataFast(raw);
+    }
+
+    return res.json({
       success: true, 
       role: user.role, 
       permissions: user.permissions || [], 
+      token: createAdminToken(user.username, AUTH_TOKEN_SECRET, Date.now(), user.tokenVersion || 0),
       message: 'Đăng nhập thành công!' 
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    console.error('Lỗi đăng nhập quản trị:', err.message);
+    return res.status(500).json({ success: false, message: 'Không thể đăng nhập lúc này.' });
   }
 });
 
 app.get('/api/admin/danh-sach-tai-khoan', verifyAdmin, async (req, res) => {
   try {
     const raw = await getRawData();
-    res.json({ success: true, data: raw.taiKhoanList || [] });
+    const accounts = (raw.taiKhoanList || []).map(({ password, ...account }) => account);
+    res.json({ success: true, data: accounts });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -670,7 +733,14 @@ app.get('/api/admin/danh-sach-tai-khoan', verifyAdmin, async (req, res) => {
 app.post('/api/admin/dang-ky', verifyAdmin, async (req, res) => {
   try {
     const { targetUsername, password, role, permissions } = req.body;
-    if (!targetUsername || !password) return res.status(400).json({ success: false, message: 'Thiếu thông tin tài khoản mới!' });
+    if (typeof targetUsername !== 'string' || !targetUsername.trim() || typeof password !== 'string' || password.length < 12) {
+      return res.status(400).json({ success: false, message: 'Tên tài khoản và mật khẩu tối thiểu 12 ký tự là bắt buộc.' });
+    }
+    if (role && !['master', 'staff'].includes(role)) return res.status(400).json({ success: false, message: 'Vai trò không hợp lệ.' });
+    const allowedPermissions = ['tuyen', 'xe', 'bieudo'];
+    if (permissions !== undefined && (!Array.isArray(permissions) || permissions.some(permission => !allowedPermissions.includes(permission)))) {
+      return res.status(400).json({ success: false, message: 'Danh sách quyền không hợp lệ.' });
+    }
 
     const raw = await getRawData(true);
     if (!raw.taiKhoanList) raw.taiKhoanList = [];
@@ -680,8 +750,8 @@ app.post('/api/admin/dang-ky', verifyAdmin, async (req, res) => {
     }
 
     raw.taiKhoanList.push({
-      username: targetUsername,
-      password,
+      username: targetUsername.trim(),
+      password: await hashPassword(password),
       role: role || 'staff',
       permissions: permissions || [],
       status: 'active'
@@ -697,6 +767,16 @@ app.post('/api/admin/dang-ky', verifyAdmin, async (req, res) => {
 app.post('/api/admin/sua-tai-khoan', verifyAdmin, async (req, res) => {
   try {
     const { targetUsername, status, role, permissions } = req.body;
+    if (status !== undefined && !['active', 'locked'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Trạng thái tài khoản không hợp lệ.' });
+    }
+    if (role !== undefined && !['master', 'staff'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Vai trò không hợp lệ.' });
+    }
+    const allowedPermissions = ['tuyen', 'xe', 'bieudo'];
+    if (permissions !== undefined && (!Array.isArray(permissions) || permissions.some(permission => !allowedPermissions.includes(permission)))) {
+      return res.status(400).json({ success: false, message: 'Danh sách quyền không hợp lệ.' });
+    }
     const raw = await getRawData(true);
     if (!raw.taiKhoanList) raw.taiKhoanList = [];
 
@@ -717,7 +797,9 @@ app.post('/api/admin/sua-tai-khoan', verifyAdmin, async (req, res) => {
 app.post('/api/admin/doi-mat-khau', verifyAdmin, async (req, res) => {
   try {
     const { targetUsername, newPassword } = req.body;
-    if (!targetUsername || !newPassword) return res.status(400).json({ success: false, message: 'Thiếu thông tin mật khẩu mới!' });
+    if (typeof targetUsername !== 'string' || !targetUsername || typeof newPassword !== 'string' || newPassword.length < 12) {
+      return res.status(400).json({ success: false, message: 'Mật khẩu mới phải có ít nhất 12 ký tự.' });
+    }
 
     const raw = await getRawData(true);
     if (!raw.taiKhoanList) raw.taiKhoanList = [];
@@ -725,7 +807,8 @@ app.post('/api/admin/doi-mat-khau', verifyAdmin, async (req, res) => {
     const user = raw.taiKhoanList.find(u => u.username === targetUsername);
     if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản!' });
 
-    user.password = newPassword;
+    user.password = await hashPassword(newPassword);
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     await saveRawDataFast(raw);
     res.json({ success: true, message: `Đã đổi mật khẩu cho tài khoản [${targetUsername}] thành công!` });
   } catch (err) {
@@ -1001,7 +1084,10 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], verifyAdmin, async (req, res) =>
 });
 
 // --- TRA CỨU DANH MỤC & DỮ LIỆU TUYẾN ---
-app.get('/api/danh-muc', async (req, res) => {
+app.get('/api/danh-muc', (req, res, next) => {
+  if (req.query.admin === 'true') return verifyAdmin(req, res, next);
+  return next();
+}, async (req, res) => {
   try {
     const isAdmin = req.query.admin === 'true';
     const raw = await getRawData();
@@ -1043,7 +1129,7 @@ app.get('/api/danh-muc', async (req, res) => {
         }));
     }
 
-    res.json({ success: true, data: danhMucList, allRoutes: allRoutesList, bieuDoList: raw.bieuDoList || [] });
+    res.json({ success: true, data: danhMucList, allRoutes: allRoutesList, bieuDoList: isAdmin ? raw.bieuDoList || [] : [] });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -1076,6 +1162,13 @@ app.get('/api/table-data', async (req, res) => {
 
     if (!found) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy dữ liệu biểu đồ cho tab này!' });
+    }
+
+    const foundRouteName = String(found.tuyen || tuyenQuery || '').trim();
+    const foundRouteCode = foundRouteName.match(/^([A-Za-z0-9]+)/)?.[1]?.toUpperCase();
+    const foundRoute = foundRouteCode && (raw.tuyenList?.[foundRouteCode] || Object.values(raw.tuyenList || {}).find(route => String(route.maTuyen || '').toUpperCase() === foundRouteCode));
+    if (foundRoute?.status === 'locked') {
+      return res.status(404).json({ success: false, message: 'Tuyến hiện không hoạt động.' });
     }
 
     let dauA = "Đầu A", dauB = "Đầu B";
@@ -1150,6 +1243,9 @@ app.get('/api/chi-tiet-tuyen', async (req, res) => {
         tramVe: ""
       });
     }
+    if (tuyenInfo.status === 'locked') {
+      return res.status(404).json({ success: false, message: 'Tuyến hiện không hoạt động.' });
+    }
 
     res.json({
       success: true,
@@ -1165,8 +1261,15 @@ app.get('/api/chi-tiet-tuyen', async (req, res) => {
   }
 });
 
-app.get('/api/bus-data', async (req, res) => {
-  try { const data = await getRawData(); res.json(data); } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+app.get('/api/bus-data', verifyAdmin, async (req, res) => {
+  try {
+    const data = await getRawData();
+    const safeData = {
+      ...data,
+      taiKhoanList: (data.taiKhoanList || []).map(({ password, ...account }) => account)
+    };
+    res.json(safeData);
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 app.post(['/api/bus-data', '/api/save-data'], verifyAdmin, async (req, res) => {
@@ -1213,19 +1316,32 @@ app.post('/api/xoa-bieu-do', verifyAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-app.get('/api/tim-kiem-xe', async (req, res) => {
+app.get('/api/tim-kiem-xe', (req, res, next) => {
+  if (req.query.all === 'true') return verifyAdmin(req, res, next);
+  return next();
+}, async (req, res) => {
   try {
-    const q = (req.query.q || '').trim().toLowerCase();
+    const q = String(req.query.q || '').trim().toLowerCase();
+    const isAdminRequest = req.query.all === 'true';
     const tuyenQuery = (req.query.tuyen || '').trim().toUpperCase();
     const raw = await getRawData();
     let xeList = Array.isArray(raw.xeList) ? raw.xeList : [];
-    
-    let ketQua = q ? xeList.filter(x => (x.bks || '').toLowerCase().includes(q)) : xeList;
+
+    const normalizeBks = value => String(value || '').replace(/[\s\-\.]/g, '').toLowerCase();
+    let ketQua = isAdminRequest ? xeList : q ? xeList.filter(x => normalizeBks(x.bks).includes(normalizeBks(q))) : [];
     
     if (tuyenQuery) {
       const chuanHoaTuyen = str => String(str || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
       const tuyenQueryNorm = chuanHoaTuyen(tuyenQuery);
       ketQua = ketQua.filter(x => chuanHoaTuyen(x.maTuyen) === tuyenQueryNorm);
+    }
+
+    if (!isAdminRequest) {
+      ketQua = ketQua.filter(x => {
+        const maXe = String(x.maTuyen || '').toUpperCase();
+        const route = raw.tuyenList?.[maXe] || Object.values(raw.tuyenList || {}).find(item => String(item.maTuyen || '').toUpperCase() === maXe);
+        return !route || route.status !== 'locked';
+      });
     }
 
     const tuyenMap = raw.tuyenList || {};
