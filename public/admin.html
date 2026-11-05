@@ -762,8 +762,12 @@
       });
 
       veCheckboxQuyenMoi();
+      togglePermissionCheckboxes();
       $(document).on('change', '.account-permission', function() {
-        doiQuyen($(this).data('username'), $(this).data('permission'), this.checked);
+        capNhatTrangThaiLuuQuyen(this);
+      });
+      $(document).on('click', '.account-permission-save', function() {
+        luuQuyenTaiKhoan($(this).data('username'), this);
       });
 
       $('#chkCaTuan').prop('checked', true);
@@ -865,8 +869,13 @@
       if (role !== 'master' && $('#newAccRole').val() === 'master') $('#newAccRole').val('staff');
       $('#accountCreatePanel').toggle(can('users.create'));
       togglePermissionCheckboxes();
-      $('.new-perm').prop('disabled', !can('users.permissions'));
-      $('.account-permission').prop('disabled', !can('users.permissions'));
+      $('.new-perm').each(function() {
+        $(this).prop('disabled', !can('users.permissions') || !can($(this).val()));
+      });
+      $('.account-permission').each(function() {
+        $(this).prop('disabled', !can('users.permissions') || !can($(this).data('permission')));
+      });
+      $('.account-permission-save').toggle(can('users.permissions'));
       $('#dashboardRoutesPanel').toggle(can('routes.view') || can('fleet.view'));
       $('#fleetEditorPanel').toggle(can('fleet.view'));
       const canScheduleRoute = can('routes.edit') && can('routes.schedule');
@@ -911,14 +920,14 @@
     function veCheckboxQuyenTaiKhoan(account) {
       const permissions = new Set(account.permissions || []);
       const username = $('<span>').text(account.username).html();
-      return `<div class="account-permission-groups">${ADMIN_PERMISSION_GROUPS.map(group => `
+      return `<div class="account-permission-editor" data-username="${username}"><div class="account-permission-groups">${ADMIN_PERMISSION_GROUPS.map(group => `
         <details>
           <summary>${group.title}</summary>
           <div>${group.items.map(([permission, label]) => `
-            <label><input type="checkbox" class="account-permission" data-action-permission="users.permissions" data-username="${username}" data-permission="${permission}" ${permissions.has(permission) ? 'checked' : ''}> ${label}</label>
+            <label><input type="checkbox" class="account-permission" data-action-permission="users.permissions" data-username="${username}" data-permission="${permission}" ${permissions.has(permission) ? 'checked' : ''} ${coQuyenAdmin(permission) ? '' : 'disabled'}> ${label}</label>
           `).join('')}</div>
         </details>
-      `).join('')}</div>`;
+      `).join('')}</div><div class="account-permission-save-row"><button type="button" class="btn btn-success account-permission-save" data-action-permission="users.permissions" data-username="${username}" disabled><i class="fa fa-save"></i> Lưu quyền</button></div></div>`;
     }
 
     function dangXuatAdmin() {
@@ -2357,6 +2366,9 @@
       const role = $('#newAccRole').val();
       if (role === 'master') { $('#permissionGroup').hide(); }
       else { $('#permissionGroup').show(); }
+      $('.new-perm').each(function() {
+        $(this).prop('disabled', role === 'master' || !coQuyenAdmin('users.permissions') || !coQuyenAdmin($(this).val()));
+      });
     }
 
     async function taiDanhSachTaiKhoan() {
@@ -2433,23 +2445,36 @@
       } catch (e) { showToast("Lỗi kết nối", "error"); }
     }
 
-    async function doiQuyen(targetUsername, permName, isChecked) {
+    function capNhatTrangThaiLuuQuyen(element) {
+      const $editor = $(element).closest('.account-permission-editor');
+      const $button = $editor.find('.account-permission-save');
+      const hasChanges = $editor.find('.account-permission').toArray().some(input => input.checked !== input.defaultChecked);
+      $button.prop('disabled', !hasChanges || $button.data('saving') === true);
+    }
+
+    async function luuQuyenTaiKhoan(targetUsername, button) {
+      const $button = $(button);
+      const $editor = $button.closest('.account-permission-editor');
+      if (!$editor.length || $button.data('saving') === true) return;
+      const permissions = [];
+      $editor.find('.account-permission:checked').each(function() { permissions.push($(this).data('permission')); });
+      $button.data('saving', true).prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Đang lưu...');
       try {
-        const resList = await fetch(`${API_BASE}/api/admin/danh-sach-tai-khoan`, {
-          headers: { 'x-admin-user': sessionStorage.getItem('admin_user') }
-        }).then(r => r.json());
-        const acc = resList.data.find(u => u.username === targetUsername);
-        if (!acc) return;
-        let perms = acc.permissions || [];
-        if (isChecked && !perms.includes(permName)) perms.push(permName);
-        if (!isChecked && perms.includes(permName)) perms = perms.filter(p => p !== permName);
         const res = await fetch(`${API_BASE}/api/admin/sua-tai-khoan`, {
           method: 'POST', 
           headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
-          body: JSON.stringify({ ...getAdminInfo(), targetUsername, permissions: perms })
+          body: JSON.stringify({ ...getAdminInfo(), targetUsername, permissions })
         }).then(r => r.json());
         showToast(res.message, res.success ? "success" : "error");
-      } catch (e) { showToast("Lỗi cập nhật quyền", "error"); }
+        if (res.success) {
+          $editor.find('.account-permission').each(function() { this.defaultChecked = this.checked; });
+        }
+      } catch (e) {
+        showToast("Lỗi cập nhật quyền", "error");
+      } finally {
+        $button.data('saving', false).html('<i class="fa fa-save"></i> Lưu quyền');
+        capNhatTrangThaiLuuQuyen($button);
+      }
     }
 
     async function doiTrangThaiTaiKhoan(targetUsername, newStatus) {

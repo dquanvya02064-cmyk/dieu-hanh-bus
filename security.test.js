@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { canAccessAdminRequest, canGrantAdminPermissions, createAdminToken, expandAdminPermissions, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
+const { canAccessAdminRequest, canGrantAdminPermissions, canUpdateAdminPermissions, createAdminToken, expandAdminPermissions, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
 
 test('password hashes verify without storing plaintext', async () => {
   const password = 'a-long-test-password';
@@ -43,6 +43,15 @@ test('staff can grant only permissions they already hold', () => {
   assert.equal(canGrantAdminPermissions(['charts.view', 'users.create'], accountManager), true);
   assert.equal(canGrantAdminPermissions(['routes.edit'], accountManager), false);
   assert.equal(canGrantAdminPermissions(['routes.edit'], { role: 'master', permissions: [] }), true);
+});
+
+test('staff can update only permissions they hold and preserve unrelated permissions', () => {
+  const accountManager = { role: 'staff', permissions: ['users.permissions', 'charts.edit'] };
+
+  assert.equal(canUpdateAdminPermissions(['charts.edit', 'routes.edit'], ['charts.view', 'routes.edit'], accountManager), true);
+  assert.equal(canUpdateAdminPermissions(['routes.edit'], ['routes.view'], accountManager), false);
+  assert.equal(canUpdateAdminPermissions(['routes.edit'], ['routes.edit', 'charts.edit'], accountManager), true);
+  assert.equal(canUpdateAdminPermissions(['routes.edit'], ['routes.edit'], { role: 'master', permissions: [] }), true);
 });
 
 test('admin view and edit permissions are enforced independently', () => {

@@ -52,6 +52,16 @@ function canGrantAdminPermissions(permissions, user) {
   return user.role === 'master' || permissions.every(permission => hasPermission(user, permission));
 }
 
+function canUpdateAdminPermissions(currentPermissions = [], nextPermissions = [], user) {
+  if (user.role === 'master') return true;
+  const current = new Set(expandAdminPermissions(currentPermissions));
+  const next = new Set(expandAdminPermissions(nextPermissions));
+  const changed = new Set([...current, ...next]);
+  return [...changed]
+    .filter(permission => current.has(permission) !== next.has(permission))
+    .every(permission => hasPermission(user, permission));
+}
+
 function needsSchedulePermission(body = {}) {
   const applyDate = body.ngayApDung;
   if (applyDate === undefined || applyDate === null || applyDate === '') return false;
@@ -180,4 +190,4 @@ function verifyAdminToken(token, secret, now = Date.now()) {
   }
 }
 
-module.exports = { ADMIN_PERMISSIONS, canAccessAdminRequest, canGrantAdminPermissions, createAdminToken, expandAdminPermissions, hasAdminPermission: hasPermission, hashPassword, verifyAdminToken, verifyPassword };
+module.exports = { ADMIN_PERMISSIONS, canAccessAdminRequest, canGrantAdminPermissions, canUpdateAdminPermissions, createAdminToken, expandAdminPermissions, hasAdminPermission: hasPermission, hashPassword, verifyAdminToken, verifyPassword };

@@ -8,7 +8,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const mongoose = require('mongoose');
-const { ADMIN_PERMISSIONS, canAccessAdminRequest, canGrantAdminPermissions, createAdminToken, expandAdminPermissions, hasAdminPermission, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
+const { ADMIN_PERMISSIONS, canAccessAdminRequest, canGrantAdminPermissions, canUpdateAdminPermissions, createAdminToken, expandAdminPermissions, hasAdminPermission, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -791,9 +791,6 @@ app.post('/api/admin/sua-tai-khoan', verifyAdmin, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Danh sách quyền không hợp lệ.' });
     }
     const expandedPermissions = permissions === undefined ? undefined : expandAdminPermissions(permissions);
-    if (expandedPermissions && !canGrantAdminPermissions(expandedPermissions, req.adminUser)) {
-      return res.status(403).json({ success: false, message: 'Không thể cấp quyền vượt quá quyền hiện có của bạn.' });
-    }
     const raw = await getRawData(true);
     if (!raw.taiKhoanList) raw.taiKhoanList = [];
 
@@ -801,6 +798,9 @@ app.post('/api/admin/sua-tai-khoan', verifyAdmin, async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản!' });
     if (user.role === 'master' && req.adminUser.role !== 'master') {
       return res.status(403).json({ success: false, message: 'Chỉ quản trị tối cao mới được sửa tài khoản Master.' });
+    }
+    if (expandedPermissions && !canUpdateAdminPermissions(user.permissions || [], expandedPermissions, req.adminUser)) {
+      return res.status(403).json({ success: false, message: 'Chỉ có thể thay đổi các quyền bạn đang sở hữu.' });
     }
 
     if (status) user.status = status;
