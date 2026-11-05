@@ -235,9 +235,8 @@
         <li id="menuXeMau"><a onclick="chuyenTabAdmin('sec-xemau', this)"><i class="fa fa-car"></i> Quản trị Danh mục Xe mẫu</a></li>
         <li id="menuBieudo"><a onclick="chuyenTabAdmin('sec-bieudo', this)"><i class="fa fa-calendar-plus-o"></i> Quản trị Biểu đồ chạy xe</a></li>
         <li id="menuThongBao"><a onclick="chuyenTabAdmin('sec-thongbao', this)"><i class="fa fa-bullhorn"></i> Quản lý Thông báo chạy</a></li>
-        <li id="menuLichHen"><a onclick="chuyenTabAdmin('sec-lichhen', this)"><i class="fa fa-clock-o"></i> Quản lý Lịch hẹn & Lịch sử</a></li>
+        <li id="menuLichHen"><a onclick="chuyenTabAdmin('sec-lichhen', this)"><i class="fa fa-clock-o"></i> Quản lý Lịch hẹn</a></li>
         <li id="menuQuanTriUser" style="display:none;"><a onclick="chuyenTabAdmin('sec-users', this)"><i class="fa fa-users"></i> Quản trị người dùng</a></li>
-        <li id="menuLog" style="display:none;"><a onclick="chuyenTabAdmin('sec-log', this)"><i class="fa fa-history"></i> Nhật ký truy cập web</a></li>
         <li><a href="index.html"><i class="fa fa-arrow-left"></i> Về trang tra cứu</a></li>
         <li><a onclick="dangXuatAdmin()" style="color: #E74C3C;"><i class="fa fa-sign-out"></i> Đăng xuất hệ thống</a></li>
       </ul>
@@ -597,7 +596,7 @@
           </div>
         </div>
 
-        <!-- SECTION: QUẢN LÝ LỊCH HẸN & LỊCH SỬ TẬP TRUNG -->
+        <!-- SECTION: QUẢN LÝ LỊCH HẸN TẬP TRUNG -->
         <div id="sec-lichhen" class="content-section">
           <!-- BẢNG 1: LỊCH HẸN ĐANG CHỜ -->
           <div class="panel-custom">
@@ -625,30 +624,6 @@
             </div>
           </div>
 
-          <!-- BẢNG 2: NHẬT KÝ LỊCH SỬ -->
-          <div class="panel-custom">
-            <div class="panel-heading">
-              <span><i class="fa fa-history"></i> Nhật ký Lịch sử Đã thực thi & Thao tác (History Log)</span>
-            </div>
-            <div class="panel-body">
-              <div class="table-responsive-wrapper" style="max-height: 450px;">
-                <table class="table-custom">
-                  <thead>
-                    <tr>
-                      <th style="width: 40px; text-align: center;">STT</th>
-                      <th style="width: 150px; text-align: center;">Thời gian ghi nhận</th>
-                      <th style="width: 130px;">Phân loại</th>
-                      <th style="width: 130px;">Mục áp dụng</th>
-                      <th>Chi tiết thao tác / Kết quả</th>
-                      <th style="width: 130px; text-align: center;">Trạng thái</th>
-                      <th style="width: 120px;">Thực hiện bởi</th>
-                    </tr>
-                  </thead>
-                  <tbody id="tblLichHenHistory"></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
         </div>
 
         <!-- SECTION: QUẢN TRỊ NGƯỜI DÙNG -->
@@ -688,28 +663,6 @@
           </div>
         </div>
 
-        <!-- SECTION: NHẬT KÝ TRUY CẬP WEB -->
-        <div id="sec-log" class="content-section">
-          <div class="panel-custom">
-            <div class="panel-heading"><span><i class="fa fa-history"></i> Lịch sử Khách & Người dùng truy cập Website</span></div>
-            <div class="panel-body" style="max-height: 500px;">
-              <div class="table-responsive-wrapper">
-                <table class="table-custom">
-                  <thead>
-                    <tr>
-                      <th style="width: 50px; text-align: center;">STT</th>
-                      <th>Đối tượng / Tài khoản</th>
-                      <th>Hành động</th>
-                      <th>Địa chỉ IP</th>
-                      <th style="width: 160px; text-align: center;">Thời gian truy cập</th>
-                    </tr>
-                  </thead>
-                  <tbody id="tblDanhSachLog"></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
 
       </div>
     </div>
@@ -820,13 +773,13 @@
       const role = sessionStorage.getItem('admin_role');
       const permissions = JSON.parse(sessionStorage.getItem('admin_permissions') || '[]');
 
-      $('#menuTuyen, #menuXeMau, #menuBieudo, #menuThongBao, #menuLichHen, #menuQuanTriUser, #menuLog').show();
+      $('#menuTuyen, #menuXeMau, #menuBieudo, #menuThongBao, #menuLichHen, #menuQuanTriUser').show();
 
       if (role === 'master') {
-        $('#menuQuanTriUser, #menuLog').show();
+        $('#menuQuanTriUser').show();
         return;
       }
-      $('#menuQuanTriUser, #menuLog').hide();
+      $('#menuQuanTriUser').hide();
       if (!permissions.includes('tuyen')) $('#menuTuyen, #menuXeMau').hide();
       if (!permissions.includes('bieudo')) $('#menuBieudo').hide();
     }
@@ -899,7 +852,6 @@
       if (window.innerWidth <= 768) { $('#sidebarMenu').addClass('collapsed'); }
 
       if (sectionId === 'sec-users') { taiDanhSachTaiKhoan(); }
-      else if (sectionId === 'sec-log') { taiDanhSachLog(); }
       else if (sectionId === 'sec-thongbao') { taiTaiThongBaoAdmin(); }
       else if (sectionId === 'sec-lichhen') { taiDanhSachLichHen(); }
     }
@@ -2048,7 +2000,7 @@
       });
     }
 
-    // SECTION: LỊCH HẸN & LỊCH SỬ
+    // SECTION: LỊCH HẸN
     async function taiDanhSachLichHen() {
       try {
         const res = await fetch(`${API_BASE}/api/admin/lay-danh-sach-lich`, {
@@ -2057,7 +2009,6 @@
         
         if (res.success) {
           veBangLichPending(res.pending || []);
-          veBangLichHistory(res.history || []);
         }
       } catch (err) {
         showToast("Lỗi khi nạp danh sách lịch hẹn!", "error");
@@ -2094,37 +2045,6 @@
         });
       }
       $('#tblLichHenPending').html(html);
-    }
-
-    function veBangLichHistory(list) {
-      let html = '';
-      if (!list || list.length === 0) {
-        html = '<tr><td colspan="7" style="text-align:center; color:#888; padding:20px;">Chưa có nhật ký lịch sử!</td></tr>';
-      } else {
-        list.forEach((item, idx) => {
-          let statusBadge = '';
-          if (item.status === 'success') {
-            statusBadge = '<span class="status-badge status-active"><i class="fa fa-check"></i> Thành công</span>';
-          } else if (item.status === 'cancelled') {
-            statusBadge = '<span class="status-badge status-locked"><i class="fa fa-ban"></i> Đã hủy</span>';
-          } else {
-            statusBadge = '<span class="status-badge" style="background:#FFF3CD; color:#856404;"><i class="fa fa-exclamation-triangle"></i> Thất bại</span>';
-          }
-
-          html += `
-            <tr>
-              <td style="text-align:center; color:#666;">${idx + 1}</td>
-              <td style="text-align:center; font-size:11px; color:#555;">${item.timeStr}</td>
-              <td><strong style="font-size:11px; color:#34495E;">${item.type}</strong></td>
-              <td><strong>${item.target}</strong></td>
-              <td>${item.details} <br><small style="color:#7F8C8D; font-style:italic;">(${item.note || ''})</small></td>
-              <td style="text-align:center;">${statusBadge}</td>
-              <td>${item.executedBy || 'System'}</td>
-            </tr>
-          `;
-        });
-      }
-      $('#tblLichHenHistory').html(html);
     }
 
     async function chayNgayLichHen(taskId, targetName) {
@@ -2252,38 +2172,11 @@
       $sel.trigger('change.select2');
     }
 
-    // SECTION: QUẢN TRỊ NGƯỜI DÙNG & LOGS
+    // SECTION: QUẢN TRỊ NGƯỜI DÙNG
     function togglePermissionCheckboxes() {
       const role = $('#newAccRole').val();
       if (role === 'master') { $('#permissionGroup').hide(); }
       else { $('#permissionGroup').show(); }
-    }
-
-    async function taiDanhSachLog() {
-      try {
-        const res = await fetch(`${API_BASE}/api/admin/danh-sach-log`, {
-          headers: { 'x-admin-user': sessionStorage.getItem('admin_user') }
-        }).then(r => r.json());
-        if (res.success) {
-          let html = '';
-          res.data.forEach((log, index) => {
-            const timeFormatted = new Date(log.createdAt).toLocaleString('vi-VN');
-            const roleBadge = log.role === 'visitor' 
-              ? '<span class="status-badge" style="background:#E2E8F0; color:#475569;">Khách vãng lai</span>' 
-              : '<span class="status-badge status-active">Quản trị viên</span>';
-            html += `
-              <tr>
-                <td style="text-align: center; color: #555;">${index + 1}</td>
-                <td><strong>${log.username}</strong> ${roleBadge}</td>
-                <td>${log.action}</td>
-                <td style="font-family: monospace; color: #666;">${log.ip || 'Ẩn danh'}</td>
-                <td style="text-align: center; color: #555;">${timeFormatted}</td>
-              </tr>
-            `;
-          });
-          $('#tblDanhSachLog').html(html);
-        }
-      } catch (e) {}
     }
 
     async function taiDanhSachTaiKhoan() {

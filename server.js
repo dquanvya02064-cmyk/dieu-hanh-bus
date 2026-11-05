@@ -33,10 +33,6 @@ function getVietnamTodayISO() {
 }
 
 // HELPER: Lấy chuỗi thời gian hiển thị tiếng Việt múi giờ Việt Nam
-function getVietnamTimeString() {
-  return new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-}
-
 // HELPER: Chuẩn hóa mọi định dạng ngày (DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY) về YYYY-MM-DD
 function parseDateToISO(dateStr) {
   if (!dateStr) return getVietnamTodayISO();
@@ -60,7 +56,6 @@ const busDataSchema = new mongoose.Schema({
 });
 const BusModel = mongoose.model('BusData', busDataSchema);
 
-async function recordLog(req, actionDesc) {}
 
 // --- MIDDLEWARE BẢO MẬT & XÁC THỰC QUẢN TRỊ ---
 async function verifyAdmin(req, res, next) {
@@ -100,13 +95,14 @@ function parseTabDate(tabName) {
 // --- HÀM LÀM SẠCH, ĐỒNG BỘ DỮ LIỆU & TỰ ĐỘNG KÍCH HOẠT HẸN GIỜ (CRON ENGINE CORE) ---
 async function cleanAndSyncData(data) {
   if (!data) return data;
+  const hasHistoryLog = Object.prototype.hasOwnProperty.call(data, 'historyLog');
+  if (hasHistoryLog) delete data.historyLog;
   if (!Array.isArray(data.xeList)) data.xeList = [];
   if (!data.tuyenList) data.tuyenList = {};
   if (!Array.isArray(data.danhMucXeMau)) data.danhMucXeMau = [];
-  if (!Array.isArray(data.historyLog)) data.historyLog = [];
 
   const todayISO = getVietnamTodayISO();
-  let isDataChanged = false;
+  let isDataChanged = hasHistoryLog;
 
   // STEP A: Chuẩn hóa & lọc trùng BKS xe
   const uniqueXeMap = new Map();
@@ -149,16 +145,6 @@ async function cleanAndSyncData(data) {
         update.status = 'applied';
         isDataChanged = true;
 
-        data.historyLog.unshift({
-          id: update.id || Date.now().toString(),
-          timeStr: getVietnamTimeString(),
-          type: 'TUYEN_DOI_XE',
-          target: `Tuyến ${update.maTuyen}`,
-          details: `Tự động áp dụng đội xe mới (${newCars.length} xe), tự động đẩy xe cũ về Bến DP`,
-          note: `Thực thi tự động theo mốc hẹn ngày ${update.ngayApDung}`,
-          status: 'success',
-          executedBy: 'Cron / Hệ thống'
-        });
       }
     });
   }
@@ -178,16 +164,6 @@ async function cleanAndSyncData(data) {
         update.status = 'applied';
         isDataChanged = true;
 
-        data.historyLog.unshift({
-          id: update.id || Date.now().toString(),
-          timeStr: getVietnamTimeString(),
-          type: 'TUYEN_DOI_XE',
-          target: `Tuyến ${update.maTuyen}`,
-          details: `Tự động cập nhật thông tin / Lộ trình / Xí nghiệp quản lý tuyến`,
-          note: `Thực thi tự động theo mốc hẹn ngày ${update.ngayApDung}`,
-          status: 'success',
-          executedBy: 'Cron / Hệ thống'
-        });
       }
     });
   }
@@ -270,9 +246,6 @@ setInterval(async () => {
 mongoose.connect(MONGO_URI)
   .then(async () => {
     console.log('>>> Kết nối thành công MongoDB Atlas!');
-    try {
-      await mongoose.connection.db.collection('accesslogs').drop().catch(() => {});
-    } catch(e) {}
 
     const doc = await BusModel.findOne({ key: 'main_data' }).lean();
     if (doc && doc.data) {
@@ -333,7 +306,7 @@ async function getRawData(forceRefresh = false) {
     return { 
       tuyenList: {}, bieuDoList: [], xeList: [], taiKhoanList: [], 
       danhMucXeMau: [], thongBaoChay: "", scheduledFleetUpdates: [], 
-      scheduledRouteUpdates: [], historyLog: [] 
+      scheduledRouteUpdates: []
     };
   })();
 
@@ -342,6 +315,7 @@ async function getRawData(forceRefresh = false) {
 
 async function saveRawDataFast(data) {
   delete data._isDataChanged;
+  delete data.historyLog;
   cachedData = data;
   await BusModel.findOneAndUpdate(
     { key: 'main_data' },
@@ -361,7 +335,7 @@ async function saveRawData(data) {
   );
 }
 
-// --- API HỆ THỐNG LỊCH HẸN & LỊCH SỬ TẬP TRUNG ---
+// --- API HỆ THỐNG LỊCH HẸN ---
 app.get('/api/admin/lay-danh-sach-lich', verifyAdmin, async (req, res) => {
   try {
     const raw = await getRawData();
@@ -416,8 +390,7 @@ app.get('/api/admin/lay-danh-sach-lich', verifyAdmin, async (req, res) => {
 
     res.json({
       success: true,
-      pending: pending,
-      history: raw.historyLog || []
+      pending: pending
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -455,17 +428,6 @@ app.post('/api/admin/chay-ngay-lich-hen', verifyAdmin, async (req, res) => {
         isExecuted = true;
         targetName = `Tuyến ${fleetItem.maTuyen}`;
 
-        if (!Array.isArray(raw.historyLog)) raw.historyLog = [];
-        raw.historyLog.unshift({
-          id: fleetItem.id,
-          timeStr: getVietnamTimeString(),
-          type: 'TUYEN_DOI_XE',
-          target: targetName,
-          details: `Kích hoạt ngay áp dụng đội xe mới (${newCars.length} xe), tự động đẩy xe cũ về DP`,
-          note: 'Chạy ngay thủ công trước thời hạn bởi Admin',
-          status: 'success',
-          executedBy: req.adminUser ? req.adminUser.username : 'Admin'
-        });
       }
     }
 
@@ -483,23 +445,11 @@ app.post('/api/admin/chay-ngay-lich-hen', verifyAdmin, async (req, res) => {
         isExecuted = true;
         targetName = `Tuyến ${routeItem.maTuyen}`;
 
-        if (!Array.isArray(raw.historyLog)) raw.historyLog = [];
-        raw.historyLog.unshift({
-          id: routeItem.id,
-          timeStr: getVietnamTimeString(),
-          type: 'TUYEN_DOI_XE',
-          target: targetName,
-          details: `Kích hoạt ngay cập nhật thông tin / Lộ trình tuyến`,
-          note: 'Chạy ngay thủ công trước thời hạn bởi Admin',
-          status: 'success',
-          executedBy: req.adminUser ? req.adminUser.username : 'Admin'
-        });
       }
     }
 
     if (isExecuted) {
       await saveRawData(raw);
-      await recordLog(req, `Kích hoạt ngay tác vụ hẹn giờ [${targetName}]`);
       return res.json({ success: true, message: `Đã kích hoạt áp dụng tác vụ thành công cho ${targetName}!` });
     } else {
       return res.status(404).json({ success: false, message: 'Không tìm thấy tác vụ hẹn giờ hoặc tác vụ đã được thực thi!' });
@@ -516,26 +466,13 @@ app.post('/api/admin/huy-lich-hen', verifyAdmin, async (req, res) => {
 
     const raw = await getRawData(true);
     let isCancelled = false;
-    let targetName = '';
 
     if (Array.isArray(raw.scheduledFleetUpdates)) {
       const fleetItem = raw.scheduledFleetUpdates.find(f => f.id === taskId && f.status === 'pending');
       if (fleetItem) {
         fleetItem.status = 'cancelled';
         isCancelled = true;
-        targetName = `Tuyến ${fleetItem.maTuyen}`;
 
-        if (!Array.isArray(raw.historyLog)) raw.historyLog = [];
-        raw.historyLog.unshift({
-          id: fleetItem.id,
-          timeStr: getVietnamTimeString(),
-          type: 'TUYEN_DOI_XE',
-          target: targetName,
-          details: `Hủy lịch hẹn thay đổi đội xe (${(fleetItem.danhSachXe || []).length} xe)`,
-          note: 'Đã hủy bởi Admin',
-          status: 'cancelled',
-          executedBy: req.adminUser ? req.adminUser.username : 'Admin'
-        });
       }
     }
 
@@ -544,25 +481,12 @@ app.post('/api/admin/huy-lich-hen', verifyAdmin, async (req, res) => {
       if (routeItem) {
         routeItem.status = 'cancelled';
         isCancelled = true;
-        targetName = `Tuyến ${routeItem.maTuyen}`;
 
-        if (!Array.isArray(raw.historyLog)) raw.historyLog = [];
-        raw.historyLog.unshift({
-          id: routeItem.id,
-          timeStr: getVietnamTimeString(),
-          type: 'TUYEN_DOI_XE',
-          target: targetName,
-          details: `Hủy lịch hẹn thay đổi thông tin/lộ trình tuyến`,
-          note: 'Đã hủy bởi Admin',
-          status: 'cancelled',
-          executedBy: req.adminUser ? req.adminUser.username : 'Admin'
-        });
       }
     }
 
     if (isCancelled) {
       await saveRawDataFast(raw);
-      await recordLog(req, `Hủy tác vụ hẹn giờ [${targetName}]`);
       return res.json({ success: true, message: `Đã hủy lịch hẹn thành công!` });
     } else {
       return res.status(404).json({ success: false, message: 'Không tìm thấy tác vụ hẹn giờ cần hủy!' });
@@ -656,7 +580,6 @@ app.post('/api/admin/luu-thong-bao', verifyAdmin, async (req, res) => {
     const raw = await getRawData(true);
     raw.thongBaoChay = text !== undefined ? text : "";
     await saveRawDataFast(raw);
-    await recordLog(req, 'Cập nhật thông báo mặc định');
     res.json({ success: true, message: 'Cập nhật thông báo mặc định thành công!' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -683,7 +606,6 @@ app.post('/api/admin/them-lich-thong-bao', verifyAdmin, async (req, res) => {
     });
 
     await saveRawDataFast(raw);
-    await recordLog(req, 'Thêm lịch thông báo theo giờ');
     res.json({ success: true, message: "Đã thêm lịch thông báo thành công!" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -699,20 +621,10 @@ app.post('/api/admin/xoa-lich-thong-bao', verifyAdmin, async (req, res) => {
       raw.thongBaoScheduleList = raw.thongBaoScheduleList.filter(item => item.id !== id);
       await saveRawDataFast(raw);
     }
-    await recordLog(req, 'Xóa lịch thông báo');
     res.json({ success: true, message: "Đã xóa mốc lịch thành công!" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
-});
-
-// --- LOG ACCESS & NHẬT KÝ QUẢN TRỊ (ĐÃ VÔ HIỆU HÓA) ---
-app.post('/api/log-access', async (req, res) => {
-  res.json({ success: true });
-});
-
-app.get('/api/admin/danh-sach-log', verifyAdmin, async (req, res) => {
-  res.json({ success: true, data: [] });
 });
 
 // --- AUTHENTICATION & QUẢN TRỊ NGƯỜI DÙNG ---
@@ -776,7 +688,6 @@ app.post('/api/admin/dang-ky', verifyAdmin, async (req, res) => {
     });
 
     await saveRawDataFast(raw);
-    await recordLog(req, `Tạo tài khoản quản trị mới [${targetUsername}]`);
     res.json({ success: true, message: 'Tạo tài khoản thành công!' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -797,7 +708,6 @@ app.post('/api/admin/sua-tai-khoan', verifyAdmin, async (req, res) => {
     if (permissions) user.permissions = permissions;
 
     await saveRawDataFast(raw);
-    await recordLog(req, `Cập nhật thông tin tài khoản [${targetUsername}]`);
     res.json({ success: true, message: 'Cập nhật tài khoản thành công!' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -817,7 +727,6 @@ app.post('/api/admin/doi-mat-khau', verifyAdmin, async (req, res) => {
 
     user.password = newPassword;
     await saveRawDataFast(raw);
-    await recordLog(req, `Đổi mật khẩu cho tài khoản [${targetUsername}]`);
     res.json({ success: true, message: `Đã đổi mật khẩu cho tài khoản [${targetUsername}] thành công!` });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -832,7 +741,6 @@ app.post('/api/admin/xoa-tai-khoan', verifyAdmin, async (req, res) => {
 
     raw.taiKhoanList = raw.taiKhoanList.filter(u => u.username !== targetUsername);
     await saveRawDataFast(raw);
-    await recordLog(req, `Xóa tài khoản [${targetUsername}]`);
     res.json({ success: true, message: 'Đã xóa tài khoản thành công!' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -869,7 +777,6 @@ app.post('/api/admin/luu-xe-mau', verifyAdmin, async (req, res) => {
     }
     
     await saveRawDataFast(raw);
-    await recordLog(req, `Lưu mác xe mẫu [${chungLoai} - Năm ${cleanNamSx || 'N/A'}]`);
     res.json({ success: true, message: 'Lưu mác xe mẫu thành công!' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -886,7 +793,6 @@ app.post('/api/admin/xoa-xe-mau', verifyAdmin, async (req, res) => {
     raw.danhMucXeMau = raw.danhMucXeMau.filter(m => !(m.chungLoai === chungLoai && String(m.namSx || '').trim() === cleanNamSx));
     
     await saveRawDataFast(raw);
-    await recordLog(req, `Xóa mác xe mẫu [${chungLoai} - Năm ${cleanNamSx || 'N/A'}]`);
     res.json({ success: true, message: 'Đã xóa mác xe mẫu thành công!' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -922,7 +828,6 @@ app.post('/api/admin/import-xe-mau', verifyAdmin, async (req, res) => {
     });
 
     await saveRawDataFast(raw);
-    await recordLog(req, `Import ${count} mác xe mẫu từ Excel`);
     res.json({ success: true, message: `Import thành công ${count} mác xe mẫu mới!` });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -934,7 +839,6 @@ app.post('/api/admin/xoa-tat-ca-xe-mau', verifyAdmin, async (req, res) => {
     const raw = await getRawData(true);
     raw.danhMucXeMau = [];
     await saveRawDataFast(raw);
-    await recordLog(req, 'Xóa tất cả danh mục mác xe mẫu');
     res.json({ success: true, message: "Đã dọn sạch danh mục mác xe mẫu thành công!" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -991,7 +895,6 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
       });
 
       await saveRawData(raw);
-      await recordLog(req, `Lên lịch hẹn đội xe tuyến [${normMaTuyen}] từ ngày ${ngayApDung}`);
       return res.json({ 
         success: true, 
         message: `Đã lên lịch thành công! Đội xe sẽ tự động áp dụng và đẩy xe cũ về bến DP vào ngày ${ngayApDung}. Dàn xe hiện tại vẫn giữ nguyên.` 
@@ -1027,7 +930,6 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
     }
 
     await saveRawData(raw);
-    await recordLog(req, `Cập nhật đội xe tuyến [${normMaTuyen}] (${newCarsForRoute.length} xe), tự động đẩy xe thừa về DP`);
     res.json({ success: true, message: `Lưu đội xe tuyến ${normMaTuyen} thành công (${newCarsForRoute.length} xe), xe cũ đã được tự động điều chuyển về bến DP!` });
   } catch (err) {
     console.error('Lỗi lưu đội xe:', err);
@@ -1081,7 +983,6 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], verifyAdmin, async (req, res) =>
       });
 
       await saveRawData(raw);
-      await recordLog(req, `Lên lịch hẹn thay đổi thông tin/lộ trình tuyến [${normMaTuyen}] từ ngày ${ngayApDung}`);
       return res.json({ 
         success: true, 
         message: `Đã lên lịch thành công! Thông tin/Lộ trình Tuyến ${normMaTuyen} sẽ tự động cập nhật vào ngày ${ngayApDung}. Dữ liệu hiện tại giữ nguyên.` 
@@ -1095,7 +996,6 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], verifyAdmin, async (req, res) =>
     raw.tuyenList[normMaTuyen] = newTuyenInfo;
 
     await saveRawDataFast(raw);
-    await recordLog(req, `Lưu thông tin tuyến [${normMaTuyen}]`);
     res.json({ success: true, message: 'Lưu tuyến thành công!' });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
@@ -1272,7 +1172,6 @@ app.get('/api/bus-data', async (req, res) => {
 app.post(['/api/bus-data', '/api/save-data'], verifyAdmin, async (req, res) => {
   try { 
     await saveRawData(req.body); 
-    await recordLog(req, 'Lưu dữ liệu tổng hệ thống');
     res.json({ success: true, message: 'Lưu thành công!' }); 
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
@@ -1284,7 +1183,6 @@ app.post('/api/toggle-status-tuyen', verifyAdmin, async (req, res) => {
     if (!raw.tuyenList || !raw.tuyenList[maTuyen]) return res.status(404).json({ success: false, message: 'Không tìm thấy mã tuyến!' });
     raw.tuyenList[maTuyen].status = status;
     await saveRawDataFast(raw);
-    await recordLog(req, `Đổi trạng thái tuyến [${maTuyen}] sang [${status}]`);
     res.json({ success: true, message: 'Cập nhật trạng thái thành công!' });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
@@ -1300,7 +1198,6 @@ app.post('/api/luu-bieu-do', verifyAdmin, async (req, res) => {
     if (idx >= 0) raw.bieuDoList[idx] = newTabObj;
     else raw.bieuDoList.push(newTabObj);
     await saveRawDataFast(raw);
-    await recordLog(req, `Lưu biểu đồ chạy xe [${tenTab}]`);
     res.json({ success: true, message: 'Lưu biểu đồ thành công!' });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
@@ -1312,7 +1209,6 @@ app.post('/api/xoa-bieu-do', verifyAdmin, async (req, res) => {
     if (!Array.isArray(raw.bieuDoList)) raw.bieuDoList = [];
     raw.bieuDoList = raw.bieuDoList.filter(b => String(b.tenTab || '').trim() !== String(tenTab).trim());
     await saveRawDataFast(raw);
-    await recordLog(req, `Xóa biểu đồ [${tenTab}]`);
     res.json({ success: true, message: 'Đã xóa biểu đồ!' });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
@@ -1428,7 +1324,6 @@ app.post(['/api/import-xe-excel', '/api/import-danh-sach-xe'], verifyAdmin, asyn
     }
     
     await saveRawData(raw);
-    await recordLog(req, `Import ${importedCars.length} xe vào tuyến [${currentMaTuyen}] từ Excel`);
     res.json({ success: true, message: `Bóc tách và nạp thành công ${importedCars.length} xe vào tuyến ${currentMaTuyen}!` });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
@@ -1448,7 +1343,6 @@ app.post('/api/xoa-xe', verifyAdmin, async (req, res) => {
     }
 
     await saveRawData(raw);
-    await recordLog(req, `Xóa xe [${bks}] khỏi hệ thống`);
     res.json({ success: true, message: `Đã xóa thành công xe [${bks}] khỏi hệ thống!` });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
@@ -1463,7 +1357,6 @@ app.post('/api/dieu-chuyen-xe', verifyAdmin, async (req, res) => {
     if (!xe) return res.status(404).json({ success: false, message: 'Không tìm thấy biển kiểm soát xe!' });
     xe.maTuyen = String(tuyenMoi).trim().toUpperCase();
     await saveRawDataFast(raw);
-    await recordLog(req, `Điều chuyển xe [${bks}] sang tuyến [${tuyenMoi}]`);
     res.json({ success: true, message: `Đã điều chuyển xe [${bks}] sang tuyến [${tuyenMoi}] thành công!` });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
@@ -1491,7 +1384,6 @@ app.post('/api/dieu-chuyen-xe-hang-loat', verifyAdmin, async (req, res) => {
     });
 
     await saveRawDataFast(raw);
-    await recordLog(req, `Điều chuyển hàng loạt ${count} xe sang tuyến [${tuyenMoi}]`);
     res.json({ success: true, message: `Đã điều chuyển thành công ${count} xe sang tuyến [${tuyenMoi}]!` });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });

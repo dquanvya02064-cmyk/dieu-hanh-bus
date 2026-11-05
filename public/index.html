@@ -451,12 +451,6 @@
           $('#marqueeWrapper').hide();
         });
 
-      fetch(`${API_BASE}/api/log-access`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: 'Khách tra cứu', role: 'visitor', action: 'Xem biểu đồ / Tra cứu xe' })
-      }).catch(err => {});
-
       $('.select2-search').select2({
         language: { noResults: () => "Không tìm thấy kết quả phù hợp" }
       });
