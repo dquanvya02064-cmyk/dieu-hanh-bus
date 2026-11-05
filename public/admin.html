@@ -817,6 +817,7 @@
     }
 
     function apDungQuyenTruyCap() {
+      const role = sessionStorage.getItem('admin_role');
       const can = coQuyenAdmin;
       const sectionPermissions = {
         'sec-tongquan': ['dashboard.view'],
