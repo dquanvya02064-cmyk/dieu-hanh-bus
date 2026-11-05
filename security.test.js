@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { canAccessAdminRequest, createAdminToken, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
+const { canAccessAdminRequest, canGrantAdminPermissions, createAdminToken, expandAdminPermissions, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
 
 test('password hashes verify without storing plaintext', async () => {
   const password = 'a-long-test-password';
@@ -29,14 +29,57 @@ test('admin tokens reject tampering and expiration', () => {
   assert.equal(verifyAdminToken(token, secret, now + 8 * 60 * 60 * 1000), null);
 });
 
-test('endpoint permissions deny access outside the assigned role', () => {
-  const chartStaff = { role: 'staff', permissions: ['bieudo'] };
-  const vehicleStaff = { role: 'staff', permissions: ['xe'] };
+test('legacy permissions expand without removing existing access', () => {
+  const expanded = expandAdminPermissions(['bieudo']);
+  assert.ok(expanded.includes('charts.view'));
+  assert.ok(expanded.includes('charts.edit'));
+  assert.ok(!expanded.includes('fleet.edit'));
+  const legacyRoutePermissions = expandAdminPermissions(['tuyen']);
+  assert.ok(legacyRoutePermissions.includes('vehicleModels.edit'));
+});
+
+test('staff can grant only permissions they already hold', () => {
+  const accountManager = { role: 'staff', permissions: ['users.create', 'users.permissions', 'charts.edit'] };
+  assert.equal(canGrantAdminPermissions(['charts.view', 'users.create'], accountManager), true);
+  assert.equal(canGrantAdminPermissions(['routes.edit'], accountManager), false);
+  assert.equal(canGrantAdminPermissions(['routes.edit'], { role: 'master', permissions: [] }), true);
+});
+
+test('admin view and edit permissions are enforced independently', () => {
+  const chartViewer = { role: 'staff', permissions: ['charts.view'] };
+  const chartEditor = { role: 'staff', permissions: ['charts.edit'] };
+  const routeEditor = { role: 'staff', permissions: ['routes.edit'] };
+  const routeScheduler = { role: 'staff', permissions: ['routes.edit', 'routes.schedule'] };
+  const modelViewer = { role: 'staff', permissions: ['vehicleModels.view'] };
+  const fleetTransfer = { role: 'staff', permissions: ['fleet.transfer'] };
+  const notificationViewer = { role: 'staff', permissions: ['notifications.view'] };
+  const appointmentViewer = { role: 'staff', permissions: ['appointments.view'] };
+  const userManager = { role: 'staff', permissions: ['users.view', 'users.create', 'users.status'] };
   const master = { role: 'master', permissions: [] };
 
-  assert.equal(canAccessAdminRequest('/api/luu-bieu-do', {}, chartStaff), true);
-  assert.equal(canAccessAdminRequest('/api/admin/dang-ky', {}, chartStaff), false);
-  assert.equal(canAccessAdminRequest('/api/xoa-xe', {}, vehicleStaff), true);
-  assert.equal(canAccessAdminRequest('/api/bus-data', {}, vehicleStaff), false);
+  assert.equal(canAccessAdminRequest('/api/danh-muc', { admin: 'true' }, chartViewer), true);
+  assert.equal(canAccessAdminRequest('/api/luu-bieu-do', {}, chartViewer), false);
+  assert.equal(canAccessAdminRequest('/api/luu-bieu-do', {}, chartEditor), true);
+  assert.equal(canAccessAdminRequest('/api/toggle-status-tuyen', {}, routeEditor), false);
+  assert.equal(canAccessAdminRequest('/api/tuyen-moi', {}, routeEditor), true);
+  assert.equal(canAccessAdminRequest('/api/tuyen-moi', {}, routeEditor, { ngayApDung: '2999-01-01' }), false);
+  assert.equal(canAccessAdminRequest('/api/tuyen-moi', {}, routeEditor, { ngayApDung: '01/01/2999' }), false);
+  assert.equal(canAccessAdminRequest('/api/tuyen-moi', {}, routeEditor, { ngayApDung: '1.1.2999' }), false);
+  assert.equal(canAccessAdminRequest('/api/tuyen-moi', {}, routeScheduler, { ngayApDung: '2999-01-01' }), true);
+  assert.equal(canAccessAdminRequest('/api/admin/danh-sach-xe-mau', {}, modelViewer), true);
+  assert.equal(canAccessAdminRequest('/api/admin/luu-xe-mau', {}, modelViewer), false);
+  assert.equal(canAccessAdminRequest('/api/dieu-chuyen-xe-hang-loat', {}, fleetTransfer), true);
+  assert.equal(canAccessAdminRequest('/api/admin/luu-doi-xe-tuyen', {}, fleetTransfer), false);
+  assert.equal(canAccessAdminRequest('/api/admin/thong-bao-chi-tiet', { admin: 'true' }, notificationViewer), true);
+  assert.equal(canAccessAdminRequest('/api/admin/luu-thong-bao', {}, notificationViewer), false);
+  assert.equal(canAccessAdminRequest('/api/admin/lay-danh-sach-lich', {}, appointmentViewer), true);
+  assert.equal(canAccessAdminRequest('/api/admin/chay-ngay-lich-hen', {}, appointmentViewer), false);
+  assert.equal(canAccessAdminRequest('/api/admin/danh-sach-tai-khoan', {}, userManager), true);
+  assert.equal(canAccessAdminRequest('/api/admin/dang-ky', {}, userManager, { role: 'staff' }), true);
+  assert.equal(canAccessAdminRequest('/api/admin/dang-ky', {}, userManager, { role: 'master' }), false);
+  assert.equal(canAccessAdminRequest('/api/admin/sua-tai-khoan', {}, userManager, { status: 'locked' }), true);
+  assert.equal(canAccessAdminRequest('/api/admin/sua-tai-khoan', {}, userManager, { permissions: ['charts.view'] }), false);
+  assert.equal(canAccessAdminRequest('/api/admin/xoa-tai-khoan', {}, userManager), false);
+  assert.equal(canAccessAdminRequest('/api/bus-data', {}, userManager), false);
   assert.equal(canAccessAdminRequest('/api/admin/dang-ky', {}, master), true);
 });

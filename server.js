@@ -8,7 +8,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const mongoose = require('mongoose');
-const { canAccessAdminRequest, createAdminToken, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
+const { ADMIN_PERMISSIONS, canAccessAdminRequest, canGrantAdminPermissions, createAdminToken, expandAdminPermissions, hasAdminPermission, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -89,7 +89,7 @@ async function verifyAdmin(req, res, next) {
     if ((user.tokenVersion || 0) !== claims.tokenVersion) {
       return res.status(401).json({ success: false, message: 'Phiên đăng nhập đã hết hiệu lực.' });
     }
-    if (!canAccessAdminRequest(req.path, req.query, user)) {
+    if (!canAccessAdminRequest(req.path, req.query, user, req.body || {})) {
       return res.status(403).json({ success: false, message: 'Tài khoản không có quyền thực hiện thao tác này.' });
     }
     req.adminUser = user;
@@ -426,7 +426,7 @@ app.get('/api/admin/lay-danh-sach-lich', verifyAdmin, async (req, res) => {
 
     res.json({
       success: true,
-      pending: pending
+      pending: pending.filter(item => item.source !== 'notification' || hasAdminPermission(req.adminUser, 'notifications.view'))
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -571,7 +571,10 @@ app.get('/api/thong-bao', async (req, res) => {
   }
 });
 
-app.get('/api/thong-bao-chi-tiet', async (req, res) => {
+app.get('/api/thong-bao-chi-tiet', (req, res, next) => {
+  if (req.query.admin === 'true') return verifyAdmin(req, res, next);
+  return next();
+}, async (req, res) => {
   try {
     const raw = await getRawData();
     const now = new Date();
@@ -599,12 +602,15 @@ app.get('/api/thong-bao-chi-tiet', async (req, res) => {
       finalActiveText = raw.thongBaoChay || "Hệ thống điều hành xe buýt Hà Nội";
     }
 
-    res.json({ 
-      success: true, 
-      defaultText: raw.thongBaoChay || "", 
-      currentActiveText: finalActiveText, 
-      scheduleList: scheduleList 
-    });
+    if (req.query.admin === 'true') {
+      return res.json({
+        success: true,
+        defaultText: raw.thongBaoChay || '',
+        currentActiveText: finalActiveText,
+        scheduleList
+      });
+    }
+    res.json({ success: true, currentActiveText: finalActiveText });
   } catch (err) {
     res.status(500).json({ success: false, defaultText: "", scheduleList: [] });
   }
@@ -710,7 +716,7 @@ app.post('/api/admin/login', async (req, res) => {
     return res.json({
       success: true, 
       role: user.role, 
-      permissions: user.permissions || [], 
+      permissions: expandAdminPermissions(user.permissions || []),
       token: createAdminToken(user.username, AUTH_TOKEN_SECRET, Date.now(), user.tokenVersion || 0),
       message: 'Đăng nhập thành công!' 
     });
@@ -723,7 +729,10 @@ app.post('/api/admin/login', async (req, res) => {
 app.get('/api/admin/danh-sach-tai-khoan', verifyAdmin, async (req, res) => {
   try {
     const raw = await getRawData();
-    const accounts = (raw.taiKhoanList || []).map(({ password, ...account }) => account);
+    const accounts = (raw.taiKhoanList || []).map(({ password, ...account }) => ({
+      ...account,
+      permissions: expandAdminPermissions(account.permissions || [])
+    }));
     res.json({ success: true, data: accounts });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -737,9 +746,13 @@ app.post('/api/admin/dang-ky', verifyAdmin, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Tên tài khoản và mật khẩu tối thiểu 12 ký tự là bắt buộc.' });
     }
     if (role && !['master', 'staff'].includes(role)) return res.status(400).json({ success: false, message: 'Vai trò không hợp lệ.' });
-    const allowedPermissions = ['tuyen', 'xe', 'bieudo'];
+    const allowedPermissions = [...ADMIN_PERMISSIONS, 'tuyen', 'xe', 'bieudo'];
     if (permissions !== undefined && (!Array.isArray(permissions) || permissions.some(permission => !allowedPermissions.includes(permission)))) {
       return res.status(400).json({ success: false, message: 'Danh sách quyền không hợp lệ.' });
+    }
+    const expandedPermissions = expandAdminPermissions(permissions || []);
+    if (!canGrantAdminPermissions(expandedPermissions, req.adminUser)) {
+      return res.status(403).json({ success: false, message: 'Không thể cấp quyền vượt quá quyền hiện có của bạn.' });
     }
 
     const raw = await getRawData(true);
@@ -753,7 +766,7 @@ app.post('/api/admin/dang-ky', verifyAdmin, async (req, res) => {
       username: targetUsername.trim(),
       password: await hashPassword(password),
       role: role || 'staff',
-      permissions: permissions || [],
+      permissions: expandedPermissions,
       status: 'active'
     });
 
@@ -773,19 +786,26 @@ app.post('/api/admin/sua-tai-khoan', verifyAdmin, async (req, res) => {
     if (role !== undefined && !['master', 'staff'].includes(role)) {
       return res.status(400).json({ success: false, message: 'Vai trò không hợp lệ.' });
     }
-    const allowedPermissions = ['tuyen', 'xe', 'bieudo'];
+    const allowedPermissions = [...ADMIN_PERMISSIONS, 'tuyen', 'xe', 'bieudo'];
     if (permissions !== undefined && (!Array.isArray(permissions) || permissions.some(permission => !allowedPermissions.includes(permission)))) {
       return res.status(400).json({ success: false, message: 'Danh sách quyền không hợp lệ.' });
+    }
+    const expandedPermissions = permissions === undefined ? undefined : expandAdminPermissions(permissions);
+    if (expandedPermissions && !canGrantAdminPermissions(expandedPermissions, req.adminUser)) {
+      return res.status(403).json({ success: false, message: 'Không thể cấp quyền vượt quá quyền hiện có của bạn.' });
     }
     const raw = await getRawData(true);
     if (!raw.taiKhoanList) raw.taiKhoanList = [];
 
     const user = raw.taiKhoanList.find(u => u.username === targetUsername);
     if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản!' });
+    if (user.role === 'master' && req.adminUser.role !== 'master') {
+      return res.status(403).json({ success: false, message: 'Chỉ quản trị tối cao mới được sửa tài khoản Master.' });
+    }
 
     if (status) user.status = status;
     if (role) user.role = role;
-    if (permissions) user.permissions = permissions;
+    if (expandedPermissions) user.permissions = expandedPermissions;
 
     await saveRawDataFast(raw);
     res.json({ success: true, message: 'Cập nhật tài khoản thành công!' });
@@ -806,6 +826,9 @@ app.post('/api/admin/doi-mat-khau', verifyAdmin, async (req, res) => {
 
     const user = raw.taiKhoanList.find(u => u.username === targetUsername);
     if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản!' });
+    if (user.role === 'master' && req.adminUser.role !== 'master') {
+      return res.status(403).json({ success: false, message: 'Chỉ quản trị tối cao mới được đổi mật khẩu tài khoản Master.' });
+    }
 
     user.password = await hashPassword(newPassword);
     user.tokenVersion = (user.tokenVersion || 0) + 1;
@@ -822,6 +845,11 @@ app.post('/api/admin/xoa-tai-khoan', verifyAdmin, async (req, res) => {
     const raw = await getRawData(true);
     if (!raw.taiKhoanList) raw.taiKhoanList = [];
 
+    const user = raw.taiKhoanList.find(u => u.username === targetUsername);
+    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản!' });
+    if (user.role === 'master' && req.adminUser.role !== 'master') {
+      return res.status(403).json({ success: false, message: 'Chỉ quản trị tối cao mới được xóa tài khoản Master.' });
+    }
     raw.taiKhoanList = raw.taiKhoanList.filter(u => u.username !== targetUsername);
     await saveRawDataFast(raw);
     res.json({ success: true, message: 'Đã xóa tài khoản thành công!' });
@@ -831,7 +859,7 @@ app.post('/api/admin/xoa-tai-khoan', verifyAdmin, async (req, res) => {
 });
 
 // --- QUẢN LÝ DANH MỤC MÁC XE MẪU ---
-app.get('/api/admin/danh-sach-xe-mau', async (req, res) => {
+app.get('/api/admin/danh-sach-xe-mau', verifyAdmin, async (req, res) => {
   try {
     const raw = await getRawData();
     res.json({ success: true, data: raw.danhMucXeMau || [] });
@@ -939,6 +967,11 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
     if (!Array.isArray(raw.scheduledFleetUpdates)) raw.scheduledFleetUpdates = [];
 
     const normMaTuyen = String(maTuyen).trim().toUpperCase();
+    const existingRoute = raw.tuyenList[normMaTuyen];
+    const currentStatus = existingRoute?.status || 'active';
+    if (existingRoute && status && status !== currentStatus && !hasAdminPermission(req.adminUser, 'routes.status')) {
+      return res.status(403).json({ success: false, message: 'Tài khoản không có quyền đổi trạng thái tuyến.' });
+    }
     const today = getVietnamTodayISO();
     const ngayHieuLuc = ngayApDung ? parseDateToISO(ngayApDung) : today;
 
@@ -1091,6 +1124,9 @@ app.get('/api/danh-muc', (req, res, next) => {
   try {
     const isAdmin = req.query.admin === 'true';
     const raw = await getRawData();
+    const canViewRouteDetails = !isAdmin || hasAdminPermission(req.adminUser, 'routes.view') || hasAdminPermission(req.adminUser, 'fleet.view');
+    const canViewAdminRoutes = canViewRouteDetails || (isAdmin && hasAdminPermission(req.adminUser, 'charts.view'));
+    const canViewAdminCharts = !isAdmin || hasAdminPermission(req.adminUser, 'charts.view');
     let danhMucList = [];
     let allRoutesList = [];
     const activeRouteNames = new Set();
@@ -1118,7 +1154,7 @@ app.get('/api/danh-muc', (req, res, next) => {
       }
     }
 
-    if (Array.isArray(raw.bieuDoList)) {
+    if (canViewAdminCharts && Array.isArray(raw.bieuDoList)) {
       danhMucList = raw.bieuDoList
         .filter(item => isAdmin || activeRouteNames.has(item.tuyen))
         .map(item => ({
@@ -1129,7 +1165,34 @@ app.get('/api/danh-muc', (req, res, next) => {
         }));
     }
 
-    res.json({ success: true, data: danhMucList, allRoutes: allRoutesList, bieuDoList: isAdmin ? raw.bieuDoList || [] : [] });
+    const dashboard = isAdmin && hasAdminPermission(req.adminUser, 'dashboard.view')
+      ? Object.values(raw.tuyenList || {}).reduce((summary, route) => {
+        const vehicles = parseInt(route.soXeVd || route.soXe, 10) || 0;
+        const planned = parseInt(route.soXeKh || route.soXe, 10) || 0;
+        if (route.status === 'locked') {
+          summary.lockedRoutes++;
+          summary.lockedVehicles += planned || vehicles;
+        } else {
+          summary.activeRoutes++;
+          summary.activeVehicles += vehicles;
+          summary.plannedVehicles += planned;
+        }
+        summary.totalRoutes++;
+        return summary;
+      }, { totalRoutes: 0, activeRoutes: 0, lockedRoutes: 0, activeVehicles: 0, plannedVehicles: 0, lockedVehicles: 0 })
+      : null;
+
+    res.json({
+      success: true,
+      data: danhMucList,
+      allRoutes: canViewRouteDetails
+        ? allRoutesList
+        : canViewAdminRoutes
+          ? allRoutesList.map(({ maTuyen, tenTuyen, xn }) => ({ maTuyen, tenTuyen, xn }))
+          : [],
+      bieuDoList: canViewAdminCharts ? (isAdmin ? raw.bieuDoList || [] : []) : [],
+      dashboard
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
