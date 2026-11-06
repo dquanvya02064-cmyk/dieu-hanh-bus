@@ -959,7 +959,8 @@ app.post('/api/admin/xoa-tat-ca-xe-mau', verifyAdmin, async (req, res) => {
 // --- QUẢN LÝ ĐỘI XE THEO TUYẾN & HẸN GIỜ ĐIỀU CHUYỂN BẾN DP ---
 app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
   try {
-    const { maTuyen, danhSachXe, ngayApDung } = req.body;
+    const { maTuyen, danhSachXe, ngayApDung, status, trangThai } = req.body;
+    const requestedStatus = status ?? trangThai;
     if (!maTuyen) return res.status(400).json({ success: false, message: 'Thiếu mã tuyến!' });
     const raw = await getRawData(true);
     if (!Array.isArray(raw.xeList)) raw.xeList = [];
@@ -969,7 +970,7 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
     const normMaTuyen = String(maTuyen).trim().toUpperCase();
     const existingRoute = raw.tuyenList[normMaTuyen];
     const currentStatus = existingRoute?.status || 'active';
-    if (existingRoute && status && status !== currentStatus && !hasAdminPermission(req.adminUser, 'routes.status')) {
+    if (existingRoute && requestedStatus && requestedStatus !== currentStatus && !hasAdminPermission(req.adminUser, 'routes.status')) {
       return res.status(403).json({ success: false, message: 'Tài khoản không có quyền đổi trạng thái tuyến.' });
     }
     const today = getVietnamTodayISO();
@@ -1056,7 +1057,8 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
 // --- API QUẢN LÝ THÔNG TIN TUYẾN & HẸN NGÀY ĐỔI LỘ TRÌNH / XÍ NGHIỆP ---
 app.post(['/api/save-tuyen', '/api/tuyen-moi'], verifyAdmin, async (req, res) => {
   try {
-    const { maTuyen, tenTuyen, xn, dauA, dauB, tramDi, tramVe, soXeVd, soXeKh, loaiXe, sucChua, status, ngayApDung } = req.body;
+    const { maTuyen, tenTuyen, xn, dauA, dauB, tramDi, tramVe, soXeVd, soXeKh, loaiXe, sucChua, status, trangThai, ngayApDung } = req.body;
+    const requestedStatus = status ?? trangThai;
     if (!maTuyen) return res.status(400).json({ success: false, message: 'Thiếu mã tuyến!' });
 
     const raw = await getRawData(true);
@@ -1080,7 +1082,7 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], verifyAdmin, async (req, res) =>
       soXe: parseInt(soXeKh, 10) || raw.tuyenList[normMaTuyen]?.soXe || 0,
       loaiXe: loaiXe || "", 
       sucChua: sucChua || "", 
-      status: status || "active"
+      status: requestedStatus || "active"
     };
 
     if (ngayHieuLuc > today) {
