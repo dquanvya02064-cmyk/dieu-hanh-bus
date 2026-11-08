@@ -1,5 +1,6 @@
 const WITHDRAWN_VALUES = new Set(['1', 'true', 'yes', 'y', 'x', 'co', 'có', 'thu hoi', 'thu hồi']);
 const { mergeDuplicateStopRows } = require('./public/stop-import');
+const { randomUUID } = require('crypto');
 
 function text(value) {
   return value == null ? '' : String(value).trim();
@@ -24,6 +25,8 @@ function parseRouteDirection(value) {
     .replace(/[^a-z]/g, '');
   if (['di', 'chieudi', 'ab'].includes(direction)) return 'di';
   if (['ve', 'chieuve', 'ba'].includes(direction)) return 've';
+  if (text(value) === '1') return 'di';
+  if (text(value) === '2') return 've';
   return '';
 }
 
@@ -131,6 +134,23 @@ function replaceRouteDirectionAssignments(stops, routeCode, direction, assignmen
   return selected.size;
 }
 
+function ensureStopIds(stops) {
+  if (!Array.isArray(stops)) return false;
+  const seen = new Set();
+  let changed = false;
+  stops.forEach(stop => {
+    if (!stop || typeof stop !== 'object' || Array.isArray(stop)) return;
+    let id = text(stop.id);
+    if (!id || seen.has(id)) {
+      id = randomUUID();
+      stop.id = id;
+      changed = true;
+    }
+    seen.add(id);
+  });
+  return changed;
+}
+
 function migrateStopRouteAssignments(stop) {
   if (!stop || typeof stop !== 'object' || Array.isArray(stop) || Array.isArray(stop.tuyenTheoChieu)) return null;
   const routes = parseRoutes(stop.tuyenDiQua);
@@ -235,4 +255,4 @@ function normalizeStopRecord(input, idFallback) {
   };
 }
 
-module.exports = { filterPublicStopData, mergeDuplicateStopRows, mergeRouteDirectionAssignments, migrateStopRouteAssignments, normalizeStopRecord, normalizeRouteDirections, parseRouteDirection, parseRoutes, replaceRouteDirectionAssignments };
+module.exports = { ensureStopIds, filterPublicStopData, mergeDuplicateStopRows, mergeRouteDirectionAssignments, migrateStopRouteAssignments, normalizeStopRecord, normalizeRouteDirections, parseRouteDirection, parseRoutes, replaceRouteDirectionAssignments };

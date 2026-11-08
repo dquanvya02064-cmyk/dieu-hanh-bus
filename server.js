@@ -10,8 +10,8 @@ const fs = require('fs');
 const mongoose = require('mongoose');
 const { randomUUID } = require('crypto');
 const { ADMIN_PERMISSIONS, canAccessAdminRequest, canGrantAdminPermissions, canUpdateAdminPermissions, createAdminToken, expandAdminPermissions, hasAdminPermission, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
-const { filterPublicStopData, mergeDuplicateStopRows, mergeRouteDirectionAssignments, migrateStopRouteAssignments, normalizeStopRecord, replaceRouteDirectionAssignments } = require('./stop-data');
-const { calculatePolylineDistance, normalizeRouteGeometry } = require('./route-geometry');
+const { ensureStopIds, filterPublicStopData, mergeDuplicateStopRows, mergeRouteDirectionAssignments, migrateStopRouteAssignments, normalizeStopRecord, replaceRouteDirectionAssignments } = require('./stop-data');
+const { calculatePolylineDistance, combineRouteSegments, normalizeRouteGeometry, splitRouteWaypoints } = require('./route-geometry');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -151,6 +151,7 @@ async function cleanAndSyncData(data) {
   const todayISO = getVietnamTodayISO();
   let isDataChanged = hasHistoryLog || hasStopAuditHistory;
   if (Array.isArray(data.diemDungList)) {
+    if (ensureStopIds(data.diemDungList)) isDataChanged = true;
     data.diemDungList.forEach(stop => {
       const migration = migrateStopRouteAssignments(stop);
       if (!migration) return;
@@ -1443,8 +1444,8 @@ app.get('/api/admin/diem-dung', verifyAdmin, async (req, res) => {
 
 app.post('/api/admin/diem-dung/lo-trinh/preview', verifyAdmin, async (req, res) => {
   const waypoints = req.body.waypoints;
-  if (!Array.isArray(waypoints) || waypoints.length < 2 || waypoints.length > 100) {
-    return res.status(400).json({ success: false, message: 'Cần chọn từ 2 đến 100 điểm mốc.' });
+  if (!Array.isArray(waypoints) || waypoints.length < 2 || waypoints.length > 500) {
+    return res.status(400).json({ success: false, message: 'Cần chọn từ 2 đến 500 điểm mốc.' });
   }
 
   let coordinates;
@@ -1454,23 +1455,25 @@ app.post('/api/admin/diem-dung/lo-trinh/preview', verifyAdmin, async (req, res) 
     return res.status(400).json({ success: false, message: err.message });
   }
 
-  const osrmCoordinates = coordinates.map(([longitude, latitude]) => `${longitude},${latitude}`).join(';');
+  const waypointBatches = splitRouteWaypoints(coordinates);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12000);
+  const timeout = setTimeout(() => controller.abort(), 20000);
   try {
-    const url = `${OSRM_BASE_URL}/route/v1/driving/${osrmCoordinates}?overview=full&geometries=geojson&steps=false`;
-    const response = await fetch(url, { signal: controller.signal });
-    const result = await response.json();
-    if (!response.ok || result.code !== 'Ok' || !Array.isArray(result.routes?.[0]?.geometry?.coordinates)) {
-      return res.status(502).json({
-        success: false,
-        message: 'OSRM không tìm được đường qua các điểm mốc đã chọn. Hãy thử đổi vị trí hoặc thứ tự điểm.'
-      });
-    }
+    const segments = await Promise.all(waypointBatches.map(async batch => {
+      const osrmCoordinates = batch.map(([longitude, latitude]) => `${longitude},${latitude}`).join(';');
+      const url = `${OSRM_BASE_URL}/route/v1/driving/${osrmCoordinates}?overview=full&geometries=geojson&steps=false`;
+      const response = await fetch(url, { signal: controller.signal });
+      const result = await response.json();
+      const route = result.routes?.[0];
+      if (!response.ok || result.code !== 'Ok' || !Array.isArray(route?.geometry?.coordinates)) {
+        throw new Error('OSRM không tìm được đường qua các điểm mốc đã chọn.');
+      }
+      return route;
+    }));
 
     let routeCoordinates;
     try {
-      routeCoordinates = normalizeRouteGeometry(result.routes[0].geometry.coordinates);
+      routeCoordinates = combineRouteSegments(segments.map(segment => segment.geometry.coordinates));
     } catch (err) {
       console.error('Geometry OSRM không hợp lệ:', err.message);
       return res.status(502).json({ success: false, message: 'Đường OSRM trả về không hợp lệ hoặc quá dài.' });
@@ -1478,18 +1481,22 @@ app.post('/api/admin/diem-dung/lo-trinh/preview', verifyAdmin, async (req, res) 
     if (routeCoordinates.length < 2) {
       return res.status(502).json({ success: false, message: 'OSRM trả về đường đi không đủ điểm.' });
     }
+    const distanceMeters = segments.reduce((total, segment) => total + (Number(segment.distance) || 0), 0);
+    const durationSeconds = segments.reduce((total, segment) => total + (Number(segment.duration) || 0), 0);
 
     return res.json({
       success: true,
       coordinates: routeCoordinates,
-      distanceMeters: result.routes[0].distance,
-      durationSeconds: result.routes[0].duration,
+      distanceMeters,
+      durationSeconds,
       geometrySource: 'osrm-driving'
     });
   } catch (err) {
     const message = err.name === 'AbortError'
       ? 'OSRM phản hồi quá lâu. Hãy thử lại sau.'
-      : 'Không kết nối được OSRM để dựng đường bám theo mạng đường.';
+      : err.message === 'OSRM không tìm được đường qua các điểm mốc đã chọn.'
+        ? `${err.message} Hãy kiểm tra tọa độ và thứ tự điểm dừng.`
+        : 'Không kết nối được OSRM để dựng đường bám theo mạng đường.';
     console.error('Lỗi tạo preview tuyến OSRM:', err.message);
     return res.status(502).json({ success: false, message });
   } finally {

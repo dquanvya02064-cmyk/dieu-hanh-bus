@@ -24,7 +24,163 @@
       .replace(/[^a-z]/g, '');
     if (['di', 'chieudi', 'ab'].includes(direction)) return 'di';
     if (['ve', 'chieuve', 'ba'].includes(direction)) return 've';
+    if (text(value) === '1') return 'di';
+    if (text(value) === '2') return 've';
     return '';
+  }
+
+  function itineraryDirection(value) {
+    const heading = text(value).toLocaleLowerCase('vi')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd')
+      .replace(/[^a-z0-9]/g, '');
+    if (heading.includes('chieudi') || heading.includes('outbound')) return 'di';
+    if (heading.includes('chieuve') || heading.includes('return')) return 've';
+    return '';
+  }
+
+  function normalizeStopName(value) {
+    return text(value).toLocaleLowerCase('vi')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd')
+      .replace(/[^a-z0-9]/g, '');
+  }
+
+  function itineraryRouteCode(sectionText, routeCodes) {
+    const normalizedText = text(sectionText).toLocaleUpperCase('vi');
+    const matchedRoute = routeCodes.find(code => {
+      const escaped = text(code).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(`(^|[^A-Z0-9])${escaped}([^A-Z0-9]|$)`, 'i').test(normalizedText);
+    });
+    if (matchedRoute) return text(matchedRoute).toUpperCase();
+    const match = normalizedText.match(/\bTUYEN\s+([A-Z0-9]+)\b/i);
+    return match && !['DI', 'VE', 'QUA'].includes(match[1]) ? match[1] : '';
+  }
+
+  function parseRouteItinerarySheet(matrix, existingStops, knownRoutes) {
+    const routeCodes = (Array.isArray(knownRoutes) ? knownRoutes : [])
+      .map(code => text(code).toUpperCase()).filter(Boolean);
+    let headerIndex = -1;
+    let routeColumns = [];
+
+    for (let rowIndex = 0; rowIndex < matrix.length; rowIndex++) {
+      const headers = (matrix[rowIndex] || []).map(value =>
+        text(value).toLocaleLowerCase('vi')
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd')
+          .replace(/[^a-z0-9]/g, '')
+      );
+      const candidates = headers
+        .map((header, index) => header === 'tuyendiqua' ? index : -1)
+        .filter(index => index >= 0);
+      if (candidates.length >= 2) {
+        headerIndex = rowIndex;
+        routeColumns = candidates;
+        break;
+      }
+    }
+    if (headerIndex < 0) return null;
+
+    const header = matrix[headerIndex] || [];
+    const sections = routeColumns.map((routeColumn, sectionIndex) => {
+      const sectionStart = sectionIndex === 0 ? 0 : routeColumns[sectionIndex - 1] + 1;
+      let nameColumn = -1;
+      for (let column = routeColumn - 1; column >= sectionStart; column--) {
+        if (text(header[column])) {
+          nameColumn = column;
+          break;
+        }
+      }
+      if (nameColumn < 0) return { routeColumn, nameColumn, direction: '', route: '' };
+
+      const parentTexts = [];
+      for (let rowIndex = headerIndex - 1; rowIndex >= 0; rowIndex--) {
+        const row = matrix[rowIndex] || [];
+        for (let column = nameColumn; column >= 0; column--) {
+          if (text(row[column])) {
+            parentTexts.push(text(row[column]));
+            break;
+          }
+        }
+      }
+      const direction = parentTexts.map(itineraryDirection).find(Boolean) || '';
+      const sectionTexts = [
+        ...parentTexts,
+        ...header.slice(sectionStart, routeColumn).map(text)
+      ].join(' ');
+      return {
+        routeColumn,
+        nameColumn,
+        direction,
+        route: itineraryRouteCode(sectionTexts, routeCodes)
+      };
+    });
+    if (sections.some(section => !section.direction)) return null;
+
+    const stopsByName = new Map();
+    (Array.isArray(existingStops) ? existingStops : []).forEach(stop => {
+      const key = normalizeStopName(stop.tenDiem);
+      if (!key) return;
+      const matches = stopsByName.get(key) || [];
+      matches.push(stop);
+      stopsByName.set(key, matches);
+    });
+
+    const recordsById = new Map();
+    const errors = [];
+    let sourceCount = 0;
+    const assignedCounts = { di: 0, ve: 0 };
+    const seenStops = new Set();
+    sections.forEach(section => {
+      if (!section.route || !routeCodes.includes(section.route)) {
+        errors.push(`Không xác định được mã tuyến trong tiêu đề chiều ${section.direction === 'di' ? 'Đi' : 'Về'}.`);
+        return;
+      }
+      let order = 0;
+      for (let rowIndex = headerIndex + 1; rowIndex < matrix.length; rowIndex++) {
+        const row = matrix[rowIndex] || [];
+        const stopName = text(row[section.nameColumn]);
+        if (!stopName) continue;
+        sourceCount++;
+        order++;
+        const line = rowIndex + 1;
+        const matches = stopsByName.get(normalizeStopName(stopName)) || [];
+        if (!matches.length) {
+          errors.push(`Dòng ${line}: không tìm thấy điểm “${stopName}” trong dữ liệu hiện có.`);
+          continue;
+        }
+        if (matches.length > 1) {
+          errors.push(`Dòng ${line}: tên điểm “${stopName}” khớp nhiều điểm; cần đổi tên trong file.`);
+          continue;
+        }
+        const stop = matches[0];
+        const duplicateKey = `${section.route}:${section.direction}:${stop.id || stop.maDiem}`;
+        if (seenStops.has(duplicateKey)) {
+          errors.push(`Dòng ${line}: điểm “${stopName}” xuất hiện lặp trong cùng một chiều.`);
+          continue;
+        }
+        seenStops.add(duplicateKey);
+
+        const id = text(stop.id) || text(stop.maDiem);
+        const record = recordsById.get(id) || {
+          ...stop,
+          tuyenDiQua: routes(stop.tuyenDiQua),
+          tuyenTheoChieu: Array.isArray(stop.tuyenTheoChieu)
+            ? stop.tuyenTheoChieu.map(item => ({ ...item }))
+            : []
+        };
+        record.tuyenDiQua = [...new Set([...record.tuyenDiQua, section.route])];
+        record.tuyenTheoChieu = record.tuyenTheoChieu.filter(item =>
+          text(item.maTuyen).toUpperCase() !== section.route || routeDirection(item.chieu) !== section.direction
+        );
+        record.tuyenTheoChieu.push({ maTuyen: section.route, chieu: section.direction, thuTu: order });
+        recordsById.set(id, record);
+        assignedCounts[section.direction]++;
+      }
+    });
+
+    const rows = [...recordsById.values()];
+    const warnings = rows.length
+      ? [`Đã gán ${assignedCounts.di} điểm chiều Đi và ${assignedCounts.ve} điểm chiều Về. Chỉ cập nhật các điểm có tên khớp duy nhất với dữ liệu hiện có.`]
+      : [];
+    return { rows, errors, sourceCount, warnings };
   }
 
   function isWithdrawn(value) {
@@ -152,5 +308,5 @@
     };
   }
 
-  return { mergeDuplicateStopRows, routeDirection };
+  return { mergeDuplicateStopRows, parseRouteItinerarySheet, routeDirection };
 });

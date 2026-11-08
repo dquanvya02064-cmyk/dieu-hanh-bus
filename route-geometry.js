@@ -30,4 +30,21 @@ function calculatePolylineDistance(coordinates) {
   return distance;
 }
 
-module.exports = { calculatePolylineDistance, normalizeRouteGeometry };
+function splitRouteWaypoints(waypoints) {
+  const batches = [];
+  for (let start = 0; start < waypoints.length - 1; start += 99) {
+    batches.push(waypoints.slice(start, start + 100));
+  }
+  return batches;
+}
+
+function combineRouteSegments(segments) {
+  if (!Array.isArray(segments) || !segments.length) {
+    throw new Error('Cần có ít nhất một đoạn đường để ghép.');
+  }
+  return normalizeRouteGeometry(segments.flatMap((segment, index) =>
+    index ? segment.slice(1) : segment
+  ));
+}
+
+module.exports = { calculatePolylineDistance, combineRouteSegments, normalizeRouteGeometry, splitRouteWaypoints };

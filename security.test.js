@@ -1,9 +1,58 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { canAccessAdminRequest, canGrantAdminPermissions, canUpdateAdminPermissions, createAdminToken, expandAdminPermissions, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
-const { filterPublicStopData, mergeDuplicateStopRows, mergeRouteDirectionAssignments, migrateStopRouteAssignments, normalizeStopRecord, parseRouteDirection, parseRoutes, replaceRouteDirectionAssignments } = require('./stop-data');
-const { routeDirection } = require('./public/stop-import');
-const { calculatePolylineDistance, normalizeRouteGeometry } = require('./route-geometry');
+const { ensureStopIds, filterPublicStopData, mergeDuplicateStopRows, mergeRouteDirectionAssignments, migrateStopRouteAssignments, normalizeStopRecord, parseRouteDirection, parseRoutes, replaceRouteDirectionAssignments } = require('./stop-data');
+const { parseRouteItinerarySheet, routeDirection } = require('./public/stop-import');
+const { calculatePolylineDistance, combineRouteSegments, normalizeRouteGeometry, splitRouteWaypoints } = require('./route-geometry');
+
+test('legacy stops receive unique stable IDs before bulk editing', () => {
+  const stops = [
+    { maDiem: 'ONE' },
+    { maDiem: 'TWO' },
+    { id: 'existing', maDiem: 'THREE' },
+    { id: 'existing', maDiem: 'FOUR' }
+  ];
+
+  assert.equal(ensureStopIds(stops), true);
+  assert.equal(new Set(stops.map(stop => stop.id)).size, stops.length);
+  assert.equal(stops[2].id, 'existing');
+  assert.equal(ensureStopIds(stops), false);
+});
+
+test('paired itinerary sheets assign existing stops to ordered outbound and return directions', () => {
+  const result = parseRouteItinerarySheet([
+    ['', 'CHIỀU ĐI: BẾN A - BẾN B', '', '', 'CHIỀU VỀ: BẾN B - BẾN A'],
+    ['TT', 'Đầu A: Bến A - Tuyến 01', 'Tuyến đi qua', 'Cự ly (m)', 'Đầu B: Bến B - Tuyến 01', 'Tuyến đi qua', 'Cự ly (m)'],
+    [1, 'Điểm A', '01,22', 100, 'Điểm B', '01,55', 120],
+    [2, 'Điểm B', '01,34', 200, 'Điểm A', '01,67', 220]
+  ], [
+    { id: 'a', maDiem: 'A', tenDiem: 'Điểm A', kinhDo: 105.8, viDo: 21.02, tuyenDiQua: [], tuyenTheoChieu: [] },
+    { id: 'b', maDiem: 'B', tenDiem: 'Điểm B', kinhDo: 105.9, viDo: 21.03, tuyenDiQua: [], tuyenTheoChieu: [] }
+  ], ['01', '22', '34', '55', '67']);
+
+  assert.equal(result.sourceCount, 4);
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.rows.map(row => row.id), ['a', 'b']);
+  assert.deepEqual(result.rows.find(row => row.id === 'a').tuyenTheoChieu, [
+    { maTuyen: '01', chieu: 'di', thuTu: 1 },
+    { maTuyen: '01', chieu: 've', thuTu: 2 }
+  ]);
+  assert.deepEqual(result.rows.find(row => row.id === 'b').tuyenTheoChieu, [
+    { maTuyen: '01', chieu: 'di', thuTu: 2 },
+    { maTuyen: '01', chieu: 've', thuTu: 1 }
+  ]);
+  assert.equal(routeDirection('1'), 'di');
+  assert.equal(routeDirection('2'), 've');
+});
+
+test('long route previews split requests without changing waypoint order', () => {
+  const waypoints = Array.from({ length: 205 }, (_, index) => [105 + index / 10000, 21 + index / 10000]);
+  const batches = splitRouteWaypoints(waypoints);
+  assert.deepEqual(batches.map(batch => batch.length), [100, 100, 7]);
+  assert.deepEqual(batches[0].at(-1), batches[1][0]);
+  assert.deepEqual(batches[1].at(-1), batches[2][0]);
+  assert.deepEqual(combineRouteSegments(batches), waypoints);
+});
 
 test('stop records normalize route codes, direction order, and require valid coordinates', () => {
   const stop = normalizeStopRecord({
@@ -43,6 +92,8 @@ test('stop records normalize route codes, direction order, and require valid coo
   assert.deepEqual(stop.lichSuDiemDung, []);
   assert.equal(parseRouteDirection('Chiều Đi'), 'di');
   assert.equal(parseRouteDirection('Về'), 've');
+  assert.equal(parseRouteDirection('1'), 'di');
+  assert.equal(parseRouteDirection('2'), 've');
   assert.equal(routeDirection('Chiều đi'), 'di');
   assert.equal(routeDirection('Chiều về'), 've');
   assert.equal(normalizeStopRecord({

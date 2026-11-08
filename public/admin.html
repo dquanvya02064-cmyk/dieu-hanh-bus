@@ -111,6 +111,11 @@
     .stop-admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
     .stop-admin-field label { display: block; font-weight: bold; margin-bottom: 4px; color: #34495E; }
     .stop-admin-note { color: #64748B; font-size: 11px; margin: 8px 0; }
+    .stop-route-assignment-list { display: flex; flex-wrap: wrap; gap: 4px; min-width: 150px; }
+    .stop-route-assignment {
+      display: inline-block; padding: 3px 7px; border-radius: 12px; background: #EBF2F8;
+      color: #1A5276; font-size: 10px; line-height: 1.3; white-space: nowrap;
+    }
 
     .panel-custom { background: #FFFFFF; border: 1px solid #C4D5E5; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 20px; width: 100%; }
     .panel-heading {
@@ -442,12 +447,12 @@
                 <button type="button" class="btn btn-primary" data-action-permission="stops.view" onclick="xuatDiemDungDangLoc()"><i class="fa fa-download"></i> Xuất danh sách đang lọc</button>
                 <span id="stopImportMessage" aria-live="polite"></span>
               </div>
-              <p class="stop-admin-note">File Excel theo mẫu A–T: dòng 1 gộp tiêu đề “Lịch sử điểm dừng” tại R:T, dòng 2 là tiêu đề cột, dữ liệu bắt đầu từ dòng 3. Cột Hướng chỉ nhận Đi/Về khi dòng có đúng một tuyến; nhiều tuyến thì bỏ qua Hướng để tránh gán nhầm. Cột TT là số thứ tự chung của bảng, không dùng xếp lộ trình; cần nhập thứ tự riêng theo từng tuyến/chiều.</p>
+              <p class="stop-admin-note">Có thể nhập mẫu điểm dừng A–T hoặc bảng lộ trình có hai nhóm cột “Chiều đi / Chiều về” và “Tuyến đi qua”. Với bảng lộ trình, hệ thống lấy mã tuyến từ tiêu đề “Tuyến …”, dò tên điểm trong dữ liệu hiện có rồi tự gán thứ tự theo từng chiều; các tên không khớp sẽ hiện trong phần xem trước và không được nhập.</p>
               <div id="stopImportPreview" style="display:none;margin-bottom:12px;"></div>
               <div class="stop-admin-grid" style="margin-bottom:12px;">
                 <input type="search" id="stopAdminSearch" class="form-control" placeholder="Tìm mã, tên, đường hoặc quận/huyện">
                 <select id="stopAdminDistrict" class="form-control"><option value="">Tất cả quận / huyện</option></select>
-                <select id="stopAdminRouteFilter" class="form-control"><option value="">Tất cả tuyến</option></select>
+                <select id="stopAdminRouteFilter" class="form-control select2-search"><option value="">Tất cả tuyến</option></select>
                 <select id="stopAdminRouteDirectionFilter" class="form-control" disabled>
                   <option value="">Tất cả chiều</option>
                   <option value="di">Chiều Đi (A → B)</option>
@@ -510,7 +515,7 @@
                   <div class="stop-admin-field"><label for="stopAdminName">Tên điểm dừng *</label><input id="stopAdminName" class="form-control" required></div>
                   <div class="stop-admin-field"><label for="stopAdminDistrictName">Quận / huyện</label><input id="stopAdminDistrictName" class="form-control"></div>
                   <div class="stop-admin-field"><label for="stopAdminStreet">Đường / phố</label><input id="stopAdminStreet" class="form-control"></div>
-                  <div class="stop-admin-field"><label for="stopAdminRoutes">Tuyến đi qua (giữ Ctrl/⌘ để chọn nhiều)</label><select id="stopAdminRoutes" class="form-control" multiple style="height:84px;"></select></div>
+                  <div class="stop-admin-field"><label for="stopAdminRoutes">Tuyến đi qua</label><select id="stopAdminRoutes" class="form-control select2-search" multiple style="height:84px;"></select></div>
                   <div class="stop-admin-field" style="grid-column:1/-1;">
                     <label>Thứ tự điểm theo tuyến và chiều</label>
                     <div id="stopAdminRouteDirections" class="stop-admin-note" aria-live="polite">Chọn tuyến để gán chiều Đi/Về và thứ tự riêng.</div>
@@ -560,7 +565,7 @@
           <div class="panel-custom">
             <div class="panel-heading"><span><i class="fa fa-exchange"></i> Trạng thái tuyến</span></div>
             <div class="panel-body" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-              <select id="stopAdminRouteStatus" class="form-control" style="max-width:480px;"><option value="">Chọn tuyến để bật / tắt</option></select>
+              <select id="stopAdminRouteStatus" class="form-control select2-search" style="max-width:480px;"><option value="">Chọn tuyến để bật / tắt</option></select>
               <button type="button" class="btn btn-warning" data-action-permission="stops.status" onclick="doiTrangThaiTuyenDiemDung()"><i class="fa fa-toggle-on"></i> Bật / tạm dừng tuyến</button>
               <span class="stop-admin-note">Tuyến tạm dừng được lưu với trạng thái khóa hiện có của hệ thống.</span>
             </div>

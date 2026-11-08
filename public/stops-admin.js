@@ -69,7 +69,7 @@
     get('stopRouteBulkCancel').disabled = isSavingRouteBulk;
     get('stopRouteBulkToggle').textContent = active ? 'Đóng sửa hàng loạt' : 'Sửa hàng loạt điểm tuyến';
     get('stopRouteBulkStatus').textContent = active
-      ? 'Đã chọn xong các điểm và thứ tự? Lưu một lần để cập nhật cả chiều.'
+      ? 'Các điểm đã chọn được giữ lại khi tìm kiếm hoặc chuyển trang. Lưu một lần để cập nhật cả chiều.'
       : selectedRouteGeometryKey()
         ? 'Mở bảng để thêm/bỏ nhiều điểm và chỉnh thứ tự cùng lúc.'
         : 'Chọn tuyến và chiều để sửa danh sách điểm trong một lượt.';
@@ -78,6 +78,10 @@
   function beginRouteBulkEdit() {
     const key = selectedRouteGeometryKey();
     if (!key || !can('stops.edit')) return;
+    const stopIds = stops.map(stop => String(stop.id || '').trim());
+    if (stopIds.some(id => !id) || new Set(stopIds).size !== stopIds.length) {
+      return safeToast('Dữ liệu điểm chưa có mã định danh duy nhất. Hãy tải lại trang rồi thử lại.', 'error');
+    }
     activeRouteBulkKey = key;
     routeBulkPage = 0;
     routeBulkDraft = new Map(stops.map(stop => [stop.id, { selected: false, thuTu: '' }]));
@@ -281,21 +285,37 @@
   function useAssignedStopWaypoints() {
     if (!isDrawingRoute) return;
     const [route, direction] = activeRouteGeometryKey.split(':');
-    const waypoints = stops.flatMap(stop => {
-      if (stop.thuHoi) return [];
+    const assigned = stops.flatMap(stop => {
       const assignment = (stop.tuyenTheoChieu || []).find(item =>
-        item.maTuyen.toUpperCase() === route && item.chieu === direction
+        String(item.maTuyen || '').toUpperCase() === route && item.chieu === direction
       );
+      return assignment && !stop.thuHoi ? [{ stop, assignment }] : [];
+    });
+    const incompleteOrder = assigned.filter(({ assignment }) =>
+      !Number.isInteger(Number(assignment.thuTu)) || Number(assignment.thuTu) < 1
+    );
+    if (incompleteOrder.length) {
+      return safeToast(`Hãy nhập thứ tự cho ${incompleteOrder.length} điểm trước khi dựng đường.`, 'error');
+    }
+    const orderSet = new Set(assigned.map(({ assignment }) => Number(assignment.thuTu)));
+    if (orderSet.size !== assigned.length) {
+      return safeToast('Thứ tự điểm đang bị trùng. Hãy sửa thứ tự trong bảng hàng loạt trước khi dựng đường.', 'error');
+    }
+    const missingCoordinates = assigned.filter(({ stop }) =>
+      !String(stop.viDo ?? '').trim() || !String(stop.kinhDo ?? '').trim() ||
+      !Number.isFinite(Number(stop.viDo)) || !Number.isFinite(Number(stop.kinhDo))
+    );
+    if (missingCoordinates.length) {
+      return safeToast(`Có ${missingCoordinates.length} điểm được gán tuyến nhưng thiếu tọa độ.`, 'error');
+    }
+    const waypoints = assigned.map(({ stop, assignment }) => {
       const lat = Number(stop.viDo);
       const lng = Number(stop.kinhDo);
-      return assignment && Number.isFinite(lat) && Number.isFinite(lng)
-        ? [{ thuTu: assignment.thuTu, maDiem: stop.maDiem, coordinates: [lng, lat] }]
-        : [];
-    }).sort((a, b) => (a.thuTu ?? Number.MAX_SAFE_INTEGER) - (b.thuTu ?? Number.MAX_SAFE_INTEGER) ||
-      String(a.maDiem).localeCompare(String(b.maDiem), 'vi'));
+      return { thuTu: Number(assignment.thuTu), coordinates: [lng, lat] };
+    }).sort((a, b) => a.thuTu - b.thuTu);
 
     if (waypoints.length < 2) return safeToast('Chiều này cần ít nhất hai điểm dừng có tọa độ.', 'error');
-    if (waypoints.length > 100) return safeToast('OSRM nhận tối đa 100 mốc mỗi lần. Hãy chọn mốc thủ công.', 'error');
+    if (waypoints.length > 500) return safeToast('Mỗi lần chỉ dựng đường tối đa 500 điểm dừng.', 'error');
     routeWaypointDraft = waypoints.map(item => item.coordinates);
     routeGeometryDraft = [];
     updateRouteEditorControls();
@@ -480,9 +500,10 @@
     const routeDirectionFilter = get('stopAdminRouteDirectionFilter');
     const routeEditor = get('stopAdminRoutes');
     const routeStatus = get('stopAdminRouteStatus');
+    const previousRoute = routeFilter.value;
+    const previousDirection = routeDirectionFilter.value;
+    const previousStatusRoute = routeStatus.value;
     routeFilter.replaceChildren(new Option('Tất cả tuyến', ''));
-    routeDirectionFilter.value = '';
-    routeDirectionFilter.disabled = !routeFilter.value;
     routeEditor.replaceChildren();
     routeStatus.replaceChildren(new Option('Chọn tuyến để bật / tắt', ''));
     sorted.forEach(item => {
@@ -492,6 +513,13 @@
       routeEditor.add(new Option(label, code));
       routeStatus.add(new Option(label, code));
     });
+    routeFilter.value = sorted.some(item => String(item.maTuyen) === previousRoute) ? previousRoute : '';
+    routeDirectionFilter.value = routeFilter.value ? previousDirection : '';
+    routeDirectionFilter.disabled = !routeFilter.value;
+    routeStatus.value = sorted.some(item => String(item.maTuyen) === previousStatusRoute) ? previousStatusRoute : '';
+    if (window.jQuery) {
+      [routeFilter, routeEditor, routeStatus].forEach(select => window.jQuery(select).trigger('change.select2'));
+    }
   }
 
   function renderStops() {
@@ -517,9 +545,13 @@
     });
     if (route && direction) {
       visible.sort((a, b) => {
-        const orderFor = stop => (stop.tuyenTheoChieu || []).find(item =>
-          item.maTuyen.toUpperCase() === route && item.chieu === direction
-        )?.thuTu ?? Number.MAX_SAFE_INTEGER;
+        const orderFor = stop => {
+          const value = (stop.tuyenTheoChieu || []).find(item =>
+            item.maTuyen.toUpperCase() === route && item.chieu === direction
+          )?.thuTu;
+          const order = Number(value);
+          return Number.isInteger(order) && order > 0 ? order : Number.MAX_SAFE_INTEGER;
+        };
         return orderFor(a) - orderFor(b) || a.maDiem.localeCompare(b.maDiem, 'vi');
       });
     }
@@ -562,9 +594,25 @@
       addCell(row, stop.tenDiem);
       addCell(row, stop.tenQuanHuyen);
       const routeDirections = (stop.tuyenTheoChieu || []).map(item =>
-        `${item.maTuyen} ${item.chieu === 'di' ? 'Đi' : 'Về'}${Number.isInteger(item.thuTu) ? ` #${item.thuTu}` : ' · chưa xếp thứ tự'}`
+        `${item.maTuyen} · ${item.chieu === 'di' ? 'Đi' : 'Về'}${item.thuTu != null && item.thuTu !== '' && Number.isInteger(Number(item.thuTu)) ? ` #${item.thuTu}` : ' · chưa xếp thứ tự'}`
       );
-      addCell(row, routeDirections.length ? routeDirections.join(', ') : routeCodes(stop.tuyenDiQua).join(', '));
+      const routeCell = row.insertCell();
+      const routeLabels = routeDirections.length
+        ? routeDirections
+        : routeCodes(stop.tuyenDiQua);
+      if (routeLabels.length) {
+        const list = document.createElement('div');
+        list.className = 'stop-route-assignment-list';
+        routeLabels.forEach(label => {
+          const chip = document.createElement('span');
+          chip.className = 'stop-route-assignment';
+          chip.textContent = label;
+          list.append(chip);
+        });
+        routeCell.append(list);
+      } else {
+        routeCell.textContent = '—';
+      }
       addCell(row, `${lng}, ${lat}`);
       addCell(row, stop.thuHoi ? 'Đang thu hồi' : 'Hoạt động');
       const actions = row.insertCell();
@@ -605,7 +653,14 @@
         const lat = Number(stop.viDo);
         const lng = Number(stop.kinhDo);
         return Number.isFinite(lat) && Number.isFinite(lng) ? [{ stop, assignment, lat, lng }] : [];
-      }).sort((a, b) => a.assignment.thuTu - b.assignment.thuTu || a.stop.maDiem.localeCompare(b.stop.maDiem, 'vi'));
+      }).sort((a, b) => {
+        const orderFor = assignment => {
+          const order = Number(assignment.thuTu);
+          return Number.isInteger(order) && order > 0 ? order : Number.MAX_SAFE_INTEGER;
+        };
+        return orderFor(a.assignment) - orderFor(b.assignment) ||
+          a.stop.maDiem.localeCompare(b.stop.maDiem, 'vi');
+      });
       get('stopAdminSummary').textContent += routeStops.length
         ? ` · ${routeStops.length} điểm chiều ${direction === 'di' ? 'Đi' : 'Về'}`
         : ` · Chưa có điểm được xếp thứ tự cho chiều ${direction === 'di' ? 'Đi' : 'Về'}`;
@@ -728,6 +783,7 @@
     get('stopAdminWithdrawn').checked = Boolean(stop.thuHoi);
     const selected = new Set(routeCodes(stop.tuyenDiQua));
     [...get('stopAdminRoutes').options].forEach(option => { option.selected = selected.has(option.value.toUpperCase()); });
+    if (window.jQuery) window.jQuery(get('stopAdminRoutes')).trigger('change.select2');
     get('stopAdminRouteDirections').replaceChildren();
     routeDirectionDraft = new Map((stop.tuyenTheoChieu || []).map(item => [
       `${item.maTuyen.toUpperCase()}:${item.chieu}`,
@@ -762,6 +818,7 @@
     get('stopAdminRouteDirections').replaceChildren();
     routeDirectionDraft = new Map();
     [...get('stopAdminRoutes').options].forEach(option => { option.selected = false; });
+    if (window.jQuery) window.jQuery(get('stopAdminRoutes')).trigger('change.select2');
     renderRouteDirectionInputs();
     if (temporaryMarker) {
       temporaryMarker.remove();
@@ -854,6 +911,7 @@
     viDo: ['vido', 'latitude', 'lat'],
     banKinhQuet: ['bankinhquet', 'bankinhquetm'],
     huong: ['huong'],
+    chieu: ['chieu', 'direction'],
     maAmThanh: ['maamthanh'],
     ngayBatDau: ['ngaybatdau'],
     ngayKetThuc: ['ngayketthuc'],
@@ -875,7 +933,7 @@
     };
     const withdrawnText = String(value('thuHoi') || '').trim().toLocaleLowerCase('vi');
     const routeList = routeCodes(value('tuyenDiQua'));
-    const direction = parseDirection(value('huong'));
+    const direction = parseDirection(value('huong') || value('chieu'));
     return {
       thuTu: String(value('thuTu') || '').trim(),
       maDiem: String(value('maDiem') || '').trim(),
@@ -895,7 +953,7 @@
       kinhDo: toNumber(value('kinhDo')),
       viDo: toNumber(value('viDo')),
       banKinhQuet: String(value('banKinhQuet') || '').trim(),
-      huong: String(value('huong') || '').trim(),
+      huong: String(value('huong') || value('chieu') || '').trim(),
       maAmThanh: String(value('maAmThanh') || '').trim(),
       ngayBatDau: String(value('ngayBatDau') || '').trim(),
       ngayKetThuc: String(value('ngayKetThuc') || '').trim(),
@@ -1002,6 +1060,17 @@
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       if (!sheet) throw new Error('File không có trang tính.');
       const values = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+      const itinerary = StopImport.parseRouteItinerarySheet(values, stops, routes.map(route => route.maTuyen));
+      if (itinerary) {
+        showImportPreview(
+          itinerary.rows,
+          itinerary.errors,
+          { duplicateCount: 0, conflicts: [] },
+          itinerary.sourceCount,
+          itinerary.warnings
+        );
+        return;
+      }
       const headerIndex = values.findIndex(row => {
         const headers = row.map(normalizeHeader);
         const hasCode = importHeaderAliases.maDiem.some(alias => headers.includes(alias));
