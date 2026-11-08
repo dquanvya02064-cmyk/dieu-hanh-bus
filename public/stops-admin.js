@@ -17,6 +17,7 @@
   let routes = [];
   let filteredStops = [];
   let importRows = [];
+  let importSkippedSummary = '';
   let temporaryMarker = null;
   const get = id => document.getElementById(id);
   const mapInputIds = ['stopAdminLongitude', 'stopAdminLatitude'];
@@ -232,6 +233,24 @@
     get('stopAdminStartDate').value = stop.ngayBatDau || '';
     get('stopAdminEndDate').value = stop.ngayKetThuc || '';
     get('stopAdminNote').value = stop.ghiChu || '';
+    const historyPanel = get('stopAdminHistoryNotes');
+    historyPanel.replaceChildren();
+    const history = Array.isArray(stop.lichSuDiemDung) ? stop.lichSuDiemDung : [];
+    if (history.length) {
+      const heading = document.createElement('strong');
+      heading.textContent = `Lịch sử điểm dừng (${history.length} mục):`;
+      historyPanel.append(heading);
+      const list = document.createElement('ul');
+      history.forEach(entry => {
+        const item = document.createElement('li');
+        const period = [entry.ngayBatDau, entry.ngayKetThuc].filter(Boolean).join(' – ');
+        item.textContent = [period, entry.ghiChu].filter(Boolean).join(' · ') || 'Không có ghi chú';
+        list.append(item);
+      });
+      historyPanel.append(list);
+    } else {
+      historyPanel.textContent = 'Chưa có mục lịch sử riêng.';
+    }
     get('stopAdminWithdrawn').checked = Boolean(stop.thuHoi);
     const selected = new Set(routeCodes(stop.tuyenDiQua));
     [...get('stopAdminRoutes').options].forEach(option => { option.selected = selected.has(option.value.toUpperCase()); });
@@ -259,6 +278,7 @@
     get('stopAdminForm').reset();
     get('stopAdminId').value = '';
     get('stopFormHeading').textContent = 'Thêm điểm dừng';
+    get('stopAdminHistoryNotes').replaceChildren();
     [...get('stopAdminRoutes').options].forEach(option => { option.selected = false; });
     if (temporaryMarker) {
       temporaryMarker.remove();
@@ -408,6 +428,9 @@
 
   function showImportPreview(rows, errors, duplicateInfo = { duplicateCount: 0, conflicts: [] }, sourceCount = rows.length) {
     importRows = rows;
+    importSkippedSummary = errors.length || duplicateInfo.conflicts.length
+      ? `Bỏ qua ${errors.length} dòng lỗi và ${duplicateInfo.conflicts.length} mã mâu thuẫn; sửa file để nhập lại phần này.`
+      : '';
     const preview = get('stopImportPreview');
     preview.replaceChildren();
     preview.style.display = 'block';
@@ -415,9 +438,13 @@
     const existing = new Set(stops.map(stop => stop.maDiem.toLocaleUpperCase('vi')));
     const addCount = rows.filter(row => !existing.has(row.maDiem.toLocaleUpperCase('vi'))).length;
     const updateCount = rows.length - addCount;
-    header.textContent = `Xem trước: ${sourceCount} dòng trong file · ${duplicateInfo.duplicateCount} dòng trùng mã sẽ gộp · ${rows.length} điểm sau gộp · ${addCount} điểm mới · ${updateCount} điểm cập nhật · ${errors.length} lỗi dữ liệu.`;
+    header.textContent = `Xem trước: ${sourceCount} dòng trong file · ${duplicateInfo.duplicateCount} dòng trùng mã sẽ gộp · ${rows.length} điểm hợp lệ · ${addCount} điểm mới · ${updateCount} điểm cập nhật · ${errors.length} dòng lỗi sẽ bỏ qua · ${duplicateInfo.conflicts.length} mã mâu thuẫn sẽ bỏ qua.`;
     preview.append(header);
     if (errors.length) {
+      const errorSummary = document.createElement('div');
+      errorSummary.style.color = '#b54708';
+      errorSummary.textContent = 'Các dòng lỗi sẽ không được nhập; có thể sửa file rồi nhập lại sau.';
+      preview.append(errorSummary);
       const list = document.createElement('ul');
       errors.slice(0, 20).forEach(message => {
         const item = document.createElement('li');
@@ -425,12 +452,17 @@
         list.append(item);
       });
       preview.append(list);
+      if (errors.length > 20) {
+        const remaining = document.createElement('div');
+        remaining.textContent = `Còn ${errors.length - 20} lỗi chưa hiển thị.`;
+        preview.append(remaining);
+      }
     }
     if (duplicateInfo.conflicts.length) {
       const conflictHeader = document.createElement('div');
       conflictHeader.style.color = '#b42318';
       conflictHeader.style.fontWeight = 'bold';
-      conflictHeader.textContent = `${duplicateInfo.conflicts.length} mã điểm có thông tin cốt lõi mâu thuẫn; cần sửa file trước khi nhập.`;
+      conflictHeader.textContent = `${duplicateInfo.conflicts.length} mã điểm có thông tin cốt lõi mâu thuẫn; các mã này sẽ được bỏ qua, những điểm khác vẫn nhập bình thường.`;
       preview.append(conflictHeader);
       const conflictList = document.createElement('ul');
       duplicateInfo.conflicts.slice(0, 20).forEach(conflict => {
@@ -439,20 +471,31 @@
         conflictList.append(item);
       });
       preview.append(conflictList);
+      if (duplicateInfo.conflicts.length > 20) {
+        const remaining = document.createElement('div');
+        remaining.textContent = `Còn ${duplicateInfo.conflicts.length - 20} mã mâu thuẫn chưa hiển thị.`;
+        preview.append(remaining);
+      }
     }
     if (rows.length) {
       const sample = document.createElement('div');
       sample.textContent = `Ví dụ dòng đầu: ${rows[0].maDiem} · ${rows[0].tenDiem}`;
       preview.append(sample);
     }
-    if (errors.length === 0 && duplicateInfo.conflicts.length === 0 && rows.length && can('stops.import')) {
+    if (rows.length && can('stops.import')) {
       const commit = document.createElement('button');
       commit.type = 'button';
       commit.className = 'btn btn-success';
       commit.style.marginTop = '8px';
-      commit.textContent = `Xác nhận nhập ${rows.length} dòng`;
+      commit.textContent = `Nhập ${rows.length} điểm hợp lệ`;
       commit.addEventListener('click', commitImport);
       preview.append(commit);
+    } else if (errors.length || duplicateInfo.conflicts.length) {
+      const emptySummary = document.createElement('div');
+      emptySummary.style.color = '#b42318';
+      emptySummary.style.fontWeight = 'bold';
+      emptySummary.textContent = 'Không có điểm hợp lệ để nhập. Hãy sửa các dòng lỗi rồi thử lại.';
+      preview.append(emptySummary);
     }
   }
 
@@ -479,18 +522,20 @@
       });
       const records = [];
       const errors = [];
+      let sourceCount = 0;
       values.slice(headerIndex + 1).forEach((row, index) => {
         if (!row.some(value => String(value || '').trim())) return;
+        sourceCount++;
         const record = mapExcelRow(row, columns);
         const line = headerIndex + index + 2;
         if (!record.maDiem) errors.push(`Dòng ${line}: thiếu mã điểm.`);
         else if (!record.tenDiem) errors.push(`Dòng ${line}: thiếu tên điểm.`);
         else if (record.kinhDo === '' || !Number.isFinite(record.kinhDo) || record.kinhDo < -180 || record.kinhDo > 180) errors.push(`Dòng ${line}: kinh độ không hợp lệ.`);
         else if (record.viDo === '' || !Number.isFinite(record.viDo) || record.viDo < -90 || record.viDo > 90) errors.push(`Dòng ${line}: vĩ độ không hợp lệ.`);
-        records.push(record);
+        else records.push(record);
       });
       const duplicateInfo = StopImport.mergeDuplicateStopRows(records);
-      showImportPreview(duplicateInfo.rows, errors, duplicateInfo, records.length);
+      showImportPreview(duplicateInfo.rows, errors, duplicateInfo, sourceCount);
     } catch (error) {
       get('stopImportPreview').style.display = 'none';
       get('stopImportMessage').textContent = error.message || 'Không thể đọc file.';
@@ -501,9 +546,10 @@
   async function commitImport() {
     try {
       const result = await requestJson('/api/admin/diem-dung/import', { diemDungList: importRows });
-      safeToast(result.message, 'success');
+      safeToast([result.message, importSkippedSummary].filter(Boolean).join(' '), 'success');
       get('stopImportPreview').style.display = 'none';
       get('stopExcelFile').value = '';
+      importSkippedSummary = '';
       await taiDiemDungAdmin();
     } catch (error) {
       safeToast(error.message, 'error');

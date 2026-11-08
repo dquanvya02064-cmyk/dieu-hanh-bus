@@ -41,18 +41,28 @@
       ngayKetThuc: text(row.ngayKetThuc),
       ghiChu: text(row.ghiChu)
     };
-    if (Object.values(current).some(Boolean)) history.push(current);
+    if (Object.values(current).some(Boolean) && !history.some(entry =>
+      text(entry.ngayBatDau) === current.ngayBatDau &&
+      text(entry.ngayKetThuc) === current.ngayKetThuc &&
+      text(entry.ghiChu) === current.ghiChu
+    )) history.push(current);
     return history;
   }
 
   function mergeDuplicateStopRows(inputRows) {
     const rowsByCode = new Map();
     const conflictsByCode = new Map();
+    const duplicateCountsByCode = new Map();
+    const rowsWithoutCode = [];
     let duplicateCount = 0;
 
     inputRows.forEach(row => {
       const code = text(row.maDiem);
       const normalizedCode = code.toLocaleUpperCase('vi');
+      if (!normalizedCode) {
+        rowsWithoutCode.push(row);
+        return;
+      }
       const existing = rowsByCode.get(normalizedCode);
       if (!existing) {
         rowsByCode.set(normalizedCode, {
@@ -64,12 +74,15 @@
       }
 
       duplicateCount++;
+      duplicateCountsByCode.set(normalizedCode, (duplicateCountsByCode.get(normalizedCode) || 0) + 1);
       for (const field of CONFLICT_FIELDS) {
         const previous = comparable(field, existing[field]);
         const incoming = comparable(field, row[field]);
         if (previous && incoming && previous !== incoming) {
-          if (!conflictsByCode.has(code)) conflictsByCode.set(code, new Set());
-          conflictsByCode.get(code).add(field);
+          if (!conflictsByCode.has(normalizedCode)) {
+            conflictsByCode.set(normalizedCode, { maDiem: code, fields: new Set() });
+          }
+          conflictsByCode.get(normalizedCode).fields.add(field);
         }
       }
 
@@ -86,19 +99,18 @@
       existing.lichSuDiemDung = [
         ...(existing.lichSuDiemDung || []),
         ...historyRows(row)
-      ].filter((entry, index, list) =>
-        list.findIndex(candidate =>
-          text(candidate.ngayBatDau) === text(entry.ngayBatDau) &&
-          text(candidate.ngayKetThuc) === text(entry.ngayKetThuc) &&
-          text(candidate.ghiChu) === text(entry.ghiChu)
-        ) === index
-      );
+      ];
     });
 
     return {
-      rows: [...rowsByCode.values()],
-      duplicateCount,
-      conflicts: [...conflictsByCode].map(([maDiem, fields]) => ({ maDiem, fields: [...fields] }))
+      rows: [
+        ...[...rowsByCode].filter(([code]) => !conflictsByCode.has(code)).map(([, row]) => row),
+        ...rowsWithoutCode
+      ],
+      duplicateCount: [...duplicateCountsByCode]
+        .filter(([code]) => !conflictsByCode.has(code))
+        .reduce((count, [, duplicates]) => count + duplicates, 0),
+      conflicts: [...conflictsByCode.values()].map(({ maDiem, fields }) => ({ maDiem, fields: [...fields] }))
     };
   }
 

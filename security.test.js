@@ -73,16 +73,44 @@ test('duplicate stop rows merge routes and retain every history entry', () => {
   assert.equal(rows[0].lichSuDiemDung.length, 2);
 });
 
+test('duplicate stop rows preserve distinct notes, exact repeated entries, and can be reprocessed', () => {
+  const rows = [
+    { maDiem: '001.02', tenDiem: 'Bến A', kinhDo: '105.8', viDo: '21.02', ghiChu: 'Ghi chú đặc biệt' },
+    { maDiem: '001.02', tenDiem: 'Bến A', kinhDo: '105.8', viDo: '21.02', ghiChu: 'Ghi chú đặc biệt' },
+    { maDiem: '001.02', tenDiem: 'Bến A', kinhDo: '105.8', viDo: '21.02', ghiChu: 'Ghi chú khác' }
+  ];
+  const firstPass = mergeDuplicateStopRows(rows);
+  const secondPass = mergeDuplicateStopRows(firstPass.rows);
+
+  assert.equal(firstPass.rows[0].lichSuDiemDung.length, 3);
+  assert.equal(secondPass.rows[0].lichSuDiemDung.length, 3);
+  assert.deepEqual(firstPass.rows[0].lichSuDiemDung.map(entry => entry.ghiChu), [
+    'Ghi chú đặc biệt', 'Ghi chú đặc biệt', 'Ghi chú khác'
+  ]);
+});
+
 test('duplicate stop rows flag conflicting point identity and location', () => {
   const result = mergeDuplicateStopRows([
     { maDiem: '001.02', tenDiem: 'Bến A', kinhDo: '105.8', viDo: '21.02' },
-    { maDiem: '001.02', tenDiem: 'Bến B', kinhDo: '106.8', viDo: '21.02' }
+    { maDiem: '001.02', tenDiem: 'Bến B', kinhDo: '106.8', viDo: '21.02' },
+    { maDiem: '003.04', tenDiem: 'Bến C', kinhDo: '105.9', viDo: '21.03' }
   ]);
 
   assert.deepEqual(result.conflicts, [{
     maDiem: '001.02',
     fields: ['tenDiem', 'kinhDo']
   }]);
+  assert.deepEqual(result.rows.map(row => row.maDiem), ['003.04']);
+});
+
+test('rows without a point code stay separate for validation instead of being merged', () => {
+  const result = mergeDuplicateStopRows([
+    { maDiem: '', tenDiem: 'Thiếu mã 1' },
+    { maDiem: '', tenDiem: 'Thiếu mã 2' }
+  ]);
+
+  assert.equal(result.rows.length, 2);
+  assert.equal(result.duplicateCount, 0);
 });
 
 test('password hashes verify without storing plaintext', async () => {

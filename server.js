@@ -1451,24 +1451,27 @@ app.post('/api/admin/diem-dung/import', verifyAdmin, async (req, res) => {
       return res.status(413).json({ success: false, message: 'Mỗi lần chỉ nhập tối đa 20.000 dòng điểm dừng.' });
     }
 
-    const imported = mergeDuplicateStopRows(rows);
-    if (imported.conflicts.length) {
-      const examples = imported.conflicts.slice(0, 10)
-        .map(item => `${item.maDiem} (${item.fields.join(', ')})`).join('; ');
-      return res.status(400).json({
-        success: false,
-        message: `Có ${imported.conflicts.length} mã điểm trùng nhưng thông tin cốt lõi khác nhau. Hãy kiểm tra: ${examples}`
-      });
-    }
-    const normalized = imported.rows.map((row, index) => {
+    const validationErrors = [];
+    const validRows = [];
+    rows.forEach((row, index) => {
       try {
-        return normalizeStopRecord(row, randomUUID());
+        validRows.push(normalizeStopRecord(row, randomUUID()));
       } catch (err) {
-        err.message = `Dòng ${index + 2}: ${err.message}`;
-        err.statusCode = 400;
-        throw err;
+        validationErrors.push(`Dòng ${index + 2}: ${err.message}`);
       }
     });
+    const imported = mergeDuplicateStopRows(validRows);
+    const normalized = imported.rows;
+    if (!normalized.length) {
+      const conflictExamples = imported.conflicts.slice(0, 10)
+        .map(item => `${item.maDiem} (${item.fields.join(', ')})`).join('; ');
+      const errorExamples = validationErrors.slice(0, 10).join('; ');
+      const details = [errorExamples, conflictExamples].filter(Boolean).join('; ');
+      return res.status(400).json({
+        success: false,
+        message: `Không có điểm hợp lệ để nhập. Đã bỏ qua ${validationErrors.length} dòng lỗi và ${imported.conflicts.length} mã mâu thuẫn.${details ? ` ${details}` : ''}`
+      });
+    }
     const raw = await getRawData(true);
     if (!Array.isArray(raw.diemDungList)) raw.diemDungList = [];
     if (!Array.isArray(raw.diemDungHistory)) raw.diemDungHistory = [];
@@ -1501,16 +1504,28 @@ app.post('/api/admin/diem-dung/import', verifyAdmin, async (req, res) => {
       changedBy: req.adminUser.username,
       added,
       updated,
-      duplicatesMerged: imported.duplicateCount
+      duplicatesMerged: imported.duplicateCount,
+      invalidRowsSkipped: validationErrors.length,
+      conflictingCodesSkipped: imported.conflicts.length
     });
     raw.diemDungHistory = raw.diemDungHistory.slice(-1000);
     await saveRawDataFast(raw);
+    const conflictExamples = imported.conflicts.slice(0, 5)
+      .map(item => `${item.maDiem} (${item.fields.join(', ')})`).join('; ');
+    const skippedDetails = [
+      validationErrors.length ? `bỏ qua ${validationErrors.length} dòng lỗi` : '',
+      imported.conflicts.length
+        ? `bỏ qua ${imported.conflicts.length} mã mâu thuẫn${conflictExamples ? `: ${conflictExamples}` : ''}`
+        : ''
+    ].filter(Boolean).join('; ');
     res.json({
       success: true,
-      message: `Đã nhập ${added} điểm mới, cập nhật ${updated} điểm; gộp ${imported.duplicateCount} dòng trùng mã.`,
+      message: `Đã nhập ${added} điểm mới, cập nhật ${updated} điểm; gộp ${imported.duplicateCount} dòng trùng mã.${skippedDetails ? ` Đã ${skippedDetails}; sửa file để nhập lại các dòng này.` : ''}`,
       added,
       updated,
-      duplicatesMerged: imported.duplicateCount
+      duplicatesMerged: imported.duplicateCount,
+      invalidRowsSkipped: validationErrors.length,
+      conflictingCodesSkipped: imported.conflicts.length
     });
   } catch (err) {
     if (err.statusCode === 400) return res.status(400).json({ success: false, message: err.message });
