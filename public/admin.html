@@ -459,6 +459,30 @@
                   <option value="withdrawn">Đang thu hồi</option>
                 </select>
               </div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+                <button type="button" class="btn btn-primary" data-action-permission="stops.edit" id="stopRouteBulkToggle" disabled>Sửa hàng loạt điểm tuyến</button>
+                <span id="stopRouteBulkStatus" class="stop-admin-note" role="status">Chọn tuyến và chiều để sửa danh sách điểm trong một lượt.</span>
+              </div>
+              <section id="stopRouteBulkPanel" hidden aria-label="Sửa hàng loạt điểm theo tuyến">
+                <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:8px;">
+                  <strong id="stopRouteBulkHeading">Danh sách điểm theo tuyến</strong>
+                  <input type="search" id="stopRouteBulkSearch" class="form-control" placeholder="Tìm mã, tên, đường hoặc quận/huyện" style="max-width:360px;">
+                </div>
+                <div id="stopRouteBulkSummary" class="stop-admin-note" role="status"></div>
+                <div class="table-responsive-wrapper">
+                  <table class="table-custom">
+                    <thead><tr><th>Thuộc chiều này</th><th>Mã điểm</th><th>Tên điểm</th><th>Quận / huyện</th><th>Trạng thái</th><th>Thứ tự</th></tr></thead>
+                    <tbody id="stopRouteBulkTable"></tbody>
+                  </table>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;margin-top:8px;">
+                  <button type="button" class="btn btn-default" id="stopRouteBulkPrevious">Trước</button>
+                  <span id="stopRouteBulkPageSummary" class="stop-admin-note"></span>
+                  <button type="button" class="btn btn-default" id="stopRouteBulkNext">Sau</button>
+                  <button type="button" class="btn btn-default" id="stopRouteBulkCancel">Hủy</button>
+                  <button type="button" class="btn btn-success" data-action-permission="stops.edit" id="stopRouteBulkSave">Lưu danh sách tuyến</button>
+                </div>
+              </section>
               <div id="stopAdminSummary" class="stop-admin-note" aria-live="polite">Đang tải dữ liệu…</div>
               <div id="stopsAdminMap" role="application" aria-label="Bản đồ quản lý điểm dừng"></div>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;">

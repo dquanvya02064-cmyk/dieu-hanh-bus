@@ -10,7 +10,7 @@ const fs = require('fs');
 const mongoose = require('mongoose');
 const { randomUUID } = require('crypto');
 const { ADMIN_PERMISSIONS, canAccessAdminRequest, canGrantAdminPermissions, canUpdateAdminPermissions, createAdminToken, expandAdminPermissions, hasAdminPermission, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
-const { filterPublicStopData, mergeDuplicateStopRows, mergeRouteDirectionAssignments, migrateStopRouteAssignments, normalizeStopRecord } = require('./stop-data');
+const { filterPublicStopData, mergeDuplicateStopRows, mergeRouteDirectionAssignments, migrateStopRouteAssignments, normalizeStopRecord, replaceRouteDirectionAssignments } = require('./stop-data');
 const { calculatePolylineDistance, normalizeRouteGeometry } = require('./route-geometry');
 
 const app = express();
@@ -1494,6 +1494,42 @@ app.post('/api/admin/diem-dung/lo-trinh/preview', verifyAdmin, async (req, res) 
     return res.status(502).json({ success: false, message });
   } finally {
     clearTimeout(timeout);
+  }
+});
+
+app.post('/api/admin/diem-dung/lo-trinh/diem-dung', verifyAdmin, async (req, res) => {
+  const maTuyen = String(req.body.maTuyen || '').trim().toUpperCase();
+  const chieu = String(req.body.chieu || '').trim().toLowerCase();
+  const assignments = req.body.assignments;
+  if (!/^[A-Z0-9]+$/.test(maTuyen) || !['di', 've'].includes(chieu) || !Array.isArray(assignments)) {
+    return res.status(400).json({ success: false, message: 'Tuyến, chiều hoặc danh sách điểm không hợp lệ.' });
+  }
+  if (assignments.length > 20000) {
+    return res.status(413).json({ success: false, message: 'Mỗi chiều tuyến tối đa 20.000 điểm.' });
+  }
+
+  try {
+    const raw = await getRawData(true);
+    const route = Object.entries(raw.tuyenList || {}).find(([code, item]) =>
+      String(item.maTuyen || code).trim().toUpperCase() === maTuyen
+    );
+    if (!route) return res.status(404).json({ success: false, message: 'Không tìm thấy tuyến.' });
+    if (!Array.isArray(raw.diemDungList)) raw.diemDungList = [];
+
+    let updatedCount;
+    try {
+      updatedCount = replaceRouteDirectionAssignments(raw.diemDungList, maTuyen, chieu, assignments);
+    } catch (err) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+    await saveRawDataFast(raw);
+    return res.json({
+      success: true,
+      message: `Đã lưu ${updatedCount} điểm cho tuyến ${maTuyen} chiều ${chieu === 'di' ? 'Đi' : 'Về'}.`
+    });
+  } catch (err) {
+    console.error('Lỗi cập nhật hàng loạt điểm theo tuyến:', err.message);
+    return res.status(500).json({ success: false, message: 'Không thể cập nhật danh sách điểm của tuyến.' });
   }
 });
 

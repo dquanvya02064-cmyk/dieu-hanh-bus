@@ -97,7 +97,7 @@ function canAccessAdminRequest(path, query, user, body = {}) {
   if (path === '/api/admin/doi-mat-khau') return hasPermission(user, 'users.password');
   if (path === '/api/admin/xoa-tai-khoan') return hasPermission(user, 'users.delete');
   if (path === '/api/admin/diem-dung') return hasPermission(user, query.readOnly === 'true' || body.readOnly ? 'stops.view' : 'stops.edit');
-  if (path === '/api/admin/diem-dung/lo-trinh' || path === '/api/admin/diem-dung/lo-trinh/preview') return hasPermission(user, 'stops.edit');
+  if (['/api/admin/diem-dung/lo-trinh', '/api/admin/diem-dung/lo-trinh/preview', '/api/admin/diem-dung/lo-trinh/diem-dung'].includes(path)) return hasPermission(user, 'stops.edit');
   if (path === '/api/admin/diem-dung/import') return hasPermission(user, 'stops.import');
   if (path === '/api/admin/diem-dung/trang-thai') return hasPermission(user, 'stops.status');
   if (path === '/api/admin/diem-dung/trang-thai-tuyen') return hasPermission(user, 'stops.status');

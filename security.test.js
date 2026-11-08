@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { canAccessAdminRequest, canGrantAdminPermissions, canUpdateAdminPermissions, createAdminToken, expandAdminPermissions, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
-const { filterPublicStopData, mergeDuplicateStopRows, mergeRouteDirectionAssignments, migrateStopRouteAssignments, normalizeStopRecord, parseRouteDirection, parseRoutes } = require('./stop-data');
+const { filterPublicStopData, mergeDuplicateStopRows, mergeRouteDirectionAssignments, migrateStopRouteAssignments, normalizeStopRecord, parseRouteDirection, parseRoutes, replaceRouteDirectionAssignments } = require('./stop-data');
 const { routeDirection } = require('./public/stop-import');
 const { calculatePolylineDistance, normalizeRouteGeometry } = require('./route-geometry');
 
@@ -199,6 +199,47 @@ test('importing a direction without order preserves saved order and the other di
   ]);
 });
 
+test('bulk route-direction updates preserve other directions and route assignments', () => {
+  const stops = [
+    {
+      id: 'one', tuyenDiQua: ['09A', '45'], tuyenTheoChieu: [
+        { maTuyen: '09A', chieu: 'di', thuTu: 9 },
+        { maTuyen: '09A', chieu: 've', thuTu: 4 },
+        { maTuyen: '45', chieu: 'di', thuTu: 2 }
+      ], ghiChu: 'Giữ nguyên'
+    },
+    { id: 'two', tuyenDiQua: ['09A'], tuyenTheoChieu: [{ maTuyen: '09A', chieu: 'di', thuTu: 3 }] },
+    { id: 'three', tuyenDiQua: ['45'], tuyenTheoChieu: [{ maTuyen: '45', chieu: 've', thuTu: 1 }] }
+  ];
+
+  const updated = replaceRouteDirectionAssignments(stops, '09a', 'di', [
+    { id: 'two', thuTu: 1 },
+    { id: 'three', thuTu: 2 }
+  ]);
+
+  assert.equal(updated, 2);
+  assert.deepEqual(stops[0].tuyenTheoChieu, [
+    { maTuyen: '09A', chieu: 've', thuTu: 4 },
+    { maTuyen: '45', chieu: 'di', thuTu: 2 }
+  ]);
+  assert.deepEqual(stops[0].tuyenDiQua, ['09A', '45']);
+  assert.equal(stops[0].ghiChu, 'Giữ nguyên');
+  assert.deepEqual(stops[1].tuyenTheoChieu, [{ maTuyen: '09A', chieu: 'di', thuTu: 1 }]);
+  assert.deepEqual(stops[2].tuyenDiQua, ['45', '09A']);
+  assert.deepEqual(stops[2].tuyenTheoChieu, [
+    { maTuyen: '45', chieu: 've', thuTu: 1 },
+    { maTuyen: '09A', chieu: 'di', thuTu: 2 }
+  ]);
+  assert.throws(() => replaceRouteDirectionAssignments(stops, '09A', 'di', [
+    { id: 'one', thuTu: 1 }, { id: 'two', thuTu: 1 }
+  ]), /Thứ tự 1 bị trùng/);
+  const snapshot = structuredClone(stops);
+  assert.throws(() => replaceRouteDirectionAssignments(stops, '09A', 'di', [
+    { id: 'missing', thuTu: 1 }
+  ]), /Không tìm thấy điểm dừng/);
+  assert.deepEqual(stops, snapshot);
+});
+
 test('legacy stop routes migrate direction only when a single route is unambiguous', () => {
   assert.deepEqual(migrateStopRouteAssignments({ tuyenDiQua: '09a', huong: 'Đi' }), {
     tuyenDiQua: ['09A'],
@@ -362,6 +403,8 @@ test('admin view and edit permissions are enforced independently', () => {
   assert.equal(canAccessAdminRequest('/api/admin/diem-dung/lo-trinh', {}, stopEditor), true);
   assert.equal(canAccessAdminRequest('/api/admin/diem-dung/lo-trinh/preview', {}, stopViewer), false);
   assert.equal(canAccessAdminRequest('/api/admin/diem-dung/lo-trinh/preview', {}, stopEditor), true);
+  assert.equal(canAccessAdminRequest('/api/admin/diem-dung/lo-trinh/diem-dung', {}, stopViewer), false);
+  assert.equal(canAccessAdminRequest('/api/admin/diem-dung/lo-trinh/diem-dung', {}, stopEditor), true);
   assert.equal(canAccessAdminRequest('/api/admin/diem-dung', {}, stopEditor), true);
   assert.equal(canAccessAdminRequest('/api/admin/diem-dung/import', {}, stopImporter), true);
     assert.equal(canAccessAdminRequest('/api/admin/diem-dung/lo-trinh', {}, stopViewer), false);

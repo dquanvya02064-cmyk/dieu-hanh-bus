@@ -29,6 +29,10 @@
   let activeRouteGeometryKey = '';
   let routeWaypointDraft = [];
   let routeGeometryDraft = [];
+  let routeBulkDraft = new Map();
+  let activeRouteBulkKey = '';
+  let routeBulkPage = 0;
+  let isSavingRouteBulk = false;
   let temporaryMarker = null;
   const get = id => document.getElementById(id);
   const mapInputIds = ['stopAdminLongitude', 'stopAdminLatitude'];
@@ -57,6 +61,164 @@
     const route = get('stopAdminRouteFilter').value.toUpperCase();
     const direction = get('stopAdminRouteDirectionFilter').value;
     return route && direction ? `${route}:${direction}` : '';
+  }
+
+  function updateRouteBulkToggle() {
+    const active = Boolean(activeRouteBulkKey);
+    get('stopRouteBulkToggle').disabled = !can('stops.edit') || isSavingRouteBulk || (!active && !selectedRouteGeometryKey());
+    get('stopRouteBulkCancel').disabled = isSavingRouteBulk;
+    get('stopRouteBulkToggle').textContent = active ? 'Đóng sửa hàng loạt' : 'Sửa hàng loạt điểm tuyến';
+    get('stopRouteBulkStatus').textContent = active
+      ? 'Đã chọn xong các điểm và thứ tự? Lưu một lần để cập nhật cả chiều.'
+      : selectedRouteGeometryKey()
+        ? 'Mở bảng để thêm/bỏ nhiều điểm và chỉnh thứ tự cùng lúc.'
+        : 'Chọn tuyến và chiều để sửa danh sách điểm trong một lượt.';
+  }
+
+  function beginRouteBulkEdit() {
+    const key = selectedRouteGeometryKey();
+    if (!key || !can('stops.edit')) return;
+    activeRouteBulkKey = key;
+    routeBulkPage = 0;
+    routeBulkDraft = new Map(stops.map(stop => [stop.id, { selected: false, thuTu: '' }]));
+    const [route, direction] = key.split(':');
+    const assigned = stops.flatMap(stop => {
+      const assignment = (stop.tuyenTheoChieu || []).find(item =>
+        item.maTuyen.toUpperCase() === route && item.chieu === direction
+      );
+      return assignment ? [{ stop, assignment }] : [];
+    }).sort((a, b) => {
+      const orderA = Number.isInteger(a.assignment.thuTu) ? a.assignment.thuTu : Number.MAX_SAFE_INTEGER;
+      const orderB = Number.isInteger(b.assignment.thuTu) ? b.assignment.thuTu : Number.MAX_SAFE_INTEGER;
+      return orderA - orderB || a.stop.maDiem.localeCompare(b.stop.maDiem, 'vi');
+    });
+    assigned.forEach(({ stop }, index) => routeBulkDraft.set(stop.id, { selected: true, thuTu: index + 1 }));
+    get('stopRouteBulkSearch').value = '';
+    get('stopRouteBulkHeading').textContent = `Tuyến ${route} · chiều ${direction === 'di' ? 'Đi' : 'Về'}`;
+    get('stopRouteBulkPanel').hidden = false;
+    get('stopAdminRouteFilter').disabled = true;
+    get('stopAdminRouteDirectionFilter').disabled = true;
+    updateRouteBulkToggle();
+    renderRouteBulkTable();
+  }
+
+  function closeRouteBulkEdit() {
+    activeRouteBulkKey = '';
+    routeBulkDraft.clear();
+    routeBulkPage = 0;
+    get('stopRouteBulkPanel').hidden = true;
+    get('stopAdminRouteFilter').disabled = !routes.length;
+    get('stopAdminRouteDirectionFilter').disabled = !get('stopAdminRouteFilter').value;
+    updateRouteBulkToggle();
+  }
+
+  function renderRouteBulkTable() {
+    if (!activeRouteBulkKey) return;
+    const body = get('stopRouteBulkTable');
+    body.replaceChildren();
+    const query = get('stopRouteBulkSearch').value.trim().toLocaleLowerCase('vi');
+    const visible = stops.filter(stop => !query ||
+      [stop.maDiem, stop.tenDiem, stop.tenDuong, stop.tenQuanHuyen]
+        .some(value => String(value || '').toLocaleLowerCase('vi').includes(query))
+    ).sort((a, b) => {
+      const draftA = routeBulkDraft.get(a.id);
+      const draftB = routeBulkDraft.get(b.id);
+      if (draftA?.selected !== draftB?.selected) return draftA?.selected ? -1 : 1;
+      if (draftA?.selected && draftB?.selected) return Number(draftA.thuTu) - Number(draftB.thuTu);
+      return a.maDiem.localeCompare(b.maDiem, 'vi');
+    });
+    const pageCount = Math.max(1, Math.ceil(visible.length / ADMIN_PAGE_SIZE));
+    routeBulkPage = Math.min(routeBulkPage, pageCount - 1);
+    const pageStart = routeBulkPage * ADMIN_PAGE_SIZE;
+    visible.slice(pageStart, pageStart + ADMIN_PAGE_SIZE).forEach(stop => {
+      const draft = routeBulkDraft.get(stop.id);
+      const row = body.insertRow();
+      const selectCell = row.insertCell();
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = Boolean(draft?.selected);
+      checkbox.setAttribute('aria-label', `Gán điểm ${stop.maDiem} vào tuyến đang sửa`);
+      selectCell.append(checkbox);
+      addCell(row, stop.maDiem);
+      addCell(row, stop.tenDiem);
+      addCell(row, stop.tenQuanHuyen);
+      addCell(row, stop.thuHoi ? 'Đang thu hồi' : 'Hoạt động');
+      const orderCell = row.insertCell();
+      const order = document.createElement('input');
+      order.type = 'number';
+      order.min = '1';
+      order.step = '1';
+      order.className = 'form-control';
+      order.style.maxWidth = '100px';
+      order.value = draft?.thuTu ?? '';
+      order.disabled = !draft?.selected;
+      order.setAttribute('aria-label', `Thứ tự điểm ${stop.maDiem}`);
+      orderCell.append(order);
+
+      checkbox.addEventListener('change', () => {
+        const next = routeBulkDraft.get(stop.id) || { selected: false, thuTu: '' };
+        next.selected = checkbox.checked;
+        if (next.selected && !next.thuTu) {
+          const currentOrders = [...routeBulkDraft.values()].filter(item => item.selected).map(item => Number(item.thuTu) || 0);
+          next.thuTu = Math.max(0, ...currentOrders) + 1;
+        } else if (!next.selected) {
+          next.thuTu = '';
+        }
+        routeBulkDraft.set(stop.id, next);
+        order.value = next.thuTu;
+        order.disabled = !next.selected;
+        updateRouteBulkSummary();
+      });
+      order.addEventListener('input', () => {
+        const next = routeBulkDraft.get(stop.id);
+        if (next) next.thuTu = order.value;
+        updateRouteBulkSummary();
+      });
+    });
+    get('stopRouteBulkPageSummary').textContent = visible.length
+      ? `${(pageStart + 1).toLocaleString('vi-VN')}–${Math.min(pageStart + ADMIN_PAGE_SIZE, visible.length).toLocaleString('vi-VN')} / ${visible.length.toLocaleString('vi-VN')}`
+      : '0 điểm';
+    get('stopRouteBulkPrevious').disabled = routeBulkPage === 0;
+    get('stopRouteBulkNext').disabled = routeBulkPage >= pageCount - 1;
+    updateRouteBulkSummary();
+  }
+
+  function updateRouteBulkSummary() {
+    const selectedCount = [...routeBulkDraft.values()].filter(item => item.selected).length;
+    get('stopRouteBulkSummary').textContent = `${selectedCount.toLocaleString('vi-VN')} điểm đang được chọn. Nhập thứ tự khác nhau từ 1 trở lên; điểm không được chọn sẽ bị gỡ khỏi chiều này.`;
+  }
+
+  async function saveRouteBulkEdit() {
+    if (!activeRouteBulkKey || isSavingRouteBulk) return;
+    const assignments = [...routeBulkDraft.entries()]
+      .filter(([, item]) => item.selected)
+      .map(([id, item]) => ({ id, thuTu: Number(item.thuTu) }));
+    if (assignments.some(item => !Number.isInteger(item.thuTu) || item.thuTu < 1)) {
+      return safeToast('Mỗi điểm được chọn cần có thứ tự là số nguyên dương.', 'error');
+    }
+    const orders = assignments.map(item => item.thuTu);
+    if (new Set(orders).size !== orders.length) return safeToast('Thứ tự điểm không được trùng nhau.', 'error');
+    if (!assignments.length && !window.confirm('Bỏ toàn bộ điểm khỏi chiều tuyến này?')) return;
+
+    const [maTuyen, chieu] = activeRouteBulkKey.split(':');
+    isSavingRouteBulk = true;
+    get('stopRouteBulkSave').disabled = true;
+    try {
+      const result = await requestJson('/api/admin/diem-dung/lo-trinh/diem-dung', {
+        maTuyen,
+        chieu,
+        assignments
+      });
+      safeToast(result.message, 'success');
+      closeRouteBulkEdit();
+      await taiDiemDungAdmin();
+    } catch (error) {
+      safeToast(error.message, 'error');
+    } finally {
+      isSavingRouteBulk = false;
+      get('stopRouteBulkSave').disabled = false;
+      updateRouteBulkToggle();
+    }
   }
 
   function updateRouteEditorControls() {
@@ -519,6 +681,7 @@
       get('stopAdminDistrict').value = districts.includes(selectedDistrict) ? selectedDistrict : '';
       populateRouteSelects();
       updateRouteEditorControls();
+      updateRouteBulkToggle();
       renderStops();
     } catch (error) {
       get('stopAdminSummary').textContent = error.message || 'Có lỗi khi tải dữ liệu.';
@@ -987,9 +1150,31 @@
       if (!selectedRoute) get('stopAdminRouteDirectionFilter').value = '';
       adminPage = 0;
       updateRouteEditorControls();
+      updateRouteBulkToggle();
       renderStops();
     });
-    get('stopAdminRouteDirectionFilter').addEventListener('change', updateRouteEditorControls);
+    get('stopAdminRouteDirectionFilter').addEventListener('change', () => {
+      updateRouteEditorControls();
+      updateRouteBulkToggle();
+    });
+    get('stopRouteBulkToggle').addEventListener('click', () => {
+      if (activeRouteBulkKey) closeRouteBulkEdit();
+      else beginRouteBulkEdit();
+    });
+    get('stopRouteBulkSearch').addEventListener('input', () => {
+      routeBulkPage = 0;
+      renderRouteBulkTable();
+    });
+    get('stopRouteBulkPrevious').addEventListener('click', () => {
+      routeBulkPage = Math.max(0, routeBulkPage - 1);
+      renderRouteBulkTable();
+    });
+    get('stopRouteBulkNext').addEventListener('click', () => {
+      routeBulkPage++;
+      renderRouteBulkTable();
+    });
+    get('stopRouteBulkCancel').addEventListener('click', closeRouteBulkEdit);
+    get('stopRouteBulkSave').addEventListener('click', saveRouteBulkEdit);
     get('stopRouteDraw').addEventListener('click', beginRouteDrawing);
     get('stopRouteUseStops').addEventListener('click', useAssignedStopWaypoints);
     get('stopRouteUndo').addEventListener('click', () => {

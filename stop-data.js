@@ -77,6 +77,60 @@ function mergeRouteDirectionAssignments(existing, incoming, routes) {
   return [...assignments.values()];
 }
 
+function replaceRouteDirectionAssignments(stops, routeCode, direction, assignments) {
+  const route = parseRoutes(routeCode)[0];
+  const chieu = parseRouteDirection(direction);
+  if (!route || !['di', 've'].includes(chieu) || !Array.isArray(stops) || !Array.isArray(assignments)) {
+    throw new Error('Dữ liệu cập nhật tuyến theo chiều không hợp lệ.');
+  }
+
+  const selected = new Map();
+  const seenOrders = new Set();
+  assignments.forEach(item => {
+    const id = text(item?.id);
+    const thuTu = Number(item?.thuTu);
+    if (!id || !Number.isInteger(thuTu) || thuTu < 1) {
+      throw new Error('Mỗi điểm được chọn cần có mã và thứ tự là số nguyên dương.');
+    }
+    if (selected.has(id)) throw new Error(`Điểm ${id} bị chọn nhiều lần.`);
+    if (seenOrders.has(thuTu)) throw new Error(`Thứ tự ${thuTu} bị trùng.`);
+    selected.set(id, thuTu);
+    seenOrders.add(thuTu);
+  });
+
+  const stopIds = new Set(stops.map(stop => text(stop?.id)));
+  const unknownIds = [...selected.keys()].filter(id => !stopIds.has(id));
+  if (unknownIds.length) throw new Error(`Không tìm thấy điểm dừng: ${unknownIds.slice(0, 5).join(', ')}.`);
+
+  stops.forEach(stop => {
+    const stopId = text(stop.id);
+    const current = Array.isArray(stop.tuyenTheoChieu) ? stop.tuyenTheoChieu : [];
+    const hasCurrentAssignment = current.some(item =>
+      parseRoutes(item?.maTuyen)[0] === route && parseRouteDirection(item?.chieu) === chieu
+    );
+    const isSelected = selected.has(stopId);
+    if (!isSelected && !hasCurrentAssignment) return;
+
+    const remaining = current.filter(item =>
+      parseRoutes(item?.maTuyen)[0] !== route || parseRouteDirection(item?.chieu) !== chieu
+    );
+    if (isSelected) remaining.push({ maTuyen: route, chieu, thuTu: selected.get(stopId) });
+    stop.tuyenTheoChieu = remaining;
+
+    const routes = parseRoutes(stop.tuyenDiQua);
+    if (isSelected && !routes.includes(route)) routes.push(route);
+    if (!isSelected && hasCurrentAssignment && !remaining.some(item =>
+      parseRoutes(item?.maTuyen)[0] === route
+    )) {
+      const routeIndex = routes.indexOf(route);
+      if (routeIndex >= 0) routes.splice(routeIndex, 1);
+    }
+    stop.tuyenDiQua = routes;
+  });
+
+  return selected.size;
+}
+
 function migrateStopRouteAssignments(stop) {
   if (!stop || typeof stop !== 'object' || Array.isArray(stop) || Array.isArray(stop.tuyenTheoChieu)) return null;
   const routes = parseRoutes(stop.tuyenDiQua);
@@ -181,4 +235,4 @@ function normalizeStopRecord(input, idFallback) {
   };
 }
 
-module.exports = { filterPublicStopData, mergeDuplicateStopRows, mergeRouteDirectionAssignments, migrateStopRouteAssignments, normalizeStopRecord, normalizeRouteDirections, parseRouteDirection, parseRoutes };
+module.exports = { filterPublicStopData, mergeDuplicateStopRows, mergeRouteDirectionAssignments, migrateStopRouteAssignments, normalizeStopRecord, normalizeRouteDirections, parseRouteDirection, parseRoutes, replaceRouteDirectionAssignments };
