@@ -406,7 +406,7 @@
     return sheet;
   }
 
-  function showImportPreview(rows, errors) {
+  function showImportPreview(rows, errors, duplicateInfo = { duplicateCount: 0, conflicts: [] }, sourceCount = rows.length) {
     importRows = rows;
     const preview = get('stopImportPreview');
     preview.replaceChildren();
@@ -415,7 +415,7 @@
     const existing = new Set(stops.map(stop => stop.maDiem.toLocaleUpperCase('vi')));
     const addCount = rows.filter(row => !existing.has(row.maDiem.toLocaleUpperCase('vi'))).length;
     const updateCount = rows.length - addCount;
-    header.textContent = `Xem trước: ${rows.length} dòng hợp lệ · ${addCount} điểm mới · ${updateCount} điểm cập nhật · ${errors.length} lỗi.`;
+    header.textContent = `Xem trước: ${sourceCount} dòng trong file · ${duplicateInfo.duplicateCount} dòng trùng mã sẽ gộp · ${rows.length} điểm sau gộp · ${addCount} điểm mới · ${updateCount} điểm cập nhật · ${errors.length} lỗi dữ liệu.`;
     preview.append(header);
     if (errors.length) {
       const list = document.createElement('ul');
@@ -426,12 +426,26 @@
       });
       preview.append(list);
     }
+    if (duplicateInfo.conflicts.length) {
+      const conflictHeader = document.createElement('div');
+      conflictHeader.style.color = '#b42318';
+      conflictHeader.style.fontWeight = 'bold';
+      conflictHeader.textContent = `${duplicateInfo.conflicts.length} mã điểm có thông tin cốt lõi mâu thuẫn; cần sửa file trước khi nhập.`;
+      preview.append(conflictHeader);
+      const conflictList = document.createElement('ul');
+      duplicateInfo.conflicts.slice(0, 20).forEach(conflict => {
+        const item = document.createElement('li');
+        item.textContent = `${conflict.maDiem}: ${conflict.fields.join(', ')}`;
+        conflictList.append(item);
+      });
+      preview.append(conflictList);
+    }
     if (rows.length) {
       const sample = document.createElement('div');
       sample.textContent = `Ví dụ dòng đầu: ${rows[0].maDiem} · ${rows[0].tenDiem}`;
       preview.append(sample);
     }
-    if (errors.length === 0 && rows.length && can('stops.import')) {
+    if (errors.length === 0 && duplicateInfo.conflicts.length === 0 && rows.length && can('stops.import')) {
       const commit = document.createElement('button');
       commit.type = 'button';
       commit.className = 'btn btn-success';
@@ -465,7 +479,6 @@
       });
       const records = [];
       const errors = [];
-      const seen = new Set();
       values.slice(headerIndex + 1).forEach((row, index) => {
         if (!row.some(value => String(value || '').trim())) return;
         const record = mapExcelRow(row, columns);
@@ -474,12 +487,10 @@
         else if (!record.tenDiem) errors.push(`Dòng ${line}: thiếu tên điểm.`);
         else if (record.kinhDo === '' || !Number.isFinite(record.kinhDo) || record.kinhDo < -180 || record.kinhDo > 180) errors.push(`Dòng ${line}: kinh độ không hợp lệ.`);
         else if (record.viDo === '' || !Number.isFinite(record.viDo) || record.viDo < -90 || record.viDo > 90) errors.push(`Dòng ${line}: vĩ độ không hợp lệ.`);
-        const code = record.maDiem.toLocaleUpperCase('vi');
-        if (code && seen.has(code)) errors.push(`Dòng ${line}: mã điểm ${record.maDiem} bị trùng trong file.`);
-        if (code) seen.add(code);
         records.push(record);
       });
-      showImportPreview(records, errors);
+      const duplicateInfo = StopImport.mergeDuplicateStopRows(records);
+      showImportPreview(duplicateInfo.rows, errors, duplicateInfo, records.length);
     } catch (error) {
       get('stopImportPreview').style.display = 'none';
       get('stopImportMessage').textContent = error.message || 'Không thể đọc file.';
@@ -508,13 +519,18 @@
 
   function xuatDiemDungDangLoc() {
     if (!window.XLSX) return safeToast('Không tải được thư viện Excel.', 'error');
-    const rows = filteredStops.map((stop, index) => [
-      stop.thuTu || index + 1, stop.maDiem, stop.maKhachHang, stop.tenQuanHuyen,
-      stop.tenDuong, stop.tenDiem, stop.anhThanh, stop.bienBao, stop.nhaChoTCT,
-      stop.nhaChoLED, routeCodes(stop.tuyenDiQua).join(', '), stop.thuHoi ? 'X' : '',
-      stop.kinhDo, stop.viDo, stop.banKinhQuet, stop.huong, stop.maAmThanh,
-      stop.ngayBatDau, stop.ngayKetThuc, stop.ghiChu
-    ]);
+    const rows = filteredStops.flatMap((stop, index) => {
+      const history = Array.isArray(stop.lichSuDiemDung) && stop.lichSuDiemDung.length
+        ? stop.lichSuDiemDung
+        : [{ ngayBatDau: stop.ngayBatDau, ngayKetThuc: stop.ngayKetThuc, ghiChu: stop.ghiChu }];
+      return history.map((entry, historyIndex) => [
+        stop.thuTu || index + 1, stop.maDiem, stop.maKhachHang, stop.tenQuanHuyen,
+        stop.tenDuong, stop.tenDiem, stop.anhThanh, stop.bienBao, stop.nhaChoTCT,
+        stop.nhaChoLED, routeCodes(stop.tuyenDiQua).join(', '), stop.thuHoi ? 'X' : '',
+        stop.kinhDo, stop.viDo, stop.banKinhQuet, stop.huong, stop.maAmThanh,
+        entry.ngayBatDau, entry.ngayKetThuc, entry.ghiChu
+      ]);
+    });
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, taoWorksheetDiemDung(rows), 'Diem dung');
     XLSX.writeFile(workbook, 'diem-dung-da-loc.xlsx');

@@ -1,4 +1,5 @@
 const WITHDRAWN_VALUES = new Set(['1', 'true', 'yes', 'y', 'x', 'co', 'có', 'thu hoi', 'thu hồi']);
+const { mergeDuplicateStopRows } = require('./public/stop-import');
 
 function text(value) {
   return value == null ? '' : String(value).trim();
@@ -59,8 +60,9 @@ function normalizeStopRecord(input, idFallback) {
     maAmThanh: text(input.maAmThanh),
     ngayBatDau: text(input.ngayBatDau),
     ngayKetThuc: text(input.ngayKetThuc),
+    lichSuDiemDung: Array.isArray(input.lichSuDiemDung) ? input.lichSuDiemDung : [],
     ghiChu: text(input.ghiChu)
   };
 }
 
-module.exports = { normalizeStopRecord, parseRoutes };
+module.exports = { mergeDuplicateStopRows, normalizeStopRecord, parseRoutes };

@@ -10,7 +10,7 @@ const fs = require('fs');
 const mongoose = require('mongoose');
 const { randomUUID } = require('crypto');
 const { ADMIN_PERMISSIONS, canAccessAdminRequest, canGrantAdminPermissions, canUpdateAdminPermissions, createAdminToken, expandAdminPermissions, hasAdminPermission, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
-const { normalizeStopRecord } = require('./stop-data');
+const { mergeDuplicateStopRows, normalizeStopRecord } = require('./stop-data');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1414,6 +1414,9 @@ app.post('/api/admin/diem-dung', verifyAdmin, async (req, res) => {
     if (stop.thuHoi !== Boolean(existing?.thuHoi) && !hasAdminPermission(req.adminUser, 'stops.status')) {
       return res.status(403).json({ success: false, message: 'Tài khoản không có quyền đổi trạng thái thu hồi.' });
     }
+    if (!Array.isArray(req.body.lichSuDiemDung)) {
+      stop.lichSuDiemDung = existing?.lichSuDiemDung || [];
+    }
     const duplicate = raw.diemDungList.find(item =>
       item.maDiem.toLocaleUpperCase('vi') === stop.maDiem.toLocaleUpperCase('vi') && item.id !== stop.id
     );
@@ -1444,11 +1447,20 @@ app.post('/api/admin/diem-dung/import', verifyAdmin, async (req, res) => {
     if (!Array.isArray(rows) || rows.length === 0) {
       return res.status(400).json({ success: false, message: 'File nhập không có dữ liệu điểm dừng hợp lệ.' });
     }
-    if (rows.length > 5000) {
-      return res.status(413).json({ success: false, message: 'Mỗi lần chỉ nhập tối đa 5.000 điểm dừng.' });
+    if (rows.length > 20000) {
+      return res.status(413).json({ success: false, message: 'Mỗi lần chỉ nhập tối đa 20.000 dòng điểm dừng.' });
     }
 
-    const normalized = rows.map((row, index) => {
+    const imported = mergeDuplicateStopRows(rows);
+    if (imported.conflicts.length) {
+      const examples = imported.conflicts.slice(0, 10)
+        .map(item => `${item.maDiem} (${item.fields.join(', ')})`).join('; ');
+      return res.status(400).json({
+        success: false,
+        message: `Có ${imported.conflicts.length} mã điểm trùng nhưng thông tin cốt lõi khác nhau. Hãy kiểm tra: ${examples}`
+      });
+    }
+    const normalized = imported.rows.map((row, index) => {
       try {
         return normalizeStopRecord(row, randomUUID());
       } catch (err) {
@@ -1457,17 +1469,6 @@ app.post('/api/admin/diem-dung/import', verifyAdmin, async (req, res) => {
         throw err;
       }
     });
-    const seenCodes = new Set();
-    for (const stop of normalized) {
-      const code = stop.maDiem.toLocaleUpperCase('vi');
-      if (seenCodes.has(code)) {
-        const error = new Error(`Mã điểm ${stop.maDiem} bị trùng trong file nhập.`);
-        error.statusCode = 400;
-        throw error;
-      }
-      seenCodes.add(code);
-    }
-
     const raw = await getRawData(true);
     if (!Array.isArray(raw.diemDungList)) raw.diemDungList = [];
     if (!Array.isArray(raw.diemDungHistory)) raw.diemDungHistory = [];
@@ -1499,11 +1500,18 @@ app.post('/api/admin/diem-dung/import', verifyAdmin, async (req, res) => {
       changedAt: new Date().toISOString(),
       changedBy: req.adminUser.username,
       added,
-      updated
+      updated,
+      duplicatesMerged: imported.duplicateCount
     });
     raw.diemDungHistory = raw.diemDungHistory.slice(-1000);
     await saveRawDataFast(raw);
-    res.json({ success: true, message: `Đã nhập ${added} điểm mới, cập nhật ${updated} điểm.`, added, updated });
+    res.json({
+      success: true,
+      message: `Đã nhập ${added} điểm mới, cập nhật ${updated} điểm; gộp ${imported.duplicateCount} dòng trùng mã.`,
+      added,
+      updated,
+      duplicatesMerged: imported.duplicateCount
+    });
   } catch (err) {
     if (err.statusCode === 400) return res.status(400).json({ success: false, message: err.message });
     console.error('Lỗi nhập Excel điểm dừng:', err);

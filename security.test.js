@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { canAccessAdminRequest, canGrantAdminPermissions, canUpdateAdminPermissions, createAdminToken, expandAdminPermissions, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
-const { normalizeStopRecord, parseRoutes } = require('./stop-data');
+const { mergeDuplicateStopRows, normalizeStopRecord, parseRoutes } = require('./stop-data');
 
 test('stop records normalize route codes and require valid coordinates', () => {
   const stop = normalizeStopRecord({
@@ -36,9 +36,53 @@ test('stop records normalize route codes and require valid coordinates', () => {
   assert.equal(stop.thuHoi, true);
   assert.equal(stop.ngayBatDau, '01/01/2020');
   assert.equal(stop.ghiChu, 'Ghi chú mẫu');
+  assert.deepEqual(stop.lichSuDiemDung, []);
   assert.throws(() => normalizeStopRecord({ ...stop, kinhDo: '' }), /kinh độ/);
   assert.throws(() => normalizeStopRecord({ ...stop, viDo: '91' }), /vĩ độ/);
   assert.deepEqual(parseRoutes(['09a', ' 45A']), ['09A', '45A']);
+});
+
+test('duplicate stop rows merge routes and retain every history entry', () => {
+  const { rows, duplicateCount, conflicts } = mergeDuplicateStopRows([
+    {
+      maDiem: '001.02',
+      tenDiem: 'Bến xe mẫu',
+      kinhDo: '105.800001',
+      viDo: '21.020001',
+      tuyenDiQua: ['09A'],
+      ngayBatDau: '01/01/2020',
+      ghiChu: 'Ghi chú cũ'
+    },
+    {
+      maDiem: '001.02',
+      tenDiem: 'Bến xe mẫu',
+      kinhDo: '105.800002',
+      viDo: '21.020002',
+      tuyenDiQua: ['45', '09A'],
+      thuHoi: 'x',
+      ngayBatDau: '01/01/2021',
+      ghiChu: 'Ghi chú mới'
+    }
+  ]);
+
+  assert.equal(duplicateCount, 1);
+  assert.deepEqual(conflicts, []);
+  assert.equal(rows.length, 1);
+  assert.deepEqual(rows[0].tuyenDiQua, ['09A', '45']);
+  assert.equal(rows[0].thuHoi, true);
+  assert.equal(rows[0].lichSuDiemDung.length, 2);
+});
+
+test('duplicate stop rows flag conflicting point identity and location', () => {
+  const result = mergeDuplicateStopRows([
+    { maDiem: '001.02', tenDiem: 'Bến A', kinhDo: '105.8', viDo: '21.02' },
+    { maDiem: '001.02', tenDiem: 'Bến B', kinhDo: '106.8', viDo: '21.02' }
+  ]);
+
+  assert.deepEqual(result.conflicts, [{
+    maDiem: '001.02',
+    fields: ['tenDiem', 'kinhDo']
+  }]);
 });
 
 test('password hashes verify without storing plaintext', async () => {
