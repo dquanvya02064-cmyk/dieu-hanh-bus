@@ -7,6 +7,7 @@
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
   <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
@@ -271,6 +272,13 @@
 
     .tab-content { display: none; }
     .tab-content.active { display: block; }
+    .stop-map-toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 12px; }
+    #stopsPublicMap { height: min(68vh, 680px); min-height: 360px; border: 1px solid #C4D5E5; border-radius: 6px; z-index: 1; }
+    .stop-map-caption { color: #64748B; font-size: 11px; margin: 8px 0 12px; }
+    .stop-results { max-height: 230px; overflow: auto; border: 1px solid #D0D7DE; border-radius: 6px; }
+    .stop-results button { width: 100%; padding: 8px 10px; display: flex; justify-content: space-between; gap: 12px; border: 0; border-bottom: 1px solid #E5E7EB; background: #FFF; text-align: left; cursor: pointer; }
+    .stop-results button:hover { background: #F1F7FC; }
+    .stop-results button:last-child { border-bottom: 0; }
 
     .select2-container { width: 100% !important; max-width: 100% !important; }
     .select2-container .select2-selection--single {
@@ -383,6 +391,19 @@
         </div>
         <div id="ketQuaTraCuuXe"></div>
       </div>
+
+      <div id="tab-bando" class="tab-content">
+        <div class="stop-map-toolbar">
+          <input id="stopMapSearch" class="form-control" type="search" placeholder="Tìm tên hoặc mã điểm dừng">
+          <select id="stopMapDistrict" class="form-control"><option value="">Tất cả quận / huyện</option></select>
+          <select id="stopMapRoute" class="form-control"><option value="">Tất cả tuyến</option></select>
+          <label class="form-label" style="display:flex;align-items:center;gap:7px;"><input id="stopMapShowWithdrawn" type="checkbox"> Hiện điểm đang thu hồi</label>
+        </div>
+        <div id="stopMapSummary" class="form-label" aria-live="polite">Đang tải dữ liệu điểm dừng…</div>
+        <div id="stopsPublicMap" role="application" aria-label="Bản đồ điểm dừng xe buýt"></div>
+        <p class="stop-map-caption">Đường nối là sơ đồ tham khảo nối các điểm dừng, không phải lộ trình chính xác theo đường phố.</p>
+        <div id="stopMapResults" class="stop-results" aria-label="Danh sách điểm dừng"></div>
+      </div>
     </div>
   </div>
 
@@ -394,6 +415,10 @@
     <button class="nav-btn" id="btnNavXe" onclick="chuyenTab('tab-xe')">
       <i class="fa fa-id-card-o"></i>
       <span>Tra cứu xe</span>
+    </button>
+    <button class="nav-btn" id="btnNavBanDo" onclick="chuyenTab('tab-bando')">
+      <i class="fa fa-map-marker"></i>
+      <span>Bản đồ</span>
     </button>
     <a href="admin.html" class="nav-btn">
       <i class="fa fa-cogs"></i>
@@ -433,6 +458,10 @@
 
       if (tabId === 'tab-bieudo') $('#btnNavBieuDo').addClass('active');
       else if (tabId === 'tab-xe') $('#btnNavXe').addClass('active');
+      else if (tabId === 'tab-bando') {
+        $('#btnNavBanDo').addClass('active');
+        window.dispatchEvent(new Event('stops-map-visible'));
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -1035,5 +1064,7 @@
       }, 350);
     }
   </script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="stops-map.js"></script>
 </body>
 </html>

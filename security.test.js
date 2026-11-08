@@ -1,6 +1,25 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { canAccessAdminRequest, canGrantAdminPermissions, canUpdateAdminPermissions, createAdminToken, expandAdminPermissions, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
+const { normalizeStopRecord, parseRoutes } = require('./stop-data');
+
+test('stop records normalize route codes and require valid coordinates', () => {
+  const stop = normalizeStopRecord({
+    maDiem: '0012',
+    tenDiem: 'Bến xe mẫu',
+    kinhDo: '105.8',
+    viDo: '21.02',
+    tuyenDiQua: '09A, 45; 09A',
+    thuHoi: 'x'
+  }, 'stable-id');
+
+  assert.equal(stop.id, 'stable-id');
+  assert.deepEqual(stop.tuyenDiQua, ['09A', '45']);
+  assert.equal(stop.thuHoi, true);
+  assert.throws(() => normalizeStopRecord({ ...stop, kinhDo: '' }), /kinh độ/);
+  assert.throws(() => normalizeStopRecord({ ...stop, viDo: '91' }), /vĩ độ/);
+  assert.deepEqual(parseRoutes(['09a', ' 45A']), ['09A', '45A']);
+});
 
 test('password hashes verify without storing plaintext', async () => {
   const password = 'a-long-test-password';
@@ -36,6 +55,7 @@ test('legacy permissions expand without removing existing access', () => {
   assert.ok(!expanded.includes('fleet.edit'));
   const legacyRoutePermissions = expandAdminPermissions(['tuyen']);
   assert.ok(legacyRoutePermissions.includes('vehicleModels.edit'));
+  assert.ok(!legacyRoutePermissions.includes('stops.view'));
 });
 
 test('staff can grant only permissions they already hold', () => {
@@ -63,6 +83,10 @@ test('admin view and edit permissions are enforced independently', () => {
   const fleetTransfer = { role: 'staff', permissions: ['fleet.transfer'] };
   const notificationViewer = { role: 'staff', permissions: ['notifications.view'] };
   const appointmentViewer = { role: 'staff', permissions: ['appointments.view'] };
+  const stopViewer = { role: 'staff', permissions: ['stops.view'] };
+  const stopEditor = { role: 'staff', permissions: ['stops.edit'] };
+  const stopImporter = { role: 'staff', permissions: ['stops.import'] };
+  const stopStatusEditor = { role: 'staff', permissions: ['stops.status'] };
   const userManager = { role: 'staff', permissions: ['users.view', 'users.create', 'users.status'] };
   const master = { role: 'master', permissions: [] };
 
@@ -89,6 +113,13 @@ test('admin view and edit permissions are enforced independently', () => {
   assert.equal(canAccessAdminRequest('/api/admin/sua-tai-khoan', {}, userManager, { status: 'locked' }), true);
   assert.equal(canAccessAdminRequest('/api/admin/sua-tai-khoan', {}, userManager, { permissions: ['charts.view'] }), false);
   assert.equal(canAccessAdminRequest('/api/admin/xoa-tai-khoan', {}, userManager), false);
+  assert.equal(canAccessAdminRequest('/api/admin/diem-dung', { readOnly: 'true' }, stopViewer), true);
+  assert.equal(canAccessAdminRequest('/api/admin/diem-dung', {}, stopViewer), false);
+  assert.equal(canAccessAdminRequest('/api/admin/diem-dung', {}, stopEditor), true);
+  assert.equal(canAccessAdminRequest('/api/admin/diem-dung/import', {}, stopImporter), true);
+  assert.equal(canAccessAdminRequest('/api/admin/diem-dung/import', {}, stopEditor), false);
+  assert.equal(canAccessAdminRequest('/api/admin/diem-dung/trang-thai', {}, stopStatusEditor), true);
+  assert.equal(canAccessAdminRequest('/api/admin/diem-dung/trang-thai-tuyen', {}, stopStatusEditor), true);
   assert.equal(canAccessAdminRequest('/api/bus-data', {}, userManager), false);
   assert.equal(canAccessAdminRequest('/api/admin/dang-ky', {}, master), true);
 });

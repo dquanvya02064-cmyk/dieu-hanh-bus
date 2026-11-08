@@ -7,6 +7,7 @@ const TOKEN_TTL_SECONDS = 8 * 60 * 60;
 const ADMIN_PERMISSIONS = [
   'dashboard.view',
   'routes.view', 'routes.edit', 'routes.status', 'routes.schedule',
+  'stops.view', 'stops.edit', 'stops.import', 'stops.status',
   'fleet.view', 'fleet.edit', 'fleet.transfer', 'fleet.schedule',
   'vehicleModels.view', 'vehicleModels.edit',
   'charts.view', 'charts.edit',
@@ -95,6 +96,10 @@ function canAccessAdminRequest(path, query, user, body = {}) {
   }
   if (path === '/api/admin/doi-mat-khau') return hasPermission(user, 'users.password');
   if (path === '/api/admin/xoa-tai-khoan') return hasPermission(user, 'users.delete');
+  if (path === '/api/admin/diem-dung') return hasPermission(user, query.readOnly === 'true' || body.readOnly ? 'stops.view' : 'stops.edit');
+  if (path === '/api/admin/diem-dung/import') return hasPermission(user, 'stops.import');
+  if (path === '/api/admin/diem-dung/trang-thai') return hasPermission(user, 'stops.status');
+  if (path === '/api/admin/diem-dung/trang-thai-tuyen') return hasPermission(user, 'stops.status');
   if (path === '/api/admin/danh-sach-xe-mau') return hasAnyPermission(user, ['vehicleModels.view', 'fleet.view']);
   if (['/api/admin/luu-xe-mau', '/api/admin/xoa-xe-mau', '/api/admin/import-xe-mau', '/api/admin/xoa-tat-ca-xe-mau'].includes(path)) {
     return hasPermission(user, 'vehicleModels.edit');
@@ -118,7 +123,7 @@ function canAccessAdminRequest(path, query, user, body = {}) {
   if (path === '/api/dieu-chuyen-xe' || path === '/api/dieu-chuyen-xe-hang-loat') return hasPermission(user, 'fleet.transfer');
   if (path === '/api/xoa-xe' || path === '/api/import-xe-excel' || path === '/api/import-danh-sach-xe') return hasPermission(user, 'fleet.edit');
   if (path === '/api/danh-muc' && query.admin === 'true') {
-    return hasAnyPermission(user, ['dashboard.view', 'routes.view', 'fleet.view', 'charts.view']);
+    return hasAnyPermission(user, ['dashboard.view', 'routes.view', 'stops.view', 'fleet.view', 'charts.view']);
   }
   if (path === '/api/tim-kiem-xe' && query.all === 'true') return hasPermission(user, 'fleet.view');
 

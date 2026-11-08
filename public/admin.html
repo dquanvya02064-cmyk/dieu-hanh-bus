@@ -7,6 +7,7 @@
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
   <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -105,6 +106,10 @@
     .stat-card.blue { border-left: 4px solid #3B86C4; } .stat-card.blue .icon { color: #3B86C4; }
     .stat-card.green { border-left: 4px solid #27AE60; } .stat-card.green .icon { color: #27AE60; }
     .stat-card.orange { border-left: 4px solid #E67E22; } .stat-card.orange .icon { color: #E67E22; }
+    #stopsAdminMap { height: 390px; border: 1px solid #D0D7DE; border-radius: 6px; z-index: 1; }
+    .stop-admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+    .stop-admin-field label { display: block; font-weight: bold; margin-bottom: 4px; color: #34495E; }
+    .stop-admin-note { color: #64748B; font-size: 11px; margin: 8px 0; }
 
     .panel-custom { background: #FFFFFF; border: 1px solid #C4D5E5; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 20px; width: 100%; }
     .panel-heading {
@@ -241,6 +246,7 @@
       <ul class="sidebar-menu">
         <li id="menuTongQuan"><a class="active" data-section="sec-tongquan" onclick="chuyenTabAdmin('sec-tongquan', this)"><i class="fa fa-tachometer"></i> Tổng quan hệ thống</a></li>
         <li id="menuTuyen"><a data-section="sec-tuyen" onclick="chuyenTabAdmin('sec-tuyen', this)"><i class="fa fa-pencil-square-o"></i> Quản trị Tuyến & Đội xe</a></li>
+        <li id="menuDiemDung"><a data-section="sec-diemdung" onclick="chuyenTabAdmin('sec-diemdung', this)"><i class="fa fa-map-marker"></i> Quản lý Điểm dừng</a></li>
         <li id="menuXeMau"><a data-section="sec-xemau" onclick="chuyenTabAdmin('sec-xemau', this)"><i class="fa fa-car"></i> Quản trị Danh mục Xe mẫu</a></li>
         <li id="menuBieudo"><a data-section="sec-bieudo" onclick="chuyenTabAdmin('sec-bieudo', this)"><i class="fa fa-calendar-plus-o"></i> Quản trị Biểu đồ chạy xe</a></li>
         <li id="menuThongBao"><a data-section="sec-thongbao" onclick="chuyenTabAdmin('sec-thongbao', this)"><i class="fa fa-bullhorn"></i> Quản lý Thông báo chạy</a></li>
@@ -420,6 +426,105 @@
                   <button class="btn btn-success" data-action-permission="fleet.edit" style="padding: 10px 24px; height: 38px;" onclick="xacLapTuyenVaDoiXe(this, 'fleet')"><i class="fa fa-save"></i> Lưu đội xe</button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="sec-diemdung" class="content-section">
+          <div class="panel-custom">
+            <div class="panel-heading"><span><i class="fa fa-map-marker"></i> Bản đồ & quản lý điểm dừng</span></div>
+            <div class="panel-body">
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+                <input type="file" id="stopExcelFile" accept=".xlsx,.xls,.csv" style="display:none">
+                <button type="button" class="btn btn-success" data-action-permission="stops.import" onclick="document.getElementById('stopExcelFile').click()"><i class="fa fa-file-excel-o"></i> Import Excel / CSV</button>
+                <button type="button" class="btn btn-primary" data-action-permission="stops.view" onclick="taiMauExcelDiemDung()"><i class="fa fa-download"></i> Tải mẫu Excel</button>
+                <button type="button" class="btn btn-primary" data-action-permission="stops.view" onclick="xuatDiemDungDangLoc()"><i class="fa fa-download"></i> Xuất danh sách đang lọc</button>
+                <span id="stopImportMessage" aria-live="polite"></span>
+              </div>
+              <div id="stopImportPreview" style="display:none;margin-bottom:12px;"></div>
+              <div class="stop-admin-grid" style="margin-bottom:12px;">
+                <input type="search" id="stopAdminSearch" class="form-control" placeholder="Tìm mã, tên, đường hoặc quận/huyện">
+                <select id="stopAdminDistrict" class="form-control"><option value="">Tất cả quận / huyện</option></select>
+                <select id="stopAdminRouteFilter" class="form-control"><option value="">Tất cả tuyến</option></select>
+                <select id="stopAdminStatusFilter" class="form-control">
+                  <option value="">Mọi trạng thái điểm</option>
+                  <option value="active">Đang hoạt động</option>
+                  <option value="withdrawn">Đang thu hồi</option>
+                </select>
+              </div>
+              <div id="stopAdminSummary" class="stop-admin-note" aria-live="polite">Đang tải dữ liệu…</div>
+              <div id="stopsAdminMap" role="application" aria-label="Bản đồ quản lý điểm dừng"></div>
+              <p class="stop-admin-note">Chọn một điểm trong bảng để sửa; kéo ghim hoặc bấm bản đồ để đặt tọa độ. Đường nối tuyến là sơ đồ tham khảo, không phải lộ trình chính xác theo đường phố.</p>
+            </div>
+          </div>
+
+          <div class="panel-custom">
+            <div class="panel-heading"><span id="stopFormHeading"><i class="fa fa-plus-circle"></i> Thêm điểm dừng</span></div>
+            <div class="panel-body">
+              <form id="stopAdminForm">
+                <input id="stopAdminId" type="hidden">
+                <div class="stop-admin-grid">
+                  <div class="stop-admin-field"><label for="stopAdminCode">Mã điểm *</label><input id="stopAdminCode" class="form-control" required></div>
+                  <div class="stop-admin-field"><label for="stopAdminCustomerCode">Mã khách hàng</label><input id="stopAdminCustomerCode" class="form-control"></div>
+                  <div class="stop-admin-field"><label for="stopAdminName">Tên điểm dừng *</label><input id="stopAdminName" class="form-control" required></div>
+                  <div class="stop-admin-field"><label for="stopAdminDistrictCode">Mã quận / huyện</label><input id="stopAdminDistrictCode" class="form-control"></div>
+                  <div class="stop-admin-field"><label for="stopAdminDistrictName">Quận / huyện</label><input id="stopAdminDistrictName" class="form-control"></div>
+                  <div class="stop-admin-field"><label for="stopAdminStreet">Đường / phố</label><input id="stopAdminStreet" class="form-control"></div>
+                  <div class="stop-admin-field"><label for="stopAdminRoutes">Tuyến đi qua (giữ Ctrl/⌘ để chọn nhiều)</label><select id="stopAdminRoutes" class="form-control" multiple style="height:84px;"></select></div>
+                  <div class="stop-admin-field"><label for="stopAdminLongitude">Kinh độ *</label><input id="stopAdminLongitude" type="number" step="any" min="-180" max="180" class="form-control" required></div>
+                  <div class="stop-admin-field"><label for="stopAdminLatitude">Vĩ độ *</label><input id="stopAdminLatitude" type="number" step="any" min="-90" max="90" class="form-control" required></div>
+                  <div class="stop-admin-field"><label for="stopAdminSound">Mã âm thanh</label><input id="stopAdminSound" class="form-control"></div>
+                  <div class="stop-admin-field"><label for="stopAdminRadius">Bán kính quét</label><input id="stopAdminRadius" class="form-control"></div>
+                  <div class="stop-admin-field"><label for="stopAdminDirection">Hướng</label><input id="stopAdminDirection" class="form-control"></div>
+                  <div class="stop-admin-field"><label for="stopAdminShelter">Nhà chờ TCT</label><input id="stopAdminShelter" class="form-control"></div>
+                  <div class="stop-admin-field"><label for="stopAdminLed">Nhà chờ có LED</label><input id="stopAdminLed" class="form-control"></div>
+                  <div class="stop-admin-field"><label for="stopAdminSign">Biển báo</label><input id="stopAdminSign" class="form-control"></div>
+                  <div class="stop-admin-field"><label for="stopAdminAudio">Ảnh / âm thanh</label><input id="stopAdminAudio" class="form-control"></div>
+                  <div class="stop-admin-field"><label for="stopAdminStartDate">Ngày bắt đầu</label><input id="stopAdminStartDate" class="form-control" placeholder="dd/mm/yyyy"></div>
+                  <div class="stop-admin-field"><label for="stopAdminEndDate">Ngày kết thúc</label><input id="stopAdminEndDate" class="form-control" placeholder="dd/mm/yyyy"></div>
+                  <div class="stop-admin-field"><label for="stopAdminNote">Ghi chú</label><input id="stopAdminNote" class="form-control"></div>
+                </div>
+                <label style="display:inline-flex;align-items:center;gap:7px;margin:12px 0;" data-action-permission="stops.status">
+                  <input id="stopAdminWithdrawn" type="checkbox"> Điểm đang bị thu hồi
+                </label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button type="submit" class="btn btn-success" data-action-permission="stops.edit"><i class="fa fa-save"></i> Lưu điểm dừng</button>
+                  <button type="button" class="btn btn-default" onclick="lamMoiFormDiemDung()">Làm mới</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="panel-custom">
+            <div class="panel-heading"><span><i class="fa fa-list"></i> Danh sách điểm dừng</span><button type="button" class="btn btn-default" onclick="taiDiemDungAdmin()"><i class="fa fa-refresh"></i> Tải lại</button></div>
+            <div class="panel-body" style="padding:0;">
+              <div class="table-responsive-wrapper">
+                <table class="table-custom">
+                  <thead><tr><th>Mã điểm</th><th>Tên điểm</th><th>Quận / huyện</th><th>Tuyến đi qua</th><th>Tọa độ</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+                  <tbody id="stopAdminTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-custom">
+            <div class="panel-heading"><span><i class="fa fa-history"></i> Lịch sử cập nhật gần đây</span></div>
+            <div class="panel-body" style="padding:0;">
+              <div class="table-responsive-wrapper">
+                <table class="table-custom">
+                  <thead><tr><th>Thời điểm</th><th>Thao tác</th><th>Mã điểm</th><th>Người thực hiện</th></tr></thead>
+                  <tbody id="stopAdminHistory"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-custom">
+            <div class="panel-heading"><span><i class="fa fa-exchange"></i> Trạng thái tuyến</span></div>
+            <div class="panel-body" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <select id="stopAdminRouteStatus" class="form-control" style="max-width:480px;"><option value="">Chọn tuyến để bật / tắt</option></select>
+              <button type="button" class="btn btn-warning" data-action-permission="stops.status" onclick="doiTrangThaiTuyenDiemDung()"><i class="fa fa-toggle-on"></i> Bật / tạm dừng tuyến</button>
+              <span class="stop-admin-note">Tuyến tạm dừng được lưu với trạng thái khóa hiện có của hệ thống.</span>
             </div>
           </div>
         </div>
@@ -739,6 +844,7 @@
     const ADMIN_PERMISSION_GROUPS = [
       { title: 'Tổng quan', items: [['dashboard.view', 'Xem tổng quan']] },
       { title: 'Tuyến', items: [['routes.view', 'Xem'], ['routes.edit', 'Sửa thông tin'], ['routes.status', 'Khóa / mở'], ['routes.schedule', 'Lên lịch thay đổi']] },
+      { title: 'Điểm dừng & bản đồ', items: [['stops.view', 'Xem bản đồ / danh sách'], ['stops.edit', 'Thêm / sửa điểm'], ['stops.import', 'Nhập Excel / CSV'], ['stops.status', 'Bật / tắt điểm và tuyến']] },
       { title: 'Đội xe', items: [['fleet.view', 'Xem'], ['fleet.edit', 'Sửa đội xe'], ['fleet.transfer', 'Điều chuyển'], ['fleet.schedule', 'Lên lịch đổi đội xe']] },
       { title: 'Danh mục xe mẫu', items: [['vehicleModels.view', 'Xem'], ['vehicleModels.edit', 'Thêm / sửa / xóa / nhập']] },
       { title: 'Biểu đồ', items: [['charts.view', 'Xem'], ['charts.edit', 'Thêm / sửa / xóa']] },
@@ -826,6 +932,7 @@
       const sectionPermissions = {
         'sec-tongquan': ['dashboard.view'],
         'sec-tuyen': ['routes.view', 'routes.edit', 'routes.status', 'routes.schedule', 'fleet.view', 'fleet.edit', 'fleet.transfer', 'fleet.schedule'],
+        'sec-diemdung': ['stops.view', 'stops.edit', 'stops.import', 'stops.status'],
         'sec-xemau': ['vehicleModels.view', 'vehicleModels.edit'],
         'sec-bieudo': ['charts.view', 'charts.edit'],
         'sec-thongbao': ['notifications.view', 'notifications.edit'],
@@ -836,6 +943,7 @@
 
       $('#menuTongQuan').toggle(allowed('sec-tongquan'));
       $('#menuTuyen').toggle(allowed('sec-tuyen'));
+      $('#menuDiemDung').toggle(allowed('sec-diemdung'));
       $('#menuXeMau').toggle(allowed('sec-xemau'));
       $('#menuBieudo').toggle(allowed('sec-bieudo'));
       $('#menuThongBao').toggle(allowed('sec-thongbao'));
@@ -865,6 +973,11 @@
       $('#sec-xemau input[type="text"], #sec-xemau textarea').prop('disabled', !can('vehicleModels.edit'));
       $('#sec-bieudo input, #sec-bieudo textarea').prop('disabled', !can('charts.edit'));
       $('#sec-thongbao input, #sec-thongbao textarea').prop('disabled', !can('notifications.edit'));
+      $('#stopAdminForm input, #stopAdminForm select').prop('disabled', !can('stops.edit'));
+      $('#stopAdminWithdrawn').prop('disabled', !can('stops.status'));
+      $('#stopExcelFile').prop('disabled', !can('stops.import'));
+      $('#stopAdminSearch, #stopAdminDistrict, #stopAdminRouteFilter, #stopAdminStatusFilter').prop('disabled', !can('stops.view'));
+      $('#stopAdminRouteStatus').prop('disabled', !can('stops.status'));
       $('#newAccRole option[value="master"]').toggle(role === 'master');
       if (role !== 'master' && $('#newAccRole').val() === 'master') $('#newAccRole').val('staff');
       $('#accountCreatePanel').toggle(can('users.create'));
@@ -990,6 +1103,7 @@
       const allowedSections = {
         'sec-tongquan': ['dashboard.view'],
         'sec-tuyen': ['routes.view', 'routes.edit', 'routes.status', 'routes.schedule', 'fleet.view', 'fleet.edit', 'fleet.transfer', 'fleet.schedule'],
+        'sec-diemdung': ['stops.view', 'stops.edit', 'stops.import', 'stops.status'],
         'sec-xemau': ['vehicleModels.view', 'vehicleModels.edit'],
         'sec-bieudo': ['charts.view', 'charts.edit'],
         'sec-thongbao': ['notifications.view', 'notifications.edit'],
@@ -1012,6 +1126,10 @@
       if (sectionId === 'sec-users') { taiDanhSachTaiKhoan(); }
       else if (sectionId === 'sec-thongbao') { taiTaiThongBaoAdmin(); }
       else if (sectionId === 'sec-lichhen') { taiDanhSachLichHen(); }
+      else if (sectionId === 'sec-diemdung') {
+        taiDiemDungAdmin();
+        window.dispatchEvent(new Event('stops-admin-visible'));
+      }
     }
 
     function toggleSidebar() { $('#sidebarMenu').toggleClass('collapsed'); }
@@ -2074,7 +2192,7 @@
       if (chart.rawData && Array.isArray(chart.rawData)) {
         $('#txtRawData').val(chart.rawData.map(row => row.join("\t")).join("\n"));
       }
-      chuyenTabAdmin('sec-bieudo', $('.sidebar-menu li a')[3]);
+      chuyenTabAdmin('sec-bieudo', $('.sidebar-menu a[data-section="sec-bieudo"]'));
       showToast(`Đã nạp biểu đồ [${tenTab}] lên form chỉnh sửa!`, "success");
     }
 
@@ -2333,7 +2451,7 @@
     }
 
     function napTuyenLenSua(maTuyen) {
-      chuyenTabAdmin('sec-tuyen', $('.sidebar-menu li a')[1]); $('#selChonTuyenDeSua').val(maTuyen).trigger('change');
+      chuyenTabAdmin('sec-tuyen', $('.sidebar-menu a[data-section="sec-tuyen"]')); $('#selChonTuyenDeSua').val(maTuyen).trigger('change');
     }
 
     async function doiTrangThai(maTuyen, statusMoi) {
@@ -2532,5 +2650,7 @@
       });
     }
   </script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="stops-admin.js"></script>
 </body>
 </html>
