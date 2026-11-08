@@ -108,11 +108,11 @@
     const route = get('stopAdminRouteFilter').value.toUpperCase();
     const status = get('stopAdminStatusFilter').value;
     const visible = stops.filter(stop => {
-      if (district && (stop.maQuanHuyen || stop.tenQuanHuyen) !== district) return false;
+      if (district && stop.tenQuanHuyen !== district) return false;
       if (route && !routeCodes(stop.tuyenDiQua).includes(route)) return false;
       if (status === 'active' && stop.thuHoi) return false;
       if (status === 'withdrawn' && !stop.thuHoi) return false;
-      return !query || [stop.maDiem, stop.maKhachHang, stop.maQuanHuyen, stop.tenDiem, stop.tenDuong, stop.tenQuanHuyen]
+      return !query || [stop.maDiem, stop.maKhachHang, stop.tenDiem, stop.tenDuong, stop.tenQuanHuyen]
         .some(value => String(value || '').toLocaleLowerCase('vi').includes(query));
     });
     filteredStops = visible;
@@ -135,7 +135,7 @@
       const row = body.insertRow();
       addCell(row, stop.maDiem);
       addCell(row, stop.tenDiem);
-      addCell(row, `${stop.tenQuanHuyen || ''}${stop.maQuanHuyen ? ` (${stop.maQuanHuyen})` : ''}`);
+      addCell(row, stop.tenQuanHuyen);
       addCell(row, routeCodes(stop.tuyenDiQua).join(', '));
       addCell(row, `${lng}, ${lat}`);
       addCell(row, stop.thuHoi ? 'Đang thu hồi' : 'Hoạt động');
@@ -198,15 +198,12 @@
       if (!response.ok || !data.success) throw new Error(data.message || 'Không thể tải dữ liệu điểm dừng.');
       stops = Array.isArray(data.diemDungList) ? data.diemDungList : [];
       routes = Array.isArray(data.tuyenList) ? data.tuyenList : [];
-      const districts = [...new Map(stops.map(stop => [
-        stop.maQuanHuyen || stop.tenQuanHuyen,
-        `${stop.tenQuanHuyen || 'Quận / huyện'}${stop.maQuanHuyen ? ` (${stop.maQuanHuyen})` : ''}`
-      ]).filter(([key]) => key)).entries()]
-        .sort((a, b) => a[1].localeCompare(b[1], 'vi'));
+      const districts = [...new Set(stops.map(stop => stop.tenQuanHuyen).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, 'vi'));
       const selectedDistrict = get('stopAdminDistrict').value;
       get('stopAdminDistrict').replaceChildren(new Option('Tất cả quận / huyện', ''));
-      districts.forEach(([code, name]) => get('stopAdminDistrict').add(new Option(name, code)));
-      get('stopAdminDistrict').value = districts.some(([code]) => code === selectedDistrict) ? selectedDistrict : '';
+      districts.forEach(name => get('stopAdminDistrict').add(new Option(name, name)));
+      get('stopAdminDistrict').value = districts.includes(selectedDistrict) ? selectedDistrict : '';
       populateRouteSelects();
       renderHistory(Array.isArray(data.diemDungHistory) ? data.diemDungHistory : []);
       renderStops();
@@ -221,7 +218,6 @@
     get('stopAdminCode').value = stop.maDiem || '';
     get('stopAdminCustomerCode').value = stop.maKhachHang || '';
     get('stopAdminName').value = stop.tenDiem || '';
-    get('stopAdminDistrictCode').value = stop.maQuanHuyen || '';
     get('stopAdminDistrictName').value = stop.tenQuanHuyen || '';
     get('stopAdminStreet').value = stop.tenDuong || '';
     get('stopAdminLongitude').value = stop.kinhDo ?? '';
@@ -278,7 +274,6 @@
       maDiem: get('stopAdminCode').value,
       maKhachHang: get('stopAdminCustomerCode').value,
       tenDiem: get('stopAdminName').value,
-      maQuanHuyen: get('stopAdminDistrictCode').value,
       tenQuanHuyen: get('stopAdminDistrictName').value,
       tenDuong: get('stopAdminStreet').value,
       tuyenDiQua: [...get('stopAdminRoutes').selectedOptions].map(option => option.value),
@@ -340,9 +335,9 @@
   }
 
   const importHeaderAliases = {
-    maDiem: ['matheoqdbtct', 'madiem', 'mastop', 'matheoqd'],
+    thuTu: ['tt', 'stt', 'thutu'],
+    maDiem: ['matheoqdtct', 'matheoqdbtct', 'madiem', 'mastop', 'matheoqd'],
     maKhachHang: ['makhachhang', 'makh'],
-    maQuanHuyen: ['maquanhuyen', 'maquan', 'mahuyen', 'districtcode'],
     tenQuanHuyen: ['tenquanhuyen', 'quanhuyen', 'quan', 'huyen'],
     tenDuong: ['tenduongphonguoclo', 'tenduongphoquoclo', 'tenduong', 'duongpho', 'quoclo'],
     tenDiem: ['tendiemdung', 'tendiem', 'tendiemdungxe', 'tendiembus'],
@@ -362,6 +357,13 @@
     ghiChu: ['ghichu']
   };
 
+  const stopExcelHeaders = [
+    'TT', 'Mã theo QĐ TCT', 'Mã Khách Hàng', 'Tên Quận - Huyện', 'Tên Đường, Phố - Quốc lộ',
+    'Tên Điểm dừng', 'Âm Thanh', 'Biển báo', 'Nhà chờ', 'Nhà chờ có LED',
+    'Tuyến đi qua', 'Đang thu hồi', 'Kinh độ', 'Vĩ độ', 'Bán kính quét (m)', 'Hướng',
+    'Mã Âm thanh', 'Ngày bắt đầu', 'Ngày kết thúc', 'Ghi chú'
+  ];
+
   function mapExcelRow(row, columns) {
     const value = field => columns[field] === undefined ? '' : row[columns[field]];
     const toNumber = input => {
@@ -370,9 +372,9 @@
     };
     const withdrawnText = String(value('thuHoi') || '').trim().toLocaleLowerCase('vi');
     return {
+      thuTu: String(value('thuTu') || '').trim(),
       maDiem: String(value('maDiem') || '').trim(),
       maKhachHang: String(value('maKhachHang') || '').trim(),
-      maQuanHuyen: String(value('maQuanHuyen') || '').trim(),
       tenQuanHuyen: String(value('tenQuanHuyen') || '').trim(),
       tenDuong: String(value('tenDuong') || '').trim(),
       tenDiem: String(value('tenDiem') || '').trim(),
@@ -391,6 +393,17 @@
       ngayKetThuc: String(value('ngayKetThuc') || '').trim(),
       ghiChu: String(value('ghiChu') || '').trim()
     };
+  }
+
+  function taoWorksheetDiemDung(dataRows) {
+    const sheet = XLSX.utils.aoa_to_sheet([
+      Array(17).fill('').concat(['Lịch sử điểm dừng', '', '']),
+      stopExcelHeaders,
+      ...dataRows
+    ]);
+    sheet['!merges'] = [{ s: { r: 0, c: 17 }, e: { r: 0, c: 19 } }];
+    if (sheet.R1) sheet.R1.s = { alignment: { horizontal: 'center', vertical: 'center' } };
+    return sheet;
   }
 
   function showImportPreview(rows, errors) {
@@ -488,37 +501,22 @@
 
   function taiMauExcelDiemDung() {
     if (!window.XLSX) return safeToast('Không tải được thư viện Excel.', 'error');
-    const headers = [
-      'Mã theo QĐ BTCT', 'Mã khách hàng', 'Mã Quận - Huyện', 'Tên Quận - Huyện', 'Tên đường, Phố - Quốc lộ',
-      'Tên Điểm Dừng', 'Ảnh Thanh', 'Biển báo', 'Nhà chờ TCT', 'Nhà chờ có LED',
-      'Tuyến đi qua', 'Đang thu hồi', 'Kinh độ', 'Vĩ độ', 'Bán kính quét', 'Hướng',
-      'Mã âm thanh', 'Ngày bắt đầu', 'Ngày kết thúc', 'Ghi chú'
-    ];
-    const sheet = XLSX.utils.aoa_to_sheet([headers, Array(headers.length).fill('')]);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, sheet, 'Diem dung');
+    XLSX.utils.book_append_sheet(workbook, taoWorksheetDiemDung([Array(stopExcelHeaders.length).fill('')]), 'Diem dung');
     XLSX.writeFile(workbook, 'mau-diem-dung.xlsx');
   }
 
   function xuatDiemDungDangLoc() {
     if (!window.XLSX) return safeToast('Không tải được thư viện Excel.', 'error');
-    const headers = [
-      'Mã theo QĐ BTCT', 'Mã khách hàng', 'Mã Quận - Huyện', 'Tên Quận - Huyện',
-      'Tên đường, Phố - Quốc lộ', 'Tên Điểm Dừng', 'Ảnh Thanh', 'Biển báo',
-      'Nhà chờ TCT', 'Nhà chờ có LED', 'Tuyến đi qua', 'Đang thu hồi',
-      'Kinh độ', 'Vĩ độ', 'Bán kính quét', 'Hướng', 'Mã âm thanh',
-      'Ngày bắt đầu', 'Ngày kết thúc', 'Ghi chú'
-    ];
-    const rows = filteredStops.map(stop => [
-      stop.maDiem, stop.maKhachHang, stop.maQuanHuyen, stop.tenQuanHuyen,
+    const rows = filteredStops.map((stop, index) => [
+      stop.thuTu || index + 1, stop.maDiem, stop.maKhachHang, stop.tenQuanHuyen,
       stop.tenDuong, stop.tenDiem, stop.anhThanh, stop.bienBao, stop.nhaChoTCT,
       stop.nhaChoLED, routeCodes(stop.tuyenDiQua).join(', '), stop.thuHoi ? 'X' : '',
       stop.kinhDo, stop.viDo, stop.banKinhQuet, stop.huong, stop.maAmThanh,
       stop.ngayBatDau, stop.ngayKetThuc, stop.ghiChu
     ]);
-    const sheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, sheet, 'Diem dung');
+    XLSX.utils.book_append_sheet(workbook, taoWorksheetDiemDung(rows), 'Diem dung');
     XLSX.writeFile(workbook, 'diem-dung-da-loc.xlsx');
   }
 

@@ -40,9 +40,9 @@ function normalizeStopRecord(input, idFallback) {
   const routes = parseRoutes(input.tuyenDiQua);
   return {
     id: text(input.id) || idFallback || maDiem,
+    thuTu: text(input.thuTu),
     maDiem,
     maKhachHang: text(input.maKhachHang),
-    maQuanHuyen: text(input.maQuanHuyen),
     tenQuanHuyen: text(input.tenQuanHuyen || input.quanHuyen),
     tenDuong: text(input.tenDuong || input.duongPho),
     tenDiem,

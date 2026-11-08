@@ -12,7 +12,7 @@
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
   <!-- THƯ VIỆN SHEETJS XỬ LÝ EXCEL 1-CLICK CLIENT-SIDE -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -441,6 +441,7 @@
                 <button type="button" class="btn btn-primary" data-action-permission="stops.view" onclick="xuatDiemDungDangLoc()"><i class="fa fa-download"></i> Xuất danh sách đang lọc</button>
                 <span id="stopImportMessage" aria-live="polite"></span>
               </div>
+              <p class="stop-admin-note">File Excel theo mẫu A–T: dòng 1 gộp tiêu đề “Lịch sử điểm dừng” tại R:T, dòng 2 là tiêu đề cột, dữ liệu bắt đầu từ dòng 3. Không đổi thứ tự cột.</p>
               <div id="stopImportPreview" style="display:none;margin-bottom:12px;"></div>
               <div class="stop-admin-grid" style="margin-bottom:12px;">
                 <input type="search" id="stopAdminSearch" class="form-control" placeholder="Tìm mã, tên, đường hoặc quận/huyện">
@@ -467,7 +468,6 @@
                   <div class="stop-admin-field"><label for="stopAdminCode">Mã điểm *</label><input id="stopAdminCode" class="form-control" required></div>
                   <div class="stop-admin-field"><label for="stopAdminCustomerCode">Mã khách hàng</label><input id="stopAdminCustomerCode" class="form-control"></div>
                   <div class="stop-admin-field"><label for="stopAdminName">Tên điểm dừng *</label><input id="stopAdminName" class="form-control" required></div>
-                  <div class="stop-admin-field"><label for="stopAdminDistrictCode">Mã quận / huyện</label><input id="stopAdminDistrictCode" class="form-control"></div>
                   <div class="stop-admin-field"><label for="stopAdminDistrictName">Quận / huyện</label><input id="stopAdminDistrictName" class="form-control"></div>
                   <div class="stop-admin-field"><label for="stopAdminStreet">Đường / phố</label><input id="stopAdminStreet" class="form-control"></div>
                   <div class="stop-admin-field"><label for="stopAdminRoutes">Tuyến đi qua (giữ Ctrl/⌘ để chọn nhiều)</label><select id="stopAdminRoutes" class="form-control" multiple style="height:84px;"></select></div>
@@ -476,10 +476,10 @@
                   <div class="stop-admin-field"><label for="stopAdminSound">Mã âm thanh</label><input id="stopAdminSound" class="form-control"></div>
                   <div class="stop-admin-field"><label for="stopAdminRadius">Bán kính quét</label><input id="stopAdminRadius" class="form-control"></div>
                   <div class="stop-admin-field"><label for="stopAdminDirection">Hướng</label><input id="stopAdminDirection" class="form-control"></div>
-                  <div class="stop-admin-field"><label for="stopAdminShelter">Nhà chờ TCT</label><input id="stopAdminShelter" class="form-control"></div>
+                  <div class="stop-admin-field"><label for="stopAdminShelter">Nhà chờ</label><input id="stopAdminShelter" class="form-control"></div>
                   <div class="stop-admin-field"><label for="stopAdminLed">Nhà chờ có LED</label><input id="stopAdminLed" class="form-control"></div>
                   <div class="stop-admin-field"><label for="stopAdminSign">Biển báo</label><input id="stopAdminSign" class="form-control"></div>
-                  <div class="stop-admin-field"><label for="stopAdminAudio">Ảnh / âm thanh</label><input id="stopAdminAudio" class="form-control"></div>
+                  <div class="stop-admin-field"><label for="stopAdminAudio">Âm thanh</label><input id="stopAdminAudio" class="form-control"></div>
                   <div class="stop-admin-field"><label for="stopAdminStartDate">Ngày bắt đầu</label><input id="stopAdminStartDate" class="form-control" placeholder="dd/mm/yyyy"></div>
                   <div class="stop-admin-field"><label for="stopAdminEndDate">Ngày kết thúc</label><input id="stopAdminEndDate" class="form-control" placeholder="dd/mm/yyyy"></div>
                   <div class="stop-admin-field"><label for="stopAdminNote">Ghi chú</label><input id="stopAdminNote" class="form-control"></div>

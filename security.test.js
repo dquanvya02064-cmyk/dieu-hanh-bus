@@ -5,17 +5,37 @@ const { normalizeStopRecord, parseRoutes } = require('./stop-data');
 
 test('stop records normalize route codes and require valid coordinates', () => {
   const stop = normalizeStopRecord({
+    thuTu: '7',
     maDiem: '0012',
+    maKhachHang: 'KH-0012',
+    tenQuanHuyen: 'Ba Đình',
+    tenDuong: 'Đường Bưởi',
     tenDiem: 'Bến xe mẫu',
+    anhThanh: 'Âm thanh mẫu',
+    bienBao: '1',
+    nhaChoTCT: 'Có',
+    nhaChoLED: 'Có',
     kinhDo: '105.8',
     viDo: '21.02',
     tuyenDiQua: '09A, 45; 09A',
-    thuHoi: 'x'
+    thuHoi: 'x',
+    banKinhQuet: '70',
+    huong: 'Đông',
+    maAmThanh: '010012',
+    ngayBatDau: '01/01/2020',
+    ngayKetThuc: '01/01/2021',
+    ghiChu: 'Ghi chú mẫu'
   }, 'stable-id');
 
   assert.equal(stop.id, 'stable-id');
+  assert.equal(stop.thuTu, '7');
+  assert.equal(stop.maKhachHang, 'KH-0012');
+  assert.equal(stop.tenQuanHuyen, 'Ba Đình');
+  assert.equal(stop.anhThanh, 'Âm thanh mẫu');
   assert.deepEqual(stop.tuyenDiQua, ['09A', '45']);
   assert.equal(stop.thuHoi, true);
+  assert.equal(stop.ngayBatDau, '01/01/2020');
+  assert.equal(stop.ghiChu, 'Ghi chú mẫu');
   assert.throws(() => normalizeStopRecord({ ...stop, kinhDo: '' }), /kinh độ/);
   assert.throws(() => normalizeStopRecord({ ...stop, viDo: '91' }), /vĩ độ/);
   assert.deepEqual(parseRoutes(['09a', ' 45A']), ['09A', '45A']);

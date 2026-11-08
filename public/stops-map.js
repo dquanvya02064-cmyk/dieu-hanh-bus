@@ -36,13 +36,10 @@
   }
 
   function updateFilters() {
-    const districts = [...new Map(stops.map(stop => [
-      stop.maQuanHuyen || stop.tenQuanHuyen,
-      `${stop.tenQuanHuyen || 'Quận / huyện'}${stop.maQuanHuyen ? ` (${stop.maQuanHuyen})` : ''}`
-    ]).filter(([key]) => key)).entries()]
-      .sort((a, b) => a[1].localeCompare(b[1], 'vi'));
+    const districts = [...new Set(stops.map(stop => stop.tenQuanHuyen).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'vi'));
     district.replaceChildren(new Option('Tất cả quận / huyện', ''));
-    districts.forEach(([code, name]) => district.add(new Option(name, code)));
+    districts.forEach(name => district.add(new Option(name, name)));
 
     route.replaceChildren(new Option('Tất cả tuyến', ''));
     routes.slice().sort((a, b) => String(a.maTuyen).localeCompare(String(b.maTuyen), 'vi', { numeric: true }))
@@ -61,9 +58,9 @@
     const selectedRoute = route.value.toUpperCase();
     const visible = stops.filter(stop => {
       if (!showWithdrawn.checked && stop.thuHoi) return false;
-      if (selectedDistrict && (stop.maQuanHuyen || stop.tenQuanHuyen) !== selectedDistrict) return false;
+      if (selectedDistrict && stop.tenQuanHuyen !== selectedDistrict) return false;
       if (selectedRoute && !getRouteCodes(stop).includes(selectedRoute)) return false;
-      if (query && ![stop.maDiem, stop.maKhachHang, stop.maQuanHuyen, stop.tenDiem, stop.tenDuong, stop.tenQuanHuyen]
+      if (query && ![stop.maDiem, stop.maKhachHang, stop.tenDiem, stop.tenDuong, stop.tenQuanHuyen]
         .some(value => String(value || '').toLocaleLowerCase('vi').includes(query))) return false;
       return true;
     });
