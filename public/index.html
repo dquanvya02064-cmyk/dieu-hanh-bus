@@ -397,11 +397,16 @@
           <input id="stopMapSearch" class="form-control" type="search" placeholder="Tìm tên hoặc mã điểm dừng">
           <select id="stopMapDistrict" class="form-control"><option value="">Tất cả quận / huyện</option></select>
           <select id="stopMapRoute" class="form-control"><option value="">Tất cả tuyến</option></select>
+          <select id="stopMapDirection" class="form-control" disabled>
+            <option value="">Chọn chiều</option>
+            <option value="di">Chiều Đi (A → B)</option>
+            <option value="ve">Chiều Về (B → A)</option>
+          </select>
           <label class="form-label" style="display:flex;align-items:center;gap:7px;"><input id="stopMapShowWithdrawn" type="checkbox"> Hiện điểm đang thu hồi</label>
         </div>
         <div id="stopMapSummary" class="form-label" aria-live="polite">Đang tải dữ liệu điểm dừng…</div>
         <div id="stopsPublicMap" role="application" aria-label="Bản đồ điểm dừng xe buýt"></div>
-        <p class="stop-map-caption">Đường nối là sơ đồ tham khảo nối các điểm dừng, không phải lộ trình chính xác theo đường phố.</p>
+        <p class="stop-map-caption">Chọn tuyến và chiều để xem các điểm theo thứ tự admin cập nhật (Đi màu xanh, Về màu cam; điểm đầu xanh lá, điểm cuối đỏ). Đường nối là sơ đồ giữa các điểm dừng; muốn bám sát đường phố cần dữ liệu hình học lộ trình.</p>
         <div id="stopMapResults" class="stop-results" aria-label="Danh sách điểm dừng"></div>
       </div>
     </div>

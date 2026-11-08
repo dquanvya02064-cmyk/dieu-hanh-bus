@@ -10,7 +10,7 @@ const fs = require('fs');
 const mongoose = require('mongoose');
 const { randomUUID } = require('crypto');
 const { ADMIN_PERMISSIONS, canAccessAdminRequest, canGrantAdminPermissions, canUpdateAdminPermissions, createAdminToken, expandAdminPermissions, hasAdminPermission, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
-const { mergeDuplicateStopRows, normalizeStopRecord } = require('./stop-data');
+const { filterPublicStopData, mergeDuplicateStopRows, mergeRouteDirectionAssignments, migrateStopRouteAssignments, normalizeStopRecord } = require('./stop-data');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -139,13 +139,25 @@ function parseTabDate(tabName) {
 async function cleanAndSyncData(data) {
   if (!data) return data;
   const hasHistoryLog = Object.prototype.hasOwnProperty.call(data, 'historyLog');
+  const hasStopAuditHistory = Object.prototype.hasOwnProperty.call(data, 'diemDungHistory');
   if (hasHistoryLog) delete data.historyLog;
+  if (hasStopAuditHistory) delete data.diemDungHistory;
   if (!Array.isArray(data.xeList)) data.xeList = [];
   if (!data.tuyenList) data.tuyenList = {};
   if (!Array.isArray(data.danhMucXeMau)) data.danhMucXeMau = [];
 
   const todayISO = getVietnamTodayISO();
-  let isDataChanged = hasHistoryLog;
+  let isDataChanged = hasHistoryLog || hasStopAuditHistory;
+  if (Array.isArray(data.diemDungList)) {
+    data.diemDungList.forEach(stop => {
+      const migration = migrateStopRouteAssignments(stop);
+      if (!migration) return;
+      stop.tuyenDiQua = migration.tuyenDiQua;
+      stop.tuyenTheoChieu = migration.tuyenTheoChieu;
+      stop.huong = migration.huong;
+      isDataChanged = true;
+    });
+  }
 
   // STEP A: Chuẩn hóa & lọc trùng BKS xe
   const uniqueXeMap = new Map();
@@ -354,6 +366,7 @@ async function getRawData(forceRefresh = false) {
 async function saveRawDataFast(data) {
   delete data._isDataChanged;
   delete data.historyLog;
+  delete data.diemDungHistory;
   await BusModel.findOneAndUpdate(
     { key: 'main_data' },
     { key: 'main_data', data: data },
@@ -1360,15 +1373,7 @@ app.post('/api/toggle-status-tuyen', verifyAdmin, async (req, res) => {
 app.get('/api/diem-dung', async (req, res) => {
   try {
     const raw = await getRawData();
-    res.json({
-      success: true,
-      diemDungList: Array.isArray(raw.diemDungList) ? raw.diemDungList : [],
-      tuyenList: Object.entries(raw.tuyenList || {}).map(([code, route]) => ({
-        maTuyen: route.maTuyen || code,
-        tenTuyen: route.tenTuyen || code,
-        status: route.status || 'active'
-      }))
-    });
+    res.json({ success: true, ...filterPublicStopData(raw.diemDungList, Object.entries(raw.tuyenList || {})) });
   } catch (err) {
     console.error('Lỗi tải dữ liệu điểm dừng:', err);
     res.status(500).json({ success: false, message: 'Không thể tải dữ liệu điểm dừng.' });
@@ -1381,7 +1386,6 @@ app.get('/api/admin/diem-dung', verifyAdmin, async (req, res) => {
     res.json({
       success: true,
       diemDungList: Array.isArray(raw.diemDungList) ? raw.diemDungList : [],
-      diemDungHistory: Array.isArray(raw.diemDungHistory) ? raw.diemDungHistory.slice(-30).reverse() : [],
       tuyenList: Object.entries(raw.tuyenList || {}).map(([code, route]) => ({
         maTuyen: route.maTuyen || code,
         tenTuyen: route.tenTuyen || code,
@@ -1398,7 +1402,6 @@ app.post('/api/admin/diem-dung', verifyAdmin, async (req, res) => {
   try {
     const raw = await getRawData(true);
     if (!Array.isArray(raw.diemDungList)) raw.diemDungList = [];
-    if (!Array.isArray(raw.diemDungHistory)) raw.diemDungHistory = [];
 
     const requestedId = String(req.body.id || '').trim();
     const existingIndex = requestedId
@@ -1410,6 +1413,11 @@ app.post('/api/admin/diem-dung', verifyAdmin, async (req, res) => {
       stop = normalizeStopRecord(req.body, existing?.id || randomUUID());
     } catch (err) {
       return res.status(400).json({ success: false, message: err.message });
+    }
+    if (!Array.isArray(req.body.tuyenTheoChieu)) {
+      stop.tuyenTheoChieu = (existing?.tuyenTheoChieu || []).filter(item =>
+        stop.tuyenDiQua.some(code => code.toLocaleUpperCase('vi') === item.maTuyen.toLocaleUpperCase('vi'))
+      );
     }
     if (stop.thuHoi !== Boolean(existing?.thuHoi) && !hasAdminPermission(req.adminUser, 'stops.status')) {
       return res.status(403).json({ success: false, message: 'Tài khoản không có quyền đổi trạng thái thu hồi.' });
@@ -1424,15 +1432,6 @@ app.post('/api/admin/diem-dung', verifyAdmin, async (req, res) => {
 
     if (existing) raw.diemDungList[existingIndex] = stop;
     else raw.diemDungList.push(stop);
-    raw.diemDungHistory.push({
-      action: existing ? 'update' : 'create',
-      maDiem: stop.maDiem,
-      changedAt: new Date().toISOString(),
-      changedBy: req.adminUser.username,
-      before: existing || null,
-      after: stop
-    });
-    raw.diemDungHistory = raw.diemDungHistory.slice(-1000);
     await saveRawDataFast(raw);
     res.json({ success: true, message: existing ? 'Cập nhật điểm dừng thành công.' : 'Thêm điểm dừng thành công.', data: stop });
   } catch (err) {
@@ -1474,7 +1473,6 @@ app.post('/api/admin/diem-dung/import', verifyAdmin, async (req, res) => {
     }
     const raw = await getRawData(true);
     if (!Array.isArray(raw.diemDungList)) raw.diemDungList = [];
-    if (!Array.isArray(raw.diemDungHistory)) raw.diemDungHistory = [];
     const existingByCode = new Map(raw.diemDungList.map((stop, index) => [
       stop.maDiem.toLocaleUpperCase('vi'),
       { stop, index }
@@ -1491,6 +1489,11 @@ app.post('/api/admin/diem-dung/import', verifyAdmin, async (req, res) => {
       const match = existingByCode.get(stop.maDiem.toLocaleUpperCase('vi'));
       if (match) {
         stop.id = match.stop.id;
+        stop.tuyenTheoChieu = mergeRouteDirectionAssignments(
+          match.stop.tuyenTheoChieu,
+          stop.tuyenTheoChieu,
+          stop.tuyenDiQua
+        );
         raw.diemDungList[match.index] = stop;
         updated++;
       } else {
@@ -1498,17 +1501,6 @@ app.post('/api/admin/diem-dung/import', verifyAdmin, async (req, res) => {
         added++;
       }
     }
-    raw.diemDungHistory.push({
-      action: 'import',
-      changedAt: new Date().toISOString(),
-      changedBy: req.adminUser.username,
-      added,
-      updated,
-      duplicatesMerged: imported.duplicateCount,
-      invalidRowsSkipped: validationErrors.length,
-      conflictingCodesSkipped: imported.conflicts.length
-    });
-    raw.diemDungHistory = raw.diemDungHistory.slice(-1000);
     await saveRawDataFast(raw);
     const conflictExamples = imported.conflicts.slice(0, 5)
       .map(item => `${item.maDiem} (${item.fields.join(', ')})`).join('; ');
@@ -1541,18 +1533,7 @@ app.post('/api/admin/diem-dung/trang-thai', verifyAdmin, async (req, res) => {
     const raw = await getRawData(true);
     const stop = (raw.diemDungList || []).find(item => item.id === id);
     if (!stop) return res.status(404).json({ success: false, message: 'Không tìm thấy điểm dừng.' });
-    const before = { ...stop };
     stop.thuHoi = thuHoi;
-    if (!Array.isArray(raw.diemDungHistory)) raw.diemDungHistory = [];
-    raw.diemDungHistory.push({
-      action: 'status',
-      maDiem: stop.maDiem,
-      changedAt: new Date().toISOString(),
-      changedBy: req.adminUser.username,
-      before,
-      after: { ...stop }
-    });
-    raw.diemDungHistory = raw.diemDungHistory.slice(-1000);
     await saveRawDataFast(raw);
     res.json({ success: true, message: 'Đã cập nhật trạng thái thu hồi điểm dừng.' });
   } catch (err) {
@@ -1572,18 +1553,7 @@ app.post('/api/admin/diem-dung/trang-thai-tuyen', verifyAdmin, async (req, res) 
       String(route.maTuyen || key).toUpperCase() === String(maTuyen || '').trim().toUpperCase()
     );
     if (!entry) return res.status(404).json({ success: false, message: 'Không tìm thấy tuyến.' });
-    const previousStatus = entry[1].status || 'active';
     entry[1].status = status;
-    if (!Array.isArray(raw.diemDungHistory)) raw.diemDungHistory = [];
-    raw.diemDungHistory.push({
-      action: 'route-status',
-      maTuyen: entry[1].maTuyen || entry[0],
-      changedAt: new Date().toISOString(),
-      changedBy: req.adminUser.username,
-      before: previousStatus,
-      after: status
-    });
-    raw.diemDungHistory = raw.diemDungHistory.slice(-1000);
     await saveRawDataFast(raw);
     res.json({ success: true, message: status === 'locked' ? 'Đã tạm khóa tuyến.' : 'Đã mở hoạt động tuyến.' });
   } catch (err) {

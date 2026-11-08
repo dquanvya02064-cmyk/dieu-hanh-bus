@@ -1,9 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { canAccessAdminRequest, canGrantAdminPermissions, canUpdateAdminPermissions, createAdminToken, expandAdminPermissions, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
-const { mergeDuplicateStopRows, normalizeStopRecord, parseRoutes } = require('./stop-data');
+const { filterPublicStopData, mergeDuplicateStopRows, mergeRouteDirectionAssignments, migrateStopRouteAssignments, normalizeStopRecord, parseRouteDirection, parseRoutes } = require('./stop-data');
+const { routeDirection } = require('./public/stop-import');
 
-test('stop records normalize route codes and require valid coordinates', () => {
+test('stop records normalize route codes, direction order, and require valid coordinates', () => {
   const stop = normalizeStopRecord({
     thuTu: '7',
     maDiem: '0012',
@@ -18,6 +19,7 @@ test('stop records normalize route codes and require valid coordinates', () => {
     kinhDo: '105.8',
     viDo: '21.02',
     tuyenDiQua: '09A, 45; 09A',
+    tuyenTheoChieu: [{ maTuyen: '09a', chieu: 'di', thuTu: '1' }],
     thuHoi: 'x',
     banKinhQuet: '70',
     huong: 'Đông',
@@ -33,12 +35,43 @@ test('stop records normalize route codes and require valid coordinates', () => {
   assert.equal(stop.tenQuanHuyen, 'Ba Đình');
   assert.equal(stop.anhThanh, 'Âm thanh mẫu');
   assert.deepEqual(stop.tuyenDiQua, ['09A', '45']);
+  assert.deepEqual(stop.tuyenTheoChieu, [{ maTuyen: '09A', chieu: 'di', thuTu: 1 }]);
   assert.equal(stop.thuHoi, true);
   assert.equal(stop.ngayBatDau, '01/01/2020');
   assert.equal(stop.ghiChu, 'Ghi chú mẫu');
   assert.deepEqual(stop.lichSuDiemDung, []);
+  assert.equal(parseRouteDirection('Chiều Đi'), 'di');
+  assert.equal(parseRouteDirection('Về'), 've');
+  assert.equal(routeDirection('Chiều đi'), 'di');
+  assert.equal(routeDirection('Chiều về'), 've');
+  assert.equal(normalizeStopRecord({
+    maDiem: 'ONE', tenDiem: 'Một tuyến', kinhDo: '105.8', viDo: '21.02',
+    tuyenDiQua: ['09A'], huong: 'Đi'
+  }).tuyenTheoChieu[0].thuTu, null);
+  assert.deepEqual(normalizeStopRecord({
+    maDiem: 'BOTH', tenDiem: 'Hai chiều', kinhDo: '105.8', viDo: '21.02',
+    tuyenDiQua: ['09A'],
+    tuyenTheoChieu: [
+      { maTuyen: '09A', chieu: 'di', thuTu: 1 },
+      { maTuyen: '09A', chieu: 've', thuTu: 9 }
+    ]
+  }).tuyenTheoChieu, [
+    { maTuyen: '09A', chieu: 'di', thuTu: 1 },
+    { maTuyen: '09A', chieu: 've', thuTu: 9 }
+  ]);
+  const ambiguous = normalizeStopRecord({
+    maDiem: 'MULTI', tenDiem: 'Nhiều tuyến', kinhDo: '105.8', viDo: '21.02',
+    tuyenDiQua: ['09A', '45'], huong: 'Đi'
+  });
+  assert.deepEqual(ambiguous.tuyenTheoChieu, []);
+  assert.equal(ambiguous.huong, '');
   assert.throws(() => normalizeStopRecord({ ...stop, kinhDo: '' }), /kinh độ/);
   assert.throws(() => normalizeStopRecord({ ...stop, viDo: '91' }), /vĩ độ/);
+  assert.throws(() => normalizeStopRecord({ ...stop, tuyenTheoChieu: [{ maTuyen: '09A', chieu: 'di', thuTu: 0 }] }), /số nguyên dương/);
+  assert.throws(() => normalizeStopRecord({ ...stop, tuyenTheoChieu: [
+    { maTuyen: '09A', chieu: 'di', thuTu: 1 },
+    { maTuyen: '09A', chieu: 'di', thuTu: 2 }
+  ] }), /khai báo nhiều lần/);
   assert.deepEqual(parseRoutes(['09a', ' 45A']), ['09A', '45A']);
 });
 
@@ -87,6 +120,115 @@ test('duplicate stop rows preserve distinct notes, exact repeated entries, and c
   assert.deepEqual(firstPass.rows[0].lichSuDiemDung.map(entry => entry.ghiChu), [
     'Ghi chú đặc biệt', 'Ghi chú đặc biệt', 'Ghi chú khác'
   ]);
+});
+
+test('duplicate stop rows merge both directions and flag conflicting concrete order', () => {
+  const result = mergeDuplicateStopRows([
+    {
+      maDiem: '001.02', tenDiem: 'Bến A', kinhDo: '105.8', viDo: '21.02',
+      tuyenTheoChieu: [{ maTuyen: '09A', chieu: 'di', thuTu: 1 }]
+    },
+    {
+      maDiem: '001.02', tenDiem: 'Bến A', kinhDo: '105.8', viDo: '21.02',
+      tuyenTheoChieu: [{ maTuyen: '45', chieu: 've', thuTu: 8 }]
+    }
+  ]);
+  assert.deepEqual(result.rows[0].tuyenTheoChieu, [
+    { maTuyen: '09A', chieu: 'di', thuTu: 1 },
+    { maTuyen: '45', chieu: 've', thuTu: 8 }
+  ]);
+
+  const conflict = mergeDuplicateStopRows([
+    {
+      maDiem: '001.02', tenDiem: 'Bến A', kinhDo: '105.8', viDo: '21.02',
+      tuyenTheoChieu: [{ maTuyen: '09A', chieu: 'di', thuTu: 1 }]
+    },
+    {
+      maDiem: '001.02', tenDiem: 'Bến A', kinhDo: '105.8', viDo: '21.02',
+      tuyenTheoChieu: [{ maTuyen: '09A', chieu: 'di', thuTu: 2 }]
+    }
+  ]);
+  assert.deepEqual(conflict.conflicts, [{ maDiem: '001.02', fields: ['tuyenTheoChieu'] }]);
+
+  const oppositeConflict = mergeDuplicateStopRows([
+    {
+      maDiem: '001.03', tenDiem: 'Bến D', kinhDo: '105.8', viDo: '21.02',
+      tuyenTheoChieu: [{ maTuyen: '09A', chieu: 'di', thuTu: 1 }]
+    },
+    {
+      maDiem: '001.03', tenDiem: 'Bến D', kinhDo: '105.8', viDo: '21.02',
+      tuyenTheoChieu: [{ maTuyen: '09A', chieu: 've', thuTu: 1 }]
+    }
+  ]);
+  assert.deepEqual(oppositeConflict.conflicts, []);
+  assert.deepEqual(oppositeConflict.rows[0].tuyenTheoChieu, [
+    { maTuyen: '09A', chieu: 'di', thuTu: 1 },
+    { maTuyen: '09A', chieu: 've', thuTu: 1 }
+  ]);
+});
+
+test('a concrete route order fills a missing order when duplicate stops merge', () => {
+  const result = mergeDuplicateStopRows([
+    {
+      maDiem: '001.04', tenDiem: 'Bến E', kinhDo: '105.8', viDo: '21.02',
+      tuyenTheoChieu: [{ maTuyen: '09A', chieu: 'di', thuTu: null }]
+    },
+    {
+      maDiem: '001.04', tenDiem: 'Bến E', kinhDo: '105.8', viDo: '21.02',
+      tuyenTheoChieu: [{ maTuyen: '09A', chieu: 'di', thuTu: 1 }]
+    }
+  ]);
+
+  assert.deepEqual(result.conflicts, []);
+  assert.equal(result.rows[0].tuyenTheoChieu[0].thuTu, 1);
+});
+
+test('importing a direction without order preserves saved order and the other direction', () => {
+  const assignments = mergeRouteDirectionAssignments([
+    { maTuyen: '09A', chieu: 'di', thuTu: 3 },
+    { maTuyen: '09A', chieu: 've', thuTu: 8 },
+    { maTuyen: '45', chieu: 'di', thuTu: 4 }
+  ], [
+    { maTuyen: '09A', chieu: 'di', thuTu: null }
+  ], ['09A']);
+
+  assert.deepEqual(assignments, [
+    { maTuyen: '09A', chieu: 'di', thuTu: 3 },
+    { maTuyen: '09A', chieu: 've', thuTu: 8 }
+  ]);
+});
+
+test('legacy stop routes migrate direction only when a single route is unambiguous', () => {
+  assert.deepEqual(migrateStopRouteAssignments({ tuyenDiQua: '09a', huong: 'Đi' }), {
+    tuyenDiQua: ['09A'],
+    tuyenTheoChieu: [{ maTuyen: '09A', chieu: 'di', thuTu: null }],
+    huong: 'di'
+  });
+  assert.deepEqual(migrateStopRouteAssignments({ tuyenDiQua: '09A,45', huong: 'Đi' }), {
+    tuyenDiQua: ['09A', '45'],
+    tuyenTheoChieu: [],
+    huong: ''
+  });
+  assert.equal(migrateStopRouteAssignments({ tuyenDiQua: ['09A'], tuyenTheoChieu: [] }), null);
+});
+
+test('public stop data hides locked routes and stops only attached to them', () => {
+  const result = filterPublicStopData([
+    { maDiem: 'LOCKED', tuyenDiQua: ['09A'], tuyenTheoChieu: [{ maTuyen: '09A', chieu: 'di', thuTu: 1 }] },
+    { maDiem: 'MIXED', tuyenDiQua: ['09A', '45'], tuyenTheoChieu: [
+      { maTuyen: '09A', chieu: 'di', thuTu: 1 },
+      { maTuyen: '45', chieu: 'di', thuTu: 2 }
+    ] },
+    { maDiem: 'UNASSIGNED', tuyenDiQua: [] }
+  ], [
+    ['09A', { maTuyen: '09A', status: 'locked' }],
+    ['45', { maTuyen: '45', status: 'active' }]
+  ]);
+
+  assert.deepEqual(result.tuyenList.map(route => route.maTuyen), ['45']);
+  assert.deepEqual(result.diemDungList.map(stop => stop.maDiem), ['MIXED', 'UNASSIGNED']);
+  assert.deepEqual(result.diemDungList[0].tuyenDiQua, ['45']);
+  assert.deepEqual(result.diemDungList[0].tuyenTheoChieu.map(item => item.maTuyen), ['45']);
 });
 
 test('duplicate stop rows flag conflicting point identity and location', () => {

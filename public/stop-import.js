@@ -3,7 +3,6 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.StopImport = api;
 })(globalThis, function createStopImport() {
-  const ROUTE_FIELDS = new Set(['tuyenDiQua']);
   const HISTORY_FIELDS = new Set(['thuTu', 'thuHoi', 'ngayBatDau', 'ngayKetThuc', 'ghiChu', 'lichSuDiemDung']);
   const CONFLICT_FIELDS = ['maKhachHang', 'tenQuanHuyen', 'tenDuong', 'tenDiem', 'kinhDo', 'viDo'];
 
@@ -17,6 +16,15 @@
       const match = text(item).match(/^([a-z0-9]+)/i);
       return match ? match[1].toUpperCase() : '';
     }).filter(Boolean))];
+  }
+
+  function routeDirection(value) {
+    const direction = text(value).toLocaleLowerCase('vi')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd')
+      .replace(/[^a-z]/g, '');
+    if (['di', 'chieudi', 'ab'].includes(direction)) return 'di';
+    if (['ve', 'chieuve', 'ba'].includes(direction)) return 've';
+    return '';
   }
 
   function isWithdrawn(value) {
@@ -54,7 +62,6 @@
     const conflictsByCode = new Map();
     const duplicateCountsByCode = new Map();
     const rowsWithoutCode = [];
-    let duplicateCount = 0;
 
     inputRows.forEach(row => {
       const code = text(row.maDiem);
@@ -73,7 +80,6 @@
         return;
       }
 
-      duplicateCount++;
       duplicateCountsByCode.set(normalizedCode, (duplicateCountsByCode.get(normalizedCode) || 0) + 1);
       for (const field of CONFLICT_FIELDS) {
         const previous = comparable(field, existing[field]);
@@ -85,10 +91,42 @@
           conflictsByCode.get(normalizedCode).fields.add(field);
         }
       }
+      const currentDirections = Array.isArray(existing.tuyenTheoChieu) ? existing.tuyenTheoChieu : [];
+      (Array.isArray(row.tuyenTheoChieu) ? row.tuyenTheoChieu : []).forEach(direction => {
+        const previousIndex = currentDirections.findIndex(item =>
+          text(item.maTuyen).toLocaleUpperCase('vi') === text(direction.maTuyen).toLocaleUpperCase('vi') &&
+          routeDirection(item.chieu) === routeDirection(direction.chieu)
+        );
+        if (previousIndex < 0) return;
+        const previous = currentDirections[previousIndex];
+        const previousOrder = previous.thuTu == null || text(previous.thuTu) === '' ? null : Number(previous.thuTu);
+        const incomingOrder = direction.thuTu == null || text(direction.thuTu) === '' ? null : Number(direction.thuTu);
+        if (previousOrder !== null && incomingOrder !== null && previousOrder !== incomingOrder) {
+          if (!conflictsByCode.has(normalizedCode)) {
+            conflictsByCode.set(normalizedCode, { maDiem: code, fields: new Set() });
+          }
+          conflictsByCode.get(normalizedCode).fields.add('tuyenTheoChieu');
+        }
+        if (previousOrder === null && incomingOrder !== null) {
+          currentDirections[previousIndex] = { ...previous, thuTu: incomingOrder };
+        }
+      });
 
       for (const [field, value] of Object.entries(row)) {
-        if (ROUTE_FIELDS.has(field)) {
+        if (field === 'tuyenDiQua') {
           existing.tuyenDiQua = [...new Set([...routes(existing.tuyenDiQua), ...routes(value)])];
+        } else if (field === 'tuyenTheoChieu') {
+          const currentDirections = Array.isArray(existing.tuyenTheoChieu) ? existing.tuyenTheoChieu : [];
+          const incomingDirections = Array.isArray(value) ? value : [];
+          const byDirection = new Map(currentDirections.map(item => [
+            `${text(item.maTuyen).toLocaleUpperCase('vi')}:${routeDirection(item.chieu)}`,
+            item
+          ]));
+          incomingDirections.forEach(item => {
+            const key = `${text(item.maTuyen).toLocaleUpperCase('vi')}:${routeDirection(item.chieu)}`;
+            if (!byDirection.has(key)) byDirection.set(key, item);
+          });
+          existing.tuyenTheoChieu = [...byDirection.values()];
         } else if (HISTORY_FIELDS.has(field)) {
           if (field === 'thuHoi') existing.thuHoi = isWithdrawn(existing.thuHoi) || isWithdrawn(value);
           else if (field === 'thuTu' && !text(existing.thuTu)) existing.thuTu = text(value);
@@ -114,5 +152,5 @@
     };
   }
 
-  return { mergeDuplicateStopRows };
+  return { mergeDuplicateStopRows, routeDirection };
 });
