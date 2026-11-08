@@ -23,6 +23,12 @@
   let routeDirectionDraft = new Map();
   let adminPage = 0;
   let searchTimer;
+  let routeGeometries = {};
+  let isDrawingRoute = false;
+  let isRouting = false;
+  let activeRouteGeometryKey = '';
+  let routeWaypointDraft = [];
+  let routeGeometryDraft = [];
   let temporaryMarker = null;
   const get = id => document.getElementById(id);
   const mapInputIds = ['stopAdminLongitude', 'stopAdminLatitude'];
@@ -45,6 +51,149 @@
     toast.append(text);
     container.append(toast);
     window.setTimeout(() => toast.remove(), 3000);
+  }
+
+  function selectedRouteGeometryKey() {
+    const route = get('stopAdminRouteFilter').value.toUpperCase();
+    const direction = get('stopAdminRouteDirectionFilter').value;
+    return route && direction ? `${route}:${direction}` : '';
+  }
+
+  function updateRouteEditorControls() {
+    const key = selectedRouteGeometryKey();
+    const hasSavedGeometry = Boolean(key && routeGeometries[key]?.length >= 2);
+    get('stopRouteDraw').disabled = !can('stops.edit') || !key || isDrawingRoute;
+    get('stopRouteUseStops').disabled = !isDrawingRoute || isRouting;
+    get('stopRouteUndo').disabled = !isDrawingRoute || isRouting || routeWaypointDraft.length === 0;
+    get('stopRoutePreview').disabled = !isDrawingRoute || isRouting || routeWaypointDraft.length < 2;
+    get('stopRouteCancel').disabled = !isDrawingRoute || isRouting;
+    get('stopRouteSave').disabled = !isDrawingRoute || isRouting || routeGeometryDraft.length < 2;
+    get('stopRouteDelete').disabled = !can('stops.edit') || !hasSavedGeometry || isDrawingRoute;
+
+    if (isDrawingRoute) {
+      const state = isRouting ? 'Đang tìm đường…' : `${routeWaypointDraft.length} điểm mốc`;
+      get('stopRouteEditStatus').textContent = `Đang chọn ${activeRouteGeometryKey.replace(':', ' · chiều ')} · ${state}${routeGeometryDraft.length ? ` · preview ${routeGeometryDraft.length} điểm` : ''}.`;
+    } else if (hasSavedGeometry) {
+      get('stopRouteEditStatus').textContent = `Đã lưu đường bám theo mạng đường (${routeGeometries[key].length} điểm hình học). Chọn điểm mốc để dựng lại.`;
+    } else {
+      get('stopRouteEditStatus').textContent = key
+        ? 'Chưa có đường cho chiều này. Bấm “Chọn điểm mốc”, hoặc dùng thứ tự các điểm dừng đã gán.'
+        : 'Chọn tuyến và chiều phía trên để chỉnh đường đi.';
+    }
+  }
+
+  function beginRouteDrawing() {
+    if (!can('stops.edit')) return;
+    const key = selectedRouteGeometryKey();
+    if (!key) return safeToast('Hãy chọn tuyến và chiều cần vẽ.', 'error');
+    activeRouteGeometryKey = key;
+    routeWaypointDraft = [];
+    routeGeometryDraft = [];
+    isDrawingRoute = true;
+    get('stopAdminRouteFilter').disabled = true;
+    get('stopAdminRouteDirectionFilter').disabled = true;
+    mapElement.style.cursor = 'crosshair';
+    updateRouteEditorControls();
+    renderStops();
+  }
+
+  function cancelRouteDrawing() {
+    isDrawingRoute = false;
+    activeRouteGeometryKey = '';
+    routeWaypointDraft = [];
+    routeGeometryDraft = [];
+    get('stopAdminRouteFilter').disabled = !routes.length;
+    get('stopAdminRouteDirectionFilter').disabled = !get('stopAdminRouteFilter').value;
+    mapElement.style.cursor = '';
+    updateRouteEditorControls();
+    renderStops();
+  }
+
+  function addRouteWaypoint(event) {
+    if (routeGeometryDraft.length) routeGeometryDraft = [];
+    routeWaypointDraft.push([event.latlng.lng, event.latlng.lat]);
+    updateRouteEditorControls();
+    renderStops();
+  }
+
+  function useAssignedStopWaypoints() {
+    if (!isDrawingRoute) return;
+    const [route, direction] = activeRouteGeometryKey.split(':');
+    const waypoints = stops.flatMap(stop => {
+      if (stop.thuHoi) return [];
+      const assignment = (stop.tuyenTheoChieu || []).find(item =>
+        item.maTuyen.toUpperCase() === route && item.chieu === direction
+      );
+      const lat = Number(stop.viDo);
+      const lng = Number(stop.kinhDo);
+      return assignment && Number.isFinite(lat) && Number.isFinite(lng)
+        ? [{ thuTu: assignment.thuTu, maDiem: stop.maDiem, coordinates: [lng, lat] }]
+        : [];
+    }).sort((a, b) => (a.thuTu ?? Number.MAX_SAFE_INTEGER) - (b.thuTu ?? Number.MAX_SAFE_INTEGER) ||
+      String(a.maDiem).localeCompare(String(b.maDiem), 'vi'));
+
+    if (waypoints.length < 2) return safeToast('Chiều này cần ít nhất hai điểm dừng có tọa độ.', 'error');
+    if (waypoints.length > 100) return safeToast('OSRM nhận tối đa 100 mốc mỗi lần. Hãy chọn mốc thủ công.', 'error');
+    routeWaypointDraft = waypoints.map(item => item.coordinates);
+    routeGeometryDraft = [];
+    updateRouteEditorControls();
+    renderStops();
+  }
+
+  async function previewRouteGeometry() {
+    if (!isDrawingRoute || routeWaypointDraft.length < 2 || isRouting) return;
+    isRouting = true;
+    updateRouteEditorControls();
+    try {
+      const result = await requestJson('/api/admin/diem-dung/lo-trinh/preview', {
+        waypoints: routeWaypointDraft
+      });
+      routeGeometryDraft = result.coordinates;
+      const distance = Number.isFinite(result.distanceMeters)
+        ? ` · ${(result.distanceMeters / 1000).toFixed(1)} km`
+        : '';
+      safeToast(`Đã tạo preview bám đường${distance}. Hãy kiểm tra trước khi lưu.`, 'success');
+    } catch (error) {
+      routeGeometryDraft = [];
+      safeToast(error.message, 'error');
+    } finally {
+      isRouting = false;
+      updateRouteEditorControls();
+      renderStops();
+    }
+  }
+
+  async function saveRouteGeometry() {
+    if (!isDrawingRoute || routeGeometryDraft.length < 2) return;
+    const [maTuyen, chieu] = activeRouteGeometryKey.split(':');
+    try {
+      const result = await requestJson('/api/admin/diem-dung/lo-trinh', {
+        maTuyen,
+        chieu,
+        coordinates: routeGeometryDraft
+      });
+      routeGeometries[activeRouteGeometryKey] = routeGeometryDraft.map(point => [...point]);
+      safeToast(result.message, 'success');
+      cancelRouteDrawing();
+    } catch (error) {
+      safeToast(error.message, 'error');
+    }
+  }
+
+  async function deleteRouteGeometry() {
+    const key = selectedRouteGeometryKey();
+    if (!key || !routeGeometries[key]) return;
+    if (!window.confirm(`Xóa đường đã vẽ cho tuyến ${key.replace(':', ' · chiều ')}?`)) return;
+    const [maTuyen, chieu] = key.split(':');
+    try {
+      const result = await requestJson('/api/admin/diem-dung/lo-trinh', { maTuyen, chieu, coordinates: [] });
+      delete routeGeometries[key];
+      safeToast(result.message, 'success');
+      updateRouteEditorControls();
+      renderStops();
+    } catch (error) {
+      safeToast(error.message, 'error');
+    }
   }
 
   function routeCodes(value) {
@@ -235,7 +384,14 @@
           fillOpacity: 0.85,
           weight: 1
         }).addTo(markerLayer);
-        marker.on('click', () => chonDiemDung(stop.id));
+        marker.on('click', event => {
+          if (isDrawingRoute) {
+            L.DomEvent.stopPropagation(event.originalEvent);
+            addRouteWaypoint(event);
+          } else {
+            chonDiemDung(stop.id);
+          }
+        });
       }
       if (index < pageStart || index >= pageStart + ADMIN_PAGE_SIZE) return;
 
@@ -277,7 +433,9 @@
     get('stopAdminSummary').textContent = `Đang hiển thị ${visible.length.toLocaleString('vi-VN')} / ${stops.length.toLocaleString('vi-VN')} điểm dừng.`;
     if (route && direction && routeLayer) {
       const routeStops = stops.flatMap(stop => {
-        if (stop.thuHoi && get('stopAdminStatusFilter').value !== 'withdrawn') return [];
+        const status = get('stopAdminStatusFilter').value;
+        if (status === 'active' && stop.thuHoi) return [];
+        if (status === 'withdrawn' && !stop.thuHoi) return [];
         const assignment = (stop.tuyenTheoChieu || []).find(item =>
           item.maTuyen.toUpperCase() === route && item.chieu === direction
         );
@@ -286,26 +444,45 @@
         const lng = Number(stop.kinhDo);
         return Number.isFinite(lat) && Number.isFinite(lng) ? [{ stop, assignment, lat, lng }] : [];
       }).sort((a, b) => a.assignment.thuTu - b.assignment.thuTu || a.stop.maDiem.localeCompare(b.stop.maDiem, 'vi'));
-      const definedOrders = routeStops.map(item => item.assignment.thuTu).filter(Number.isInteger);
-      const hasDuplicateOrders = new Set(definedOrders).size !== definedOrders.length;
-      const hasMissingOrders = routeStops.some(item => !Number.isInteger(item.assignment.thuTu));
-      if (routeStops.length > 1 && !hasDuplicateOrders && !hasMissingOrders) {
-        L.polyline(routeStops.map(item => [item.lat, item.lng]), {
-          color: direction === 'di' ? '#1d70b8' : '#d97706',
-          weight: 4,
-          opacity: 0.8
-        }).addTo(routeLayer);
-        L.circleMarker([routeStops[0].lat, routeStops[0].lng], {
-          renderer: markerRenderer, radius: 8, color: '#fff', weight: 2, fillColor: '#16a34a', fillOpacity: 1
-        }).bindPopup(document.createTextNode(`Bắt đầu · ${routeStops[0].stop.tenDiem}`)).addTo(routeLayer);
-        const lastStop = routeStops[routeStops.length - 1];
-        L.circleMarker([lastStop.lat, lastStop.lng], {
-          renderer: markerRenderer, radius: 8, color: '#fff', weight: 2, fillColor: '#dc2626', fillOpacity: 1
-        }).bindPopup(document.createTextNode(`Kết thúc · ${lastStop.stop.tenDiem}`)).addTo(routeLayer);
-      }
       get('stopAdminSummary').textContent += routeStops.length
-        ? ` · ${routeStops.length} điểm chiều ${direction === 'di' ? 'Đi' : 'Về'}${hasDuplicateOrders ? ' · lỗi trùng thứ tự, chưa vẽ tuyến' : hasMissingOrders ? ' · còn điểm chưa có thứ tự, chưa vẽ tuyến' : ''}`
+        ? ` · ${routeStops.length} điểm chiều ${direction === 'di' ? 'Đi' : 'Về'}`
         : ` · Chưa có điểm được xếp thứ tự cho chiều ${direction === 'di' ? 'Đi' : 'Về'}`;
+      const key = `${route}:${direction}`;
+      const coordinates = isDrawingRoute && activeRouteGeometryKey === key
+        ? routeGeometryDraft
+        : routeGeometries[key] || [];
+      if (coordinates.length >= 2) {
+        L.polyline(coordinates.map(([lng, lat]) => [lat, lng]), {
+            color: direction === 'di' ? '#1d70b8' : '#d97706',
+            weight: isDrawingRoute ? 5 : 4,
+            opacity: isDrawingRoute ? 1 : 0.85,
+            dashArray: isDrawingRoute ? '8 6' : null,
+            interactive: !isDrawingRoute
+          }).addTo(routeLayer);
+        const [startLng, startLat] = coordinates[0];
+        L.circleMarker([startLat, startLng], {
+          renderer: markerRenderer, radius: 8, color: '#fff', weight: 2, fillColor: '#16a34a', fillOpacity: 1,
+          interactive: !isDrawingRoute
+          }).bindPopup(document.createTextNode('Điểm đầu đường vẽ')).addTo(routeLayer);
+        const [endLng, endLat] = coordinates[coordinates.length - 1];
+        L.circleMarker([endLat, endLng], {
+          renderer: markerRenderer, radius: 8, color: '#fff', weight: 2, fillColor: '#dc2626', fillOpacity: 1,
+          interactive: !isDrawingRoute
+          }).bindPopup(document.createTextNode('Điểm cuối đường vẽ')).addTo(routeLayer);
+      }
+      if (isDrawingRoute) {
+        routeWaypointDraft.forEach(([lng, lat], index) => {
+          L.circleMarker([lat, lng], {
+            renderer: markerRenderer,
+            radius: 7,
+            color: '#fff',
+            weight: 2,
+            fillColor: '#111827',
+            fillOpacity: 1,
+            interactive: false
+          }).bindTooltip(`Mốc ${index + 1}`).addTo(routeLayer);
+        });
+      }
     }
   }
 
@@ -330,6 +507,9 @@
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.message || 'Không thể tải dữ liệu điểm dừng.');
       stops = Array.isArray(data.diemDungList) ? data.diemDungList : [];
+      routeGeometries = data.diemDungRouteGeometries && typeof data.diemDungRouteGeometries === 'object'
+        ? data.diemDungRouteGeometries
+        : {};
       routes = Array.isArray(data.tuyenList) ? data.tuyenList : [];
       const districts = [...new Set(stops.map(stop => stop.tenQuanHuyen).filter(Boolean))]
         .sort((a, b) => a.localeCompare(b, 'vi'));
@@ -338,6 +518,7 @@
       districts.forEach(name => get('stopAdminDistrict').add(new Option(name, name)));
       get('stopAdminDistrict').value = districts.includes(selectedDistrict) ? selectedDistrict : '';
       populateRouteSelects();
+      updateRouteEditorControls();
       renderStops();
     } catch (error) {
       get('stopAdminSummary').textContent = error.message || 'Có lỗi khi tải dữ liệu.';
@@ -767,6 +948,11 @@
     });
   }
 
+  function handleAdminMapClick(event) {
+    if (isDrawingRoute) addRouteWaypoint(event);
+    else setCoordinateFromMap(event);
+  }
+
   function updateMapFromFields() {
     if (!map || !can('stops.edit')) return;
     const lng = Number(get('stopAdminLongitude').value);
@@ -800,8 +986,23 @@
       get('stopAdminRouteDirectionFilter').disabled = !selectedRoute;
       if (!selectedRoute) get('stopAdminRouteDirectionFilter').value = '';
       adminPage = 0;
+      updateRouteEditorControls();
       renderStops();
     });
+    get('stopAdminRouteDirectionFilter').addEventListener('change', updateRouteEditorControls);
+    get('stopRouteDraw').addEventListener('click', beginRouteDrawing);
+    get('stopRouteUseStops').addEventListener('click', useAssignedStopWaypoints);
+    get('stopRouteUndo').addEventListener('click', () => {
+      if (!isDrawingRoute) return;
+      routeWaypointDraft.pop();
+      routeGeometryDraft = [];
+      updateRouteEditorControls();
+      renderStops();
+    });
+    get('stopRoutePreview').addEventListener('click', previewRouteGeometry);
+    get('stopRouteCancel').addEventListener('click', cancelRouteDrawing);
+    get('stopRouteSave').addEventListener('click', saveRouteGeometry);
+    get('stopRouteDelete').addEventListener('click', deleteRouteGeometry);
     get('stopAdminRoutes').addEventListener('change', renderRouteDirectionInputs);
     get('stopAdminPreviousPage').addEventListener('click', () => {
       adminPage = Math.max(0, adminPage - 1);
@@ -816,7 +1017,7 @@
       const button = event.target.parentElement.querySelector('[data-action-permission="stops.status"]');
       if (selected && button) button.lastChild.textContent = selected.status === 'locked' ? ' Mở tuyến' : ' Tạm dừng tuyến';
     });
-    if (map) map.on('click', setCoordinateFromMap);
+    if (map) map.on('click', handleAdminMapClick);
     mapInputIds.forEach(id => get(id).addEventListener('change', updateMapFromFields));
     window.addEventListener('stops-admin-visible', () => map?.invalidateSize());
   }

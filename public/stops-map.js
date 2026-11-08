@@ -17,6 +17,8 @@
   const layer = L.layerGroup().addTo(map);
   const MAX_RESULT_ROWS = 100;
   let searchTimer;
+  let routeRenderId = 0;
+  const routeGeometryCache = new Map();
   let stops = [];
   let routes = [];
   const search = document.getElementById('stopMapSearch');
@@ -39,6 +41,17 @@
     return String(value || '').trim();
   }
 
+  async function getSavedRouteGeometry(routeCode, routeDirection) {
+    const key = `${routeCode}:${routeDirection}`;
+    if (routeGeometryCache.has(key)) return routeGeometryCache.get(key);
+    const query = new URLSearchParams({ maTuyen: routeCode, chieu: routeDirection });
+    const response = await fetch(`${API_BASE}/api/diem-dung/lo-trinh?${query}`);
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.message || 'Quản trị viên chưa vẽ đường cho tuyến/chiều này.');
+    routeGeometryCache.set(key, result);
+    return result;
+  }
+
   function updateFilters() {
     const districts = [...new Set(stops.map(stop => stop.tenQuanHuyen).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b, 'vi'));
@@ -54,6 +67,7 @@
   }
 
   function render() {
+    const currentRenderId = ++routeRenderId;
     layer.clearLayers();
     results.replaceChildren();
 
@@ -153,31 +167,42 @@
       const definedOrders = routeStops.map(item => item.assignment.thuTu).filter(Number.isInteger);
       const hasDuplicateOrders = new Set(definedOrders).size !== definedOrders.length;
       const hasMissingOrders = routeStops.some(item => !Number.isInteger(item.assignment.thuTu));
-      if (routeStops.length > 1 && !hasDuplicateOrders && !hasMissingOrders) {
-        L.polyline(routeStops.map(item => [item.lat, item.lng]), {
-          color: selectedDirection === 'di' ? '#1d70b8' : '#d97706',
-          weight: 4,
-          opacity: 0.8
-        }).addTo(layer);
-        L.circleMarker([routeStops[0].lat, routeStops[0].lng], {
-          renderer: markerRenderer, radius: 8, color: '#fff', weight: 2, fillColor: '#16a34a', fillOpacity: 1
-        }).bindPopup(document.createTextNode(`Bắt đầu · ${routeStops[0].stop.tenDiem}`)).addTo(layer);
-        const lastStop = routeStops[routeStops.length - 1];
-        L.circleMarker([lastStop.lat, lastStop.lng], {
-          renderer: markerRenderer, radius: 8, color: '#fff', weight: 2, fillColor: '#dc2626', fillOpacity: 1
-        }).bindPopup(document.createTextNode(`Kết thúc · ${lastStop.stop.tenDiem}`)).addTo(layer);
-      }
       const directionNote = document.createElement('div');
       directionNote.style.padding = '8px 10px';
       directionNote.style.color = '#64748B';
       directionNote.textContent = hasDuplicateOrders
-        ? 'Có điểm bị trùng thứ tự trong chiều này; đã ẩn đường nối để tránh vẽ sai. Quản trị viên cần sửa thứ tự.'
+        ? 'Có điểm bị trùng thứ tự; chưa thể tính đường tuyến.'
         : hasMissingOrders
-          ? `Có điểm chiều này chưa được xếp thứ tự; đã ẩn đường nối để tránh vẽ thiếu. Quản trị viên cần nhập thứ tự cho tất cả điểm.`
+          ? 'Có điểm chưa được xếp thứ tự; chưa thể tính đường tuyến.'
         : routeStops.length > 1
-        ? `Chiều ${selectedDirection === 'di' ? 'Đi A → B' : 'Về B → A'} · ${routeStops.length} điểm đã xếp thứ tự. Nét nối là sơ đồ, chưa bám sát đường phố.`
+        ? 'Đang tải đường quản trị đã vẽ…'
         : `Chưa đủ điểm có thứ tự cho tuyến ${selectedRoute} chiều ${selectedDirection === 'di' ? 'Đi' : 'Về'}. Quản trị viên cần cập nhật ít nhất 2 điểm.`;
       results.prepend(directionNote);
+      if (routeStops.length > 1 && !hasDuplicateOrders && !hasMissingOrders) {
+        getSavedRouteGeometry(selectedRoute, selectedDirection).then(road => {
+          if (currentRenderId !== routeRenderId) return;
+          const roadPoints = road.coordinates.map(([lng, lat]) => [lat, lng]);
+          if (roadPoints.length < 2) throw new Error('Router không trả về đủ geometry để vẽ tuyến.');
+          L.polyline(roadPoints, {
+            color: selectedDirection === 'di' ? '#1d70b8' : '#d97706',
+            weight: 5,
+            opacity: 0.9
+          }).addTo(layer);
+          L.circleMarker([routeStops[0].lat, routeStops[0].lng], {
+            renderer: markerRenderer, radius: 8, color: '#fff', weight: 2, fillColor: '#16a34a', fillOpacity: 1
+          }).bindPopup(document.createTextNode(`Bắt đầu · ${routeStops[0].stop.tenDiem}`)).addTo(layer);
+          const lastStop = routeStops[routeStops.length - 1];
+          L.circleMarker([lastStop.lat, lastStop.lng], {
+            renderer: markerRenderer, radius: 8, color: '#fff', weight: 2, fillColor: '#dc2626', fillOpacity: 1
+          }).bindPopup(document.createTextNode(`Kết thúc · ${lastStop.stop.tenDiem}`)).addTo(layer);
+          const distanceKm = (road.distanceMeters / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 1 });
+          directionNote.textContent = `Đường do quản trị vẽ · chiều dài hình học khoảng ${distanceKm} km · chiều ${selectedDirection === 'di' ? 'Đi' : 'Về'}.`;
+        }).catch(error => {
+          if (currentRenderId === routeRenderId) {
+            directionNote.textContent = `${error.message} Không vẽ đường thẳng thay thế.`;
+          }
+        });
+      }
     } else if (selectedRoute) {
       const directionNote = document.createElement('div');
       directionNote.style.padding = '8px 10px';

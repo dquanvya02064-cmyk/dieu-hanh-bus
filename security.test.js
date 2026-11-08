@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const { canAccessAdminRequest, canGrantAdminPermissions, canUpdateAdminPermissions, createAdminToken, expandAdminPermissions, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
 const { filterPublicStopData, mergeDuplicateStopRows, mergeRouteDirectionAssignments, migrateStopRouteAssignments, normalizeStopRecord, parseRouteDirection, parseRoutes } = require('./stop-data');
 const { routeDirection } = require('./public/stop-import');
+const { calculatePolylineDistance, normalizeRouteGeometry } = require('./route-geometry');
 
 test('stop records normalize route codes, direction order, and require valid coordinates', () => {
   const stop = normalizeStopRecord({
@@ -231,6 +232,14 @@ test('public stop data hides locked routes and stops only attached to them', () 
   assert.deepEqual(result.diemDungList[0].tuyenTheoChieu.map(item => item.maTuyen), ['45']);
 });
 
+test('admin route geometry validates coordinates and calculates its length', () => {
+  const coordinates = normalizeRouteGeometry([[105.8, 21.0], ['105.81', '21.0']]);
+  assert.deepEqual(coordinates, [[105.8, 21], [105.81, 21]]);
+  assert.ok(calculatePolylineDistance(coordinates) > 1000);
+  assert.throws(() => normalizeRouteGeometry([[181, 21]]), /ngoài phạm vi/);
+  assert.throws(() => normalizeRouteGeometry([[105, 21], [105.1]]), /không hợp lệ/);
+});
+
 test('duplicate stop rows flag conflicting point identity and location', () => {
   const result = mergeDuplicateStopRows([
     { maDiem: '001.02', tenDiem: 'Bến A', kinhDo: '105.8', viDo: '21.02' },
@@ -349,8 +358,14 @@ test('admin view and edit permissions are enforced independently', () => {
   assert.equal(canAccessAdminRequest('/api/admin/xoa-tai-khoan', {}, userManager), false);
   assert.equal(canAccessAdminRequest('/api/admin/diem-dung', { readOnly: 'true' }, stopViewer), true);
   assert.equal(canAccessAdminRequest('/api/admin/diem-dung', {}, stopViewer), false);
+  assert.equal(canAccessAdminRequest('/api/admin/diem-dung/lo-trinh', {}, stopViewer), false);
+  assert.equal(canAccessAdminRequest('/api/admin/diem-dung/lo-trinh', {}, stopEditor), true);
+  assert.equal(canAccessAdminRequest('/api/admin/diem-dung/lo-trinh/preview', {}, stopViewer), false);
+  assert.equal(canAccessAdminRequest('/api/admin/diem-dung/lo-trinh/preview', {}, stopEditor), true);
   assert.equal(canAccessAdminRequest('/api/admin/diem-dung', {}, stopEditor), true);
   assert.equal(canAccessAdminRequest('/api/admin/diem-dung/import', {}, stopImporter), true);
+    assert.equal(canAccessAdminRequest('/api/admin/diem-dung/lo-trinh', {}, stopViewer), false);
+    assert.equal(canAccessAdminRequest('/api/admin/diem-dung/lo-trinh', {}, stopEditor), true);
   assert.equal(canAccessAdminRequest('/api/admin/diem-dung/import', {}, stopEditor), false);
   assert.equal(canAccessAdminRequest('/api/admin/diem-dung/trang-thai', {}, stopStatusEditor), true);
   assert.equal(canAccessAdminRequest('/api/admin/diem-dung/trang-thai-tuyen', {}, stopStatusEditor), true);

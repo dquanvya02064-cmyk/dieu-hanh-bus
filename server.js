@@ -11,12 +11,14 @@ const mongoose = require('mongoose');
 const { randomUUID } = require('crypto');
 const { ADMIN_PERMISSIONS, canAccessAdminRequest, canGrantAdminPermissions, canUpdateAdminPermissions, createAdminToken, expandAdminPermissions, hasAdminPermission, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
 const { filterPublicStopData, mergeDuplicateStopRows, mergeRouteDirectionAssignments, migrateStopRouteAssignments, normalizeStopRecord } = require('./stop-data');
+const { calculatePolylineDistance, normalizeRouteGeometry } = require('./route-geometry');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 const MONGO_URI = process.env.MONGO_URI;
 const AUTH_TOKEN_SECRET = process.env.AUTH_TOKEN_SECRET || '';
+const OSRM_BASE_URL = (process.env.OSRM_BASE_URL || 'https://router.project-osrm.org').replace(/\/+$/, '');
 if (!MONGO_URI) throw new Error('MONGO_URI must be configured in the environment.');
 
 const allowedOrigins = new Set((process.env.ALLOWED_ORIGINS || 'https://dieu-hanh-bus.onrender.com,http://localhost:3000')
@@ -1380,12 +1382,53 @@ app.get('/api/diem-dung', async (req, res) => {
   }
 });
 
+app.get('/api/diem-dung/lo-trinh', async (req, res) => {
+  try {
+    const maTuyen = String(req.query.maTuyen || '').trim().toUpperCase();
+    const chieu = String(req.query.chieu || '').trim().toLowerCase();
+    if (!/^[A-Z0-9]+$/.test(maTuyen) || !['di', 've'].includes(chieu)) {
+      return res.status(400).json({ success: false, message: 'Mã tuyến hoặc chiều không hợp lệ.' });
+    }
+
+    const raw = await getRawData();
+    const route = Object.entries(raw.tuyenList || {}).find(([code, item]) =>
+      String(item.maTuyen || code).trim().toUpperCase() === maTuyen
+    )?.[1];
+    if (!route || route.status === 'locked') {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy tuyến đang hoạt động.' });
+    }
+
+    const key = `${maTuyen}:${chieu}`;
+    const coordinates = raw.diemDungRouteGeometries?.[key];
+    if (!Array.isArray(coordinates) || coordinates.length < 2) {
+      return res.status(404).json({
+        success: false,
+        code: 'ROUTE_GEOMETRY_NOT_DEFINED',
+        message: 'Quản trị viên chưa vẽ đường đi cho tuyến và chiều này.'
+      });
+    }
+
+    return res.json({
+      success: true,
+      maTuyen,
+      chieu,
+      coordinates,
+      distanceMeters: calculatePolylineDistance(coordinates),
+      geometrySource: 'admin-defined'
+    });
+  } catch (err) {
+    console.error('Lỗi lấy geometry tuyến xe:', err.message);
+    return res.status(500).json({ success: false, message: 'Không thể tải đường đi của tuyến.' });
+  }
+});
+
 app.get('/api/admin/diem-dung', verifyAdmin, async (req, res) => {
   try {
     const raw = await getRawData();
     res.json({
       success: true,
       diemDungList: Array.isArray(raw.diemDungList) ? raw.diemDungList : [],
+      diemDungRouteGeometries: raw.diemDungRouteGeometries || {},
       tuyenList: Object.entries(raw.tuyenList || {}).map(([code, route]) => ({
         maTuyen: route.maTuyen || code,
         tenTuyen: route.tenTuyen || code,
@@ -1395,6 +1438,156 @@ app.get('/api/admin/diem-dung', verifyAdmin, async (req, res) => {
   } catch (err) {
     console.error('Lỗi tải dữ liệu điểm dừng quản trị:', err);
     res.status(500).json({ success: false, message: 'Không thể tải dữ liệu điểm dừng.' });
+  }
+});
+
+app.post('/api/admin/diem-dung/lo-trinh/preview', verifyAdmin, async (req, res) => {
+  const waypoints = req.body.waypoints;
+  if (!Array.isArray(waypoints) || waypoints.length < 2 || waypoints.length > 100) {
+    return res.status(400).json({ success: false, message: 'Cần chọn từ 2 đến 100 điểm mốc.' });
+  }
+
+  let coordinates;
+  try {
+    coordinates = normalizeRouteGeometry(waypoints);
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+
+  const osrmCoordinates = coordinates.map(([longitude, latitude]) => `${longitude},${latitude}`).join(';');
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  try {
+    const url = `${OSRM_BASE_URL}/route/v1/driving/${osrmCoordinates}?overview=full&geometries=geojson&steps=false`;
+    const response = await fetch(url, { signal: controller.signal });
+    const result = await response.json();
+    if (!response.ok || result.code !== 'Ok' || !Array.isArray(result.routes?.[0]?.geometry?.coordinates)) {
+      return res.status(502).json({
+        success: false,
+        message: 'OSRM không tìm được đường qua các điểm mốc đã chọn. Hãy thử đổi vị trí hoặc thứ tự điểm.'
+      });
+    }
+
+    let routeCoordinates;
+    try {
+      routeCoordinates = normalizeRouteGeometry(result.routes[0].geometry.coordinates);
+    } catch (err) {
+      console.error('Geometry OSRM không hợp lệ:', err.message);
+      return res.status(502).json({ success: false, message: 'Đường OSRM trả về không hợp lệ hoặc quá dài.' });
+    }
+    if (routeCoordinates.length < 2) {
+      return res.status(502).json({ success: false, message: 'OSRM trả về đường đi không đủ điểm.' });
+    }
+
+    return res.json({
+      success: true,
+      coordinates: routeCoordinates,
+      distanceMeters: result.routes[0].distance,
+      durationSeconds: result.routes[0].duration,
+      geometrySource: 'osrm-driving'
+    });
+  } catch (err) {
+    const message = err.name === 'AbortError'
+      ? 'OSRM phản hồi quá lâu. Hãy thử lại sau.'
+      : 'Không kết nối được OSRM để dựng đường bám theo mạng đường.';
+    console.error('Lỗi tạo preview tuyến OSRM:', err.message);
+    return res.status(502).json({ success: false, message });
+  } finally {
+    clearTimeout(timeout);
+  }
+});
+
+app.post('/api/admin/diem-dung/lo-trinh', verifyAdmin, async (req, res) => {
+  try {
+    const maTuyen = String(req.body.maTuyen || '').trim().toUpperCase();
+    const chieu = String(req.body.chieu || '').trim().toLowerCase();
+    const rawCoordinates = req.body.coordinates;
+    if (!/^[A-Z0-9]+$/.test(maTuyen) || !['di', 've'].includes(chieu) || !Array.isArray(rawCoordinates)) {
+      return res.status(400).json({ success: false, message: 'Tuyến, chiều hoặc geometry không hợp lệ.' });
+    }
+
+    const raw = await getRawData(true);
+    const route = Object.entries(raw.tuyenList || {}).find(([code, item]) =>
+      String(item.maTuyen || code).trim().toUpperCase() === maTuyen
+    );
+    if (!route) return res.status(404).json({ success: false, message: 'Không tìm thấy tuyến.' });
+    if (!raw.diemDungRouteGeometries || typeof raw.diemDungRouteGeometries !== 'object') {
+      raw.diemDungRouteGeometries = {};
+    }
+
+    const key = `${maTuyen}:${chieu}`;
+    if (rawCoordinates.length === 0) {
+      delete raw.diemDungRouteGeometries[key];
+      await saveRawDataFast(raw);
+      return res.json({ success: true, message: `Đã xóa đường vẽ tuyến ${maTuyen} chiều ${chieu === 'di' ? 'Đi' : 'Về'}.` });
+    }
+
+    let coordinates;
+    try {
+      coordinates = normalizeRouteGeometry(rawCoordinates);
+    } catch (err) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+    if (coordinates.length < 2) {
+      return res.status(400).json({ success: false, message: 'Đường tuyến cần ít nhất hai điểm hình học.' });
+    }
+
+    raw.diemDungRouteGeometries[key] = coordinates;
+    await saveRawDataFast(raw);
+    return res.json({
+      success: true,
+      message: `Đã lưu đường vẽ tuyến ${maTuyen} chiều ${chieu === 'di' ? 'Đi' : 'Về'} (${coordinates.length} điểm).`
+    });
+  } catch (err) {
+    console.error('Lỗi lưu geometry tuyến:', err.message);
+    return res.status(500).json({ success: false, message: 'Không thể lưu đường đi của tuyến.' });
+  }
+});
+
+app.post('/api/admin/diem-dung/lo-trinh', verifyAdmin, async (req, res) => {
+  try {
+    const maTuyen = String(req.body.maTuyen || '').trim().toUpperCase();
+    const chieu = String(req.body.chieu || '').trim().toLowerCase();
+    const rawCoordinates = req.body.coordinates;
+    if (!/^[A-Z0-9]+$/.test(maTuyen) || !['di', 've'].includes(chieu) || !Array.isArray(rawCoordinates)) {
+      return res.status(400).json({ success: false, message: 'Tuyến, chiều hoặc geometry không hợp lệ.' });
+    }
+
+    const raw = await getRawData(true);
+    const route = Object.entries(raw.tuyenList || {}).find(([code, item]) =>
+      String(item.maTuyen || code).trim().toUpperCase() === maTuyen
+    );
+    if (!route) return res.status(404).json({ success: false, message: 'Không tìm thấy tuyến.' });
+    if (!raw.diemDungRouteGeometries || typeof raw.diemDungRouteGeometries !== 'object') {
+      raw.diemDungRouteGeometries = {};
+    }
+
+    const key = `${maTuyen}:${chieu}`;
+    if (rawCoordinates.length === 0) {
+      delete raw.diemDungRouteGeometries[key];
+      await saveRawDataFast(raw);
+      return res.json({ success: true, message: `Đã xóa đường vẽ tuyến ${maTuyen} chiều ${chieu === 'di' ? 'Đi' : 'Về'}.` });
+    }
+
+    let coordinates;
+    try {
+      coordinates = normalizeRouteGeometry(rawCoordinates);
+    } catch (err) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+    if (coordinates.length < 2) {
+      return res.status(400).json({ success: false, message: 'Đường tuyến cần ít nhất hai điểm hình học.' });
+    }
+
+    raw.diemDungRouteGeometries[key] = coordinates;
+    await saveRawDataFast(raw);
+    return res.json({
+      success: true,
+      message: `Đã lưu đường vẽ tuyến ${maTuyen} chiều ${chieu === 'di' ? 'Đi' : 'Về'} (${coordinates.length} điểm).`
+    });
+  } catch (err) {
+    console.error('Lỗi lưu geometry tuyến:', err.message);
+    return res.status(500).json({ success: false, message: 'Không thể lưu đường đi của tuyến.' });
   }
 });
 

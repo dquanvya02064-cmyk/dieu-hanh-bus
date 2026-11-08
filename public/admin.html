@@ -461,7 +461,17 @@
               </div>
               <div id="stopAdminSummary" class="stop-admin-note" aria-live="polite">Đang tải dữ liệu…</div>
               <div id="stopsAdminMap" role="application" aria-label="Bản đồ quản lý điểm dừng"></div>
-              <p class="stop-admin-note">Chọn tuyến và chiều để xem đường nối theo thứ tự đã nhập (Đi màu xanh, Về màu cam; điểm đầu xanh lá, điểm cuối đỏ). Chọn một điểm trong bảng để sửa; kéo ghim hoặc bấm bản đồ để đặt tọa độ. Đường nối là sơ đồ giữa các điểm, chưa bám sát đường phố.</p>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+                <button type="button" class="btn btn-primary" data-action-permission="stops.edit" id="stopRouteDraw">Chọn điểm mốc</button>
+                <button type="button" class="btn btn-default" data-action-permission="stops.edit" id="stopRouteUseStops" disabled>Dùng điểm dừng tuyến</button>
+                <button type="button" class="btn btn-default" data-action-permission="stops.edit" id="stopRouteUndo" disabled>Bỏ mốc cuối</button>
+                <button type="button" class="btn btn-default" data-action-permission="stops.edit" id="stopRoutePreview" disabled>Tạo đường bám đường</button>
+                <button type="button" class="btn btn-default" data-action-permission="stops.edit" id="stopRouteCancel" disabled>Hủy</button>
+                <button type="button" class="btn btn-success" data-action-permission="stops.edit" id="stopRouteSave" disabled>Lưu đường</button>
+                <button type="button" class="btn btn-danger" data-action-permission="stops.edit" id="stopRouteDelete">Xóa đường đã lưu</button>
+                <span id="stopRouteEditStatus" class="stop-admin-note" role="status">Chọn tuyến và chiều phía trên để chỉnh đường đi.</span>
+              </div>
+              <p class="stop-admin-note">Chọn vài điểm mốc theo đúng thứ tự, không cần bấm theo khúc cua. OSRM dựng đường theo mạng đường ô tô; hãy kiểm tra preview vì một số đường cấm ô tô có thể vẫn được xe buýt đi.</p>
             </div>
           </div>
 
