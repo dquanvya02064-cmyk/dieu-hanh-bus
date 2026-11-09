@@ -850,7 +850,9 @@
   </div>
 
   <script>
-    const API_BASE = "https://dieu-hanh-bus.onrender.com";
+    const API_BASE = (window.location.protocol.startsWith('http'))
+  ? window.location.origin
+  : "https://dieu-hanh-bus.onrender.com";
     const apiOrigin = new URL(API_BASE, window.location.href).origin;
     const browserFetch = window.fetch.bind(window);
 
