@@ -49,7 +49,6 @@ function getVietnamTodayISO() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
 }
 
-// HELPER: Lấy chuỗi thời gian hiển thị tiếng Việt múi giờ Việt Nam
 // HELPER: Chuẩn hóa mọi định dạng ngày (DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY) về YYYY-MM-DD
 function parseDateToISO(dateStr) {
   if (!dateStr) return getVietnamTodayISO();
@@ -202,7 +201,6 @@ async function cleanAndSyncData(data) {
         data.xeList = finalXeList;
         update.status = 'applied';
         isDataChanged = true;
-
       }
     });
   }
@@ -221,7 +219,6 @@ async function cleanAndSyncData(data) {
         }
         update.status = 'applied';
         isDataChanged = true;
-
       }
     });
   }
@@ -329,7 +326,6 @@ async function getRawData(forceRefresh = false) {
 
   activeFetchPromise = (async () => {
     try {
-      // Dùng .lean() giúp Mongoose đọc JSON thuần cực nhanh
       const doc = await BusModel.findOne({ key: 'main_data' }).lean();
       if (doc && doc.data) {
         const cleaned = await cleanAndSyncData(doc.data);
@@ -481,7 +477,6 @@ app.post('/api/admin/chay-ngay-lich-hen', verifyAdmin, async (req, res) => {
         fleetItem.status = 'applied';
         isExecuted = true;
         targetName = `Tuyến ${fleetItem.maTuyen}`;
-
       }
     }
 
@@ -498,7 +493,6 @@ app.post('/api/admin/chay-ngay-lich-hen', verifyAdmin, async (req, res) => {
         routeItem.status = 'applied';
         isExecuted = true;
         targetName = `Tuyến ${routeItem.maTuyen}`;
-
       }
     }
 
@@ -526,7 +520,6 @@ app.post('/api/admin/huy-lich-hen', verifyAdmin, async (req, res) => {
       if (fleetItem) {
         fleetItem.status = 'cancelled';
         isCancelled = true;
-
       }
     }
 
@@ -535,7 +528,6 @@ app.post('/api/admin/huy-lich-hen', verifyAdmin, async (req, res) => {
       if (routeItem) {
         routeItem.status = 'cancelled';
         isCancelled = true;
-
       }
     }
 
@@ -1537,53 +1529,6 @@ app.post('/api/admin/diem-dung/lo-trinh/diem-dung', verifyAdmin, async (req, res
   } catch (err) {
     console.error('Lỗi cập nhật hàng loạt điểm theo tuyến:', err.message);
     return res.status(500).json({ success: false, message: 'Không thể cập nhật danh sách điểm của tuyến.' });
-  }
-});
-
-app.post('/api/admin/diem-dung/lo-trinh', verifyAdmin, async (req, res) => {
-  try {
-    const maTuyen = String(req.body.maTuyen || '').trim().toUpperCase();
-    const chieu = String(req.body.chieu || '').trim().toLowerCase();
-    const rawCoordinates = req.body.coordinates;
-    if (!/^[A-Z0-9]+$/.test(maTuyen) || !['di', 've'].includes(chieu) || !Array.isArray(rawCoordinates)) {
-      return res.status(400).json({ success: false, message: 'Tuyến, chiều hoặc geometry không hợp lệ.' });
-    }
-
-    const raw = await getRawData(true);
-    const route = Object.entries(raw.tuyenList || {}).find(([code, item]) =>
-      String(item.maTuyen || code).trim().toUpperCase() === maTuyen
-    );
-    if (!route) return res.status(404).json({ success: false, message: 'Không tìm thấy tuyến.' });
-    if (!raw.diemDungRouteGeometries || typeof raw.diemDungRouteGeometries !== 'object') {
-      raw.diemDungRouteGeometries = {};
-    }
-
-    const key = `${maTuyen}:${chieu}`;
-    if (rawCoordinates.length === 0) {
-      delete raw.diemDungRouteGeometries[key];
-      await saveRawDataFast(raw);
-      return res.json({ success: true, message: `Đã xóa đường vẽ tuyến ${maTuyen} chiều ${chieu === 'di' ? 'Đi' : 'Về'}.` });
-    }
-
-    let coordinates;
-    try {
-      coordinates = normalizeRouteGeometry(rawCoordinates);
-    } catch (err) {
-      return res.status(400).json({ success: false, message: err.message });
-    }
-    if (coordinates.length < 2) {
-      return res.status(400).json({ success: false, message: 'Đường tuyến cần ít nhất hai điểm hình học.' });
-    }
-
-    raw.diemDungRouteGeometries[key] = coordinates;
-    await saveRawDataFast(raw);
-    return res.json({
-      success: true,
-      message: `Đã lưu đường vẽ tuyến ${maTuyen} chiều ${chieu === 'di' ? 'Đi' : 'Về'} (${coordinates.length} điểm).`
-    });
-  } catch (err) {
-    console.error('Lỗi lưu geometry tuyến:', err.message);
-    return res.status(500).json({ success: false, message: 'Không thể lưu đường đi của tuyến.' });
   }
 });
 
