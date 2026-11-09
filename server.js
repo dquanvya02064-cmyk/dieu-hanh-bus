@@ -9,9 +9,33 @@ const path = require('path');
 const fs = require('fs');
 const mongoose = require('mongoose');
 const { randomUUID } = require('crypto');
-const { ADMIN_PERMISSIONS, canAccessAdminRequest, canGrantAdminPermissions, canUpdateAdminPermissions, createAdminToken, expandAdminPermissions, hasAdminPermission, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
-const { ensureStopIds, filterPublicStopData, mergeDuplicateStopRows, mergeRouteDirectionAssignments, migrateStopRouteAssignments, normalizeStopRecord, replaceRouteDirectionAssignments } = require('./stop-data');
-const { calculatePolylineDistance, combineRouteSegments, normalizeRouteGeometry, splitRouteWaypoints } = require('./route-geometry');
+const { 
+  ADMIN_PERMISSIONS, 
+  canAccessAdminRequest, 
+  canGrantAdminPermissions, 
+  canUpdateAdminPermissions, 
+  createAdminToken, 
+  expandAdminPermissions, 
+  hasAdminPermission, 
+  hashPassword, 
+  verifyAdminToken, 
+  verifyPassword 
+} = require('./security');
+const { 
+  ensureStopIds, 
+  filterPublicStopData, 
+  mergeDuplicateStopRows, 
+  mergeRouteDirectionAssignments, 
+  migrateStopRouteAssignments, 
+  normalizeStopRecord, 
+  replaceRouteDirectionAssignments 
+} = require('./stop-data');
+const { 
+  calculatePolylineDistance, 
+  combineRouteSegments, 
+  normalizeRouteGeometry, 
+  splitRouteWaypoints 
+} = require('./route-geometry');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,10 +43,16 @@ const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI;
 const AUTH_TOKEN_SECRET = process.env.AUTH_TOKEN_SECRET || '';
 const OSRM_BASE_URL = (process.env.OSRM_BASE_URL || 'https://router.project-osrm.org').replace(/\/+$/, '');
+
 if (!MONGO_URI) throw new Error('MONGO_URI must be configured in the environment.');
 
-const allowedOrigins = new Set((process.env.ALLOWED_ORIGINS || 'https://dieu-hanh-bus.onrender.com,http://localhost:3000')
-  .split(',').map(origin => origin.trim()).filter(Boolean));
+const allowedOrigins = new Set(
+  (process.env.ALLOWED_ORIGINS || 'https://dieu-hanh-bus.onrender.com,http://localhost:3000')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean)
+);
+
 app.use(cors({
   origin(origin, callback) {
     if (!origin || allowedOrigins.has(origin)) return callback(null, true);
@@ -31,13 +61,14 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   methods: ['GET', 'POST', 'OPTIONS']
 }));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- BỘ NHỚ TẠM TRONG RAM & KHÓA CHỐNG XUNG ĐỘT HÀNG CỜ (SINGLE-FLIGHT PROMISE) ---
 let cachedData = null;
-let activeFetchPromise = null; // Giúp các API gọi cùng lúc dùng chung 1 lần query DB
+let activeFetchPromise = null;
 
 function clearCache() {
   cachedData = null;
@@ -71,7 +102,6 @@ const busDataSchema = new mongoose.Schema({
   data: Object
 });
 const BusModel = mongoose.model('BusData', busDataSchema);
-
 
 // --- MIDDLEWARE BẢO MẬT & XÁC THỰC QUẢN TRỊ ---
 async function verifyAdmin(req, res, next) {
@@ -130,7 +160,7 @@ function parseTabDate(tabName) {
     let y = parseInt(m[3], 10);
     if (y < 100) y += 2000;
     const dateObj = new Date(y, mo - 1, d);
-    const sortKey = `${y}${String(mo).padStart(2,'0')}${String(d).padStart(2,'0')}`;
+    const sortKey = `${y}${String(mo).padStart(2, '0')}${String(d).padStart(2, '0')}`;
     return { sortKey, dateObj };
   }
   return { sortKey: "00000000", dateObj: new Date(0) };
@@ -293,33 +323,34 @@ setInterval(async () => {
   try {
     await getRawData(true);
   } catch (err) {
-    console.error("Lỗi thực thi Cron Engine ngầm:", err);
+    console.error("Lỗi thực thi Cron Engine ngầm:", err.message);
   }
 }, 60000);
 
-// KẾT NỐI MONGODB
+// KẾT NỐI MONGODB VỚI ERROR HANDLING AN TOÀN TRÁNH UNHANDLED REJECTION
 mongoose.connect(MONGO_URI)
   .then(async () => {
     console.log('>>> Kết nối thành công MongoDB Atlas!');
-
-    const doc = await BusModel.findOne({ key: 'main_data' }).lean();
-    if (doc && doc.data) {
-      const cleanedData = await cleanAndSyncData(doc.data);
-      delete cleanedData._isDataChanged;
-      await BusModel.findOneAndUpdate({ key: 'main_data' }, { key: 'main_data', data: cleanedData }, { upsert: true });
-      cachedData = cleanedData;
-      console.log('>>> Đã tự động làm sạch và đồng bộ dữ liệu thành công!');
+    try {
+      const doc = await BusModel.findOne({ key: 'main_data' }).lean();
+      if (doc && doc.data) {
+        const cleanedData = await cleanAndSyncData(doc.data);
+        delete cleanedData._isDataChanged;
+        await BusModel.findOneAndUpdate({ key: 'main_data' }, { key: 'main_data', data: cleanedData }, { upsert: true });
+        cachedData = cleanedData;
+        console.log('>>> Đã tự động làm sạch và đồng bộ dữ liệu thành công!');
+      }
+    } catch (syncErr) {
+      console.error('>>> Lỗi đồng bộ dữ liệu khởi động:', syncErr.message);
     }
   })
-  .catch(err => console.error('>>> Lỗi kết nối MongoDB:', err));
+  .catch(err => console.error('>>> Lỗi kết nối MongoDB:', err.message));
 
 async function getRawData(forceRefresh = false) {
-  // 1. Đã có cache trong RAM -> Trả về NGAY LẬP TỨC (<1ms)
   if (!forceRefresh && cachedData) {
     return cachedData;
   }
 
-  // 2. Nếu đang có request khác fetch DB -> Dùng chung Promise (Chống gọi trùng)
   if (activeFetchPromise) {
     return activeFetchPromise;
   }
@@ -339,9 +370,9 @@ async function getRawData(forceRefresh = false) {
         return cachedData;
       }
     } catch (err) {
-      console.error('Lỗi đọc db:', err);
+      console.error('Lỗi đọc db:', err.message);
     } finally {
-      activeFetchPromise = null; // Giải phóng lock
+      activeFetchPromise = null;
     }
     
     const localPath = path.join(__dirname, 'bus_full_data.json');
