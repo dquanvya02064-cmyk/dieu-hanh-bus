@@ -59,7 +59,7 @@ app.use(cors({
     return callback(new Error('Origin not allowed.'));
   },
   allowedHeaders: ['Content-Type', 'Authorization'],
-  methods: ['GET', 'POST', 'OPTIONS']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 }));
 
 app.use(express.json({ limit: '50mb' }));
@@ -386,7 +386,7 @@ async function getRawData(forceRefresh = false) {
     return { 
       tuyenList: {}, bieuDoList: [], xeList: [], taiKhoanList: [], 
       danhMucXeMau: [], thongBaoChay: "", scheduledFleetUpdates: [], 
-      scheduledRouteUpdates: []
+      scheduledRouteUpdates: [], thongBaoScheduleList: []
     };
   })();
 
@@ -445,7 +445,7 @@ app.get('/api/admin/lay-danh-sach-lich', verifyAdmin, async (req, res) => {
           pending.push({
             id: item.id,
             source: 'route',
-            type: 'TUYEN_DOI_XE',
+            type: 'TUYEN_DOI_LOTRINH',
             target: `Tuyến ${item.maTuyen}`,
             details: `Thay đổi thông tin / Lộ trình / Đơn vị chủ quản (${item.tuyenInfo?.tenTuyen || ''})`,
             targetTimeStr: item.ngayApDung,
@@ -558,6 +558,14 @@ app.post('/api/admin/huy-lich-hen', verifyAdmin, async (req, res) => {
       const routeItem = raw.scheduledRouteUpdates.find(r => r.id === taskId && r.status === 'pending');
       if (routeItem) {
         routeItem.status = 'cancelled';
+        isCancelled = true;
+      }
+    }
+
+    if (!isCancelled && Array.isArray(raw.thongBaoScheduleList)) {
+      const initialLen = raw.thongBaoScheduleList.length;
+      raw.thongBaoScheduleList = raw.thongBaoScheduleList.filter(item => item.id !== taskId);
+      if (raw.thongBaoScheduleList.length < initialLen) {
         isCancelled = true;
       }
     }
@@ -918,7 +926,7 @@ app.post('/api/admin/luu-xe-mau', verifyAdmin, async (req, res) => {
     
     const cleanNamSx = String(namSx || '').trim();
     const idx = raw.danhMucXeMau.findIndex(m => 
-      m.chungLoai.toLowerCase() === chungLoai.toLowerCase() && 
+      (m.chungLoai || '').toLowerCase() === chungLoai.toLowerCase() && 
       String(m.namSx || '').trim() === cleanNamSx
     );
 
@@ -967,7 +975,7 @@ app.post('/api/admin/import-xe-mau', verifyAdmin, async (req, res) => {
       const namSx = parts[2] || '';
       if (chungLoai) {
         const cleanNamSx = String(namSx || '').trim();
-        const existing = raw.danhMucXeMau.find(m => m.chungLoai.toLowerCase() === chungLoai.toLowerCase() && String(m.namSx || '').trim() === cleanNamSx);
+        const existing = raw.danhMucXeMau.find(m => (m.chungLoai || '').toLowerCase() === chungLoai.toLowerCase() && String(m.namSx || '').trim() === cleanNamSx);
         if (!existing) {
           raw.danhMucXeMau.push({ 
             chungLoai, 
@@ -998,7 +1006,7 @@ app.post('/api/admin/xoa-tat-ca-xe-mau', verifyAdmin, async (req, res) => {
 });
 
 // --- QUẢN LÝ ĐỘI XE THEO TUYẾN & HẸN GIỜ ĐIỀU CHUYỂN BẾN DP ---
-app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
+app.post(['/api/admin/luu-doi-xe-tuyen', '/api/luu-doi-xe-tuyen'], verifyAdmin, async (req, res) => {
   try {
     const { maTuyen, danhSachXe, ngayApDung, status, trangThai } = req.body;
     const requestedStatus = status ?? trangThai;
@@ -1023,7 +1031,7 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
       let inputNamSx = String(x.namSx || '').trim();
 
       let mauChuan = raw.danhMucXeMau.find(m => 
-        m.chungLoai.toLowerCase() === inputChungLoai.toLowerCase() && 
+        (m.chungLoai || '').toLowerCase() === inputChungLoai.toLowerCase() && 
         String(m.namSx || '').trim() === inputNamSx
       );
 
@@ -1096,7 +1104,7 @@ app.post('/api/admin/luu-doi-xe-tuyen', verifyAdmin, async (req, res) => {
 });
 
 // --- API QUẢN LÝ THÔNG TIN TUYẾN & HẸN NGÀY ĐỔI LỘ TRÌNH / XÍ NGHIỆP ---
-app.post(['/api/save-tuyen', '/api/tuyen-moi'], verifyAdmin, async (req, res) => {
+app.post(['/api/admin/save-tuyen', '/api/save-tuyen', '/api/admin/tuyen-moi', '/api/tuyen-moi'], verifyAdmin, async (req, res) => {
   try {
     const { maTuyen, tenTuyen, xn, dauA, dauB, tramDi, tramVe, soXeVd, soXeKh, loaiXe, sucChua, status, trangThai, ngayApDung } = req.body;
     const requestedStatus = status ?? trangThai;
@@ -1110,6 +1118,11 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], verifyAdmin, async (req, res) =>
     const today = getVietnamTodayISO();
     const ngayHieuLuc = ngayApDung ? parseDateToISO(ngayApDung) : today;
 
+    const parseNum = (val, fallback) => {
+      const n = parseInt(val, 10);
+      return isNaN(n) ? fallback : n;
+    };
+
     const newTuyenInfo = {
       maTuyen: normMaTuyen, 
       tenTuyen: tenTuyen || `${normMaTuyen}. Tuyến ${normMaTuyen}`,
@@ -1118,9 +1131,9 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], verifyAdmin, async (req, res) =>
       dauB: dauB || "",
       tramDi: tramDi || "",
       tramVe: tramVe || "",
-      soXeVd: parseInt(soXeVd, 10) || raw.tuyenList[normMaTuyen]?.soXeVd || 0,
-      soXeKh: parseInt(soXeKh, 10) || raw.tuyenList[normMaTuyen]?.soXeKh || 0, 
-      soXe: parseInt(soXeKh, 10) || raw.tuyenList[normMaTuyen]?.soXe || 0,
+      soXeVd: parseNum(soXeVd, raw.tuyenList[normMaTuyen]?.soXeVd || 0),
+      soXeKh: parseNum(soXeKh, raw.tuyenList[normMaTuyen]?.soXeKh || 0), 
+      soXe: parseNum(soXeKh, raw.tuyenList[normMaTuyen]?.soXe || 0),
       loaiXe: loaiXe || "", 
       sucChua: sucChua || "", 
       status: requestedStatus || "active"
@@ -1159,13 +1172,59 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], verifyAdmin, async (req, res) =>
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
+// --- API XÓA TUYẾN XE BUÝT ---
+app.post(['/api/admin/xoa-tuyen', '/api/xoa-tuyen'], verifyAdmin, async (req, res) => {
+  try {
+    const { maTuyen } = req.body;
+    if (!maTuyen) return res.status(400).json({ success: false, message: 'Thiếu mã tuyến cần xóa!' });
+    const normMaTuyen = String(maTuyen).trim().toUpperCase();
+    const raw = await getRawData(true);
+    
+    if (!raw.tuyenList || !raw.tuyenList[normMaTuyen]) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy mã tuyến cần xóa!' });
+    }
+
+    delete raw.tuyenList[normMaTuyen];
+
+    // Chuyển toàn bộ xe của tuyến bị xóa về bến DP
+    if (Array.isArray(raw.xeList)) {
+      raw.xeList.forEach(x => {
+        if (String(x.maTuyen || '').trim().toUpperCase() === normMaTuyen) {
+          x.maTuyen = 'DP';
+          x.updatedAt = new Date();
+        }
+      });
+    }
+
+    // Dọn dẹp biểu đồ nốt liên quan
+    if (Array.isArray(raw.bieuDoList)) {
+      raw.bieuDoList = raw.bieuDoList.filter(b => {
+        const bTuyen = String(b.tuyen || b.tenTab || '').trim().toUpperCase();
+        const match = bTuyen.match(/^([A-Za-z0-9]+)/);
+        return !match || match[1].toUpperCase() !== normMaTuyen;
+      });
+    }
+
+    // Dọn dẹp đường vẽ lộ trình
+    if (raw.diemDungRouteGeometries) {
+      delete raw.diemDungRouteGeometries[`${normMaTuyen}:di`];
+      delete raw.diemDungRouteGeometries[`${normMaTuyen}:ve`];
+    }
+
+    await saveRawData(raw);
+    res.json({ success: true, message: `Đã xóa tuyến ${normMaTuyen} thành công, toàn bộ xe cũ đã được tự động chuyển về bến DP!` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // --- TRA CỨU DANH MỤC & DỮ LIỆU TUYẾN ---
-app.get('/api/danh-muc', (req, res, next) => {
-  if (req.query.admin === 'true') return verifyAdmin(req, res, next);
+app.get(['/api/danh-muc', '/api/admin/danh-muc'], (req, res, next) => {
+  if (req.query.admin === 'true' || req.path.startsWith('/api/admin/')) return verifyAdmin(req, res, next);
   return next();
 }, async (req, res) => {
   try {
-    const isAdmin = req.query.admin === 'true';
+    const isAdmin = req.query.admin === 'true' || req.path.startsWith('/api/admin/');
     const raw = await getRawData();
     const canViewRouteDetails = !isAdmin || hasAdminPermission(req.adminUser, 'routes.view') || hasAdminPermission(req.adminUser, 'fleet.view');
     const canViewAdminRoutes = canViewRouteDetails || (isAdmin && hasAdminPermission(req.adminUser, 'charts.view'));
@@ -1241,7 +1300,7 @@ app.get('/api/danh-muc', (req, res, next) => {
   }
 });
 
-app.get('/api/table-data', async (req, res) => {
+app.get(['/api/table-data', '/api/admin/table-data'], async (req, res) => {
   try {
     const tabName = req.query.tab;
     const tuyenQuery = req.query.tuyen;
@@ -1304,7 +1363,7 @@ app.get('/api/table-data', async (req, res) => {
   }
 });
 
-app.get('/api/chi-tiet-tuyen', async (req, res) => {
+app.get(['/api/chi-tiet-tuyen', '/api/admin/chi-tiet-tuyen'], async (req, res) => {
   try {
     const queryTuyen = String(req.query.maTuyen || req.query.tuyen || '').trim().toUpperCase();
     if (!queryTuyen) return res.json({ success: false, message: "Thiếu mã tuyến!" });
@@ -1378,14 +1437,14 @@ app.get('/api/bus-data', verifyAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-app.post(['/api/bus-data', '/api/save-data'], verifyAdmin, async (req, res) => {
+app.post(['/api/bus-data', '/api/save-data', '/api/admin/bus-data', '/api/admin/save-data'], verifyAdmin, async (req, res) => {
   try { 
     await saveRawData(req.body); 
     res.json({ success: true, message: 'Lưu thành công!' }); 
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-app.post('/api/toggle-status-tuyen', verifyAdmin, async (req, res) => {
+app.post(['/api/toggle-status-tuyen', '/api/admin/toggle-status-tuyen'], verifyAdmin, async (req, res) => {
   try {
     const { maTuyen, status } = req.body;
     const raw = await getRawData(true);
@@ -1774,7 +1833,7 @@ app.post('/api/admin/diem-dung/trang-thai-tuyen', verifyAdmin, async (req, res) 
   }
 });
 
-app.post('/api/luu-bieu-do', verifyAdmin, async (req, res) => {
+app.post(['/api/admin/luu-bieu-do', '/api/luu-bieu-do'], verifyAdmin, async (req, res) => {
   try {
     const { xn, tuyen, bieuDo, tenTab, rawData } = req.body;
     if (!tenTab || !rawData) return res.status(400).json({ success: false, message: 'Thiếu dữ liệu!' });
@@ -1789,7 +1848,7 @@ app.post('/api/luu-bieu-do', verifyAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-app.post('/api/xoa-bieu-do', verifyAdmin, async (req, res) => {
+app.post(['/api/admin/xoa-bieu-do', '/api/xoa-bieu-do'], verifyAdmin, async (req, res) => {
   try {
     const { tenTab } = req.body;
     const raw = await getRawData(true);
@@ -1800,13 +1859,13 @@ app.post('/api/xoa-bieu-do', verifyAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-app.get('/api/tim-kiem-xe', (req, res, next) => {
-  if (req.query.all === 'true') return verifyAdmin(req, res, next);
+app.get(['/api/tim-kiem-xe', '/api/admin/tim-kiem-xe'], (req, res, next) => {
+  if (req.query.all === 'true' || req.path.startsWith('/api/admin/')) return verifyAdmin(req, res, next);
   return next();
 }, async (req, res) => {
   try {
     const q = String(req.query.q || '').trim().toLowerCase();
-    const isAdminRequest = req.query.all === 'true';
+    const isAdminRequest = req.query.all === 'true' || req.path.startsWith('/api/admin/');
     const tuyenQuery = (req.query.tuyen || '').trim().toUpperCase();
     const raw = await getRawData();
     let xeList = Array.isArray(raw.xeList) ? raw.xeList : [];
@@ -1844,7 +1903,7 @@ app.get('/api/tim-kiem-xe', (req, res, next) => {
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-app.post(['/api/import-xe-excel', '/api/import-danh-sach-xe'], verifyAdmin, async (req, res) => {
+app.post(['/api/admin/import-xe-excel', '/api/import-xe-excel', '/api/admin/import-danh-sach-xe', '/api/import-danh-sach-xe'], verifyAdmin, async (req, res) => {
   try {
     const { rawText } = req.body;
     if (!rawText) return res.status(400).json({ success: false, message: 'Thiếu dữ liệu!' });
@@ -1928,7 +1987,7 @@ app.post(['/api/import-xe-excel', '/api/import-danh-sach-xe'], verifyAdmin, asyn
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-app.post('/api/xoa-xe', verifyAdmin, async (req, res) => {
+app.post(['/api/admin/xoa-xe', '/api/xoa-xe'], verifyAdmin, async (req, res) => {
   try {
     const { bks } = req.body;
     if (!bks) return res.status(400).json({ success: false, message: 'Thiếu biển kiểm soát xe cần xóa!' });
@@ -1947,7 +2006,7 @@ app.post('/api/xoa-xe', verifyAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-app.post('/api/dieu-chuyen-xe', verifyAdmin, async (req, res) => {
+app.post(['/api/admin/dieu-chuyen-xe', '/api/dieu-chuyen-xe'], verifyAdmin, async (req, res) => {
   try {
     const { bks, tuyenMoi } = req.body;
     if (!bks || !tuyenMoi) return res.status(400).json({ success: false, message: 'Thiếu thông tin điều chuyển!' });
@@ -1961,7 +2020,7 @@ app.post('/api/dieu-chuyen-xe', verifyAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-app.post('/api/dieu-chuyen-xe-hang-loat', verifyAdmin, async (req, res) => {
+app.post(['/api/admin/dieu-chuyen-xe-hang-loat', '/api/dieu-chuyen-xe-hang-loat'], verifyAdmin, async (req, res) => {
   try {
     const { bksList, tuyenMoi } = req.body;
     if (!bksList || !Array.isArray(bksList) || bksList.length === 0 || !tuyenMoi) {
