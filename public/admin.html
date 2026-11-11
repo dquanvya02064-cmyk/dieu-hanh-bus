@@ -976,41 +976,40 @@
 
     // KHI TRANG TẢI XONG
     $(document).ready(function() {
-      if (sessionStorage.getItem('admin_token')) {
-        $('#authOverlay').remove();
-        $('body').removeClass('locked');
-        apDungQuyenTruyCap();
-      } else {
-        sessionStorage.clear();
-      }
+  if (sessionStorage.getItem('admin_token')) {
+    $('#authOverlay').remove();
+    $('body').removeClass('locked');
+    apDungQuyenTruyCap();
+    napDuLieuTong(); // CHỈ TẢI DỮ LIỆU KHI ĐÃ CÓ TOKEN
+  } else {
+    sessionStorage.clear();
+  }
 
-      $('.select2-search').select2({
-        language: { noResults: () => "Không tìm thấy kết quả phù hợp" }
-      });
+  $('.select2-search').select2({
+    language: { noResults: () => "Không tìm thấy kết quả phù hợp" }
+  });
 
-      veCheckboxQuyenMoi();
-      togglePermissionCheckboxes();
-      $(document).on('change', '.account-permission', function() {
-        capNhatTrangThaiLuuQuyen(this);
-      });
-      $(document).on('click', '.account-permission-save', function() {
-        luuQuyenTaiKhoan($(this).data('username'), this);
-      });
+  veCheckboxQuyenMoi();
+  togglePermissionCheckboxes();
+  $(document).on('change', '.account-permission', function() {
+    capNhatTrangThaiLuuQuyen(this);
+  });
+  $(document).on('click', '.account-permission-save', function() {
+    luuQuyenTaiKhoan($(this).data('username'), this);
+  });
 
-      // Tự động ẩn popup tìm kiếm header khi click ra ngoài
-      $(document).on('click', function(e) {
-        if (!$(e.target).closest('#globalAdminSearch, #globalSearchResult').length) {
-          $('#globalSearchResult').hide();
-        }
-      });
+  $(document).on('click', function(e) {
+    if (!$(e.target).closest('#globalAdminSearch, #globalSearchResult').length) {
+      $('#globalSearchResult').hide();
+    }
+  });
 
-      $('#chkCaTuan').prop('checked', true);
-      $('.chk-ngay-le').prop('checked', true);
-      tuDongTaoTenTab();
+  $('#chkCaTuan').prop('checked', true);
+  $('.chk-ngay-le').prop('checked', true);
+  tuDongTaoTenTab();
 
-      napDuLieuTong();
-      $('#selChonTuyen').on('change', onSelectTuyenChange);
-    });
+  $('#selChonTuyen').on('change', onSelectTuyenChange);
+});
 
     // BẢO MẬT & ĐĂNG NHẬP
     function getAdminInfo() {
@@ -1025,34 +1024,37 @@
     }
 
     async function xuLyDangNhapAdmin() {
-      const username = $('#txtAdminId').val().trim();
-      const password = $('#txtAdminPass').val().trim();
-      const $errorBox = $('#authErrorMsg');
+  const username = $('#txtAdminId').val().trim();
+  const password = $('#txtAdminPass').val().trim();
+  const $errorBox = $('#authErrorMsg');
 
-      try {
-        const res = await fetch(`${API_BASE}/api/admin/login`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
-        }).then(r => r.json());
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    }).then(r => r.json());
 
-        if (res.success) {
-          sessionStorage.setItem('admin_token', res.token);
-          sessionStorage.setItem('admin_role', res.role);
-          sessionStorage.setItem('admin_user', username);
-          sessionStorage.setItem('admin_permissions', JSON.stringify(res.permissions || []));
-          
-          $('body').removeClass('locked');
-          $('#authOverlay').fadeOut(300, function() { $(this).remove(); });
-          showToast(res.message, "success");
-          apDungQuyenTruyCap();
-        } else {
-          $errorBox.text(res.message || "Tài khoản không tồn tại trên hệ thống");
-          $('#txtAdminPass').val('').focus();
-        }
-      } catch (err) {
-        $errorBox.text("Không thể kết nối máy chủ quản trị!");
-      }
+    if (res.success) {
+      sessionStorage.setItem('admin_token', res.token);
+      sessionStorage.setItem('admin_role', res.role);
+      sessionStorage.setItem('admin_user', username);
+      sessionStorage.setItem('admin_permissions', JSON.stringify(res.permissions || []));
+      
+      $('body').removeClass('locked');
+      $('#authOverlay').fadeOut(300, function() { $(this).remove(); });
+      showToast(res.message, "success");
+      apDungQuyenTruyCap();
+      
+      // BỔ SUNG: Tự động tải lại toàn bộ dữ liệu ngay sau khi đăng nhập thành công
+      await napDuLieuTong();
+    } else {
+      $errorBox.text(res.message || "Tài khoản không tồn tại trên hệ thống");
+      $('#txtAdminPass').val('').focus();
     }
+  } catch (err) {
+    $errorBox.text("Không thể kết nối máy chủ quản trị!");
+  }
+}
 
     function apDungQuyenTruyCap() {
       const role = sessionStorage.getItem('admin_role');
