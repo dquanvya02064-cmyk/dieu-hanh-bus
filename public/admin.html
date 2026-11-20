@@ -808,7 +808,7 @@
           sessionStorage.setItem('admin_permissions', JSON.stringify(res.permissions || []));
           
           $('body').removeClass('locked');
-          $('#authOverlay').fadeOut(300, function() { $(this).remove(); });
+          $('#authOverlay').fadeOut(300, function() { $(this).remove(); }); await napDuLieuTong();
           showToast(res.message, "success");
           apDungQuyenTruyCap();
         } else {
@@ -1061,7 +1061,7 @@
     // NẠP DỮ LIỆU TỔNG
     async function napDuLieuTong(chonMaTuyenMoi = '') {
       try {
-        const adminUser = sessionStorage.getItem('admin_user');
+        if(!sessionStorage.getItem("admin_token"))return; const adminUser = sessionStorage.getItem('admin_user');
         const [resDM, resXe, resMau, resLich] = await Promise.all([
           fetch(`${API_BASE}/api/danh-muc?admin=true`).then(r => r.json()),
           fetch(`${API_BASE}/api/tim-kiem-xe?all=true`).then(r => r.json()),
