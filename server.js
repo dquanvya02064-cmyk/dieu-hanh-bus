@@ -1080,8 +1080,7 @@ app.post(['/api/save-tuyen', '/api/tuyen-moi'], verifyAdmin, async (req, res) =>
       soXeVd: parseInt(soXeVd, 10) || raw.tuyenList[normMaTuyen]?.soXeVd || 0,
       soXeKh: parseInt(soXeKh, 10) || raw.tuyenList[normMaTuyen]?.soXeKh || 0, 
       soXe: parseInt(soXeKh, 10) || raw.tuyenList[normMaTuyen]?.soXe || 0,
-      loaiXe: loaiXe || "", 
-      sucChua: sucChua || "", 
+      loaiXe: loaiXe || raw.tuyenList[normMaTuyen]?.loaiXe || "", sucChua: sucChua || raw.tuyenList[normMaTuyen]?.sucChua || "", 
       status: requestedStatus || "active"
     };
 
@@ -1566,6 +1565,86 @@ app.post('/api/dieu-chuyen-xe-hang-loat', verifyAdmin, async (req, res) => {
 
     await saveRawDataFast(raw);
     res.json({ success: true, message: `Đã điều chuyển thành công ${count} xe sang tuyến [${tuyenMoi}]!` });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+});
+
+app.post('/api/admin/them-xe-moi', verifyAdmin, async (req, res) => {
+  try {
+    if (!hasAdminPermission(req.adminUser, 'fleet.edit')) return res.status(403).json({ success: false, message: 'Không có quyền thêm xe.' });
+    const { bks, maTuyen, donVi, chungLoai, sucChua, namSx } = req.body;
+    const normBks = String(bks || '').trim().toUpperCase();
+    const normTuyen = String(maTuyen || 'DP').trim().toUpperCase() || 'DP';
+    if (!normBks) return res.status(400).json({ success: false, message: 'Thiếu biển kiểm soát!' });
+    const raw = await getRawData(true);
+    if (!Array.isArray(raw.xeList)) raw.xeList = [];
+    if (raw.xeList.some(x => String(x.bks || '').trim().toUpperCase() === normBks)) {
+      return res.status(400).json({ success: false, message: `Biển số [${normBks}] đã tồn tại!` });
+    }
+    raw.xeList.push({ bks: normBks, maTuyen: normTuyen, donVi: String(donVi || '').trim(), chungLoai: String(chungLoai || '').trim(), sucChua: String(sucChua || '').trim(), namSx: String(namSx || '').trim(), nhanHieu: '', updatedAt: new Date() });
+    if (raw.tuyenList && raw.tuyenList[normTuyen]) {
+      const c = raw.xeList.filter(x => String(x.maTuyen || '').trim().toUpperCase() === normTuyen).length;
+      raw.tuyenList[normTuyen].soXeKh = c; raw.tuyenList[normTuyen].soXe = c;
+    }
+    await saveRawData(raw);
+    res.json({ success: true, message: `Đã thêm xe [${normBks}] vào tuyến [${normTuyen}]!` });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+});
+
+app.post('/api/admin/sua-xe-hang-loat', verifyAdmin, async (req, res) => {
+  try {
+    const { bksList, newBks, maTuyen, donVi, chungLoai, sucChua, namSx } = req.body;
+    if (!Array.isArray(bksList) || !bksList.length) return res.status(400).json({ success: false, message: 'Chưa chọn xe!' });
+    const canEdit = hasAdminPermission(req.adminUser, 'fleet.edit');
+    const canTrans = hasAdminPermission(req.adminUser, 'fleet.transfer');
+    const onlyTrans = maTuyen && !newBks && !donVi && !chungLoai && !sucChua && !namSx;
+    if (!canEdit && !(onlyTrans && canTrans)) return res.status(403).json({ success: false, message: 'Không có quyền sửa đội xe.' });
+    const raw = await getRawData(true);
+    if (!Array.isArray(raw.xeList)) raw.xeList = [];
+    const targetSet = new Set(bksList.map(b => String(b || '').trim().toUpperCase()));
+    const normNewBks = String(newBks || '').trim().toUpperCase();
+    if (bksList.length === 1 && normNewBks && !targetSet.has(normNewBks) && raw.xeList.some(x => String(x.bks || '').trim().toUpperCase() === normNewBks)) {
+      return res.status(400).json({ success: false, message: `Biển số [${normNewBks}] đã tồn tại!` });
+    }
+    let count = 0;
+    raw.xeList.forEach(x => {
+      if (!targetSet.has(String(x.bks || '').trim().toUpperCase())) return;
+      if (bksList.length === 1 && normNewBks) x.bks = normNewBks;
+      if (maTuyen && String(maTuyen).trim()) x.maTuyen = String(maTuyen).trim().toUpperCase();
+      if (donVi !== undefined && String(donVi).trim() !== '') x.donVi = String(donVi).trim();
+      if (chungLoai !== undefined && String(chungLoai).trim() !== '') { x.chungLoai = String(chungLoai).trim(); x.nhanHieu = ''; }
+      if (sucChua !== undefined && String(sucChua).trim() !== '') x.sucChua = String(sucChua).trim();
+      if (namSx !== undefined && String(namSx).trim() !== '') x.namSx = String(namSx).trim();
+      x.updatedAt = new Date(); count++;
+    });
+    if (raw.tuyenList) {
+      Object.keys(raw.tuyenList).forEach(k => {
+        const c = raw.xeList.filter(x => String(x.maTuyen || '').trim().toUpperCase() === k).length;
+        raw.tuyenList[k].soXeKh = c; raw.tuyenList[k].soXe = c;
+      });
+    }
+    await saveRawData(raw);
+    res.json({ success: true, message: `Đã cập nhật thành công ${count} xe!` });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+});
+
+app.post('/api/admin/xoa-xe-hang-loat', verifyAdmin, async (req, res) => {
+  try {
+    if (!hasAdminPermission(req.adminUser, 'fleet.edit')) return res.status(403).json({ success: false, message: 'Không có quyền xóa xe.' });
+    const { bksList } = req.body;
+    if (!Array.isArray(bksList) || !bksList.length) return res.status(400).json({ success: false, message: 'Chưa chọn xe!' });
+    const raw = await getRawData(true);
+    if (!Array.isArray(raw.xeList)) raw.xeList = [];
+    const targetSet = new Set(bksList.map(b => String(b || '').trim().toUpperCase()));
+    const oldLen = raw.xeList.length;
+    raw.xeList = raw.xeList.filter(x => !targetSet.has(String(x.bks || '').trim().toUpperCase()));
+    if (raw.tuyenList) {
+      Object.keys(raw.tuyenList).forEach(k => {
+        const c = raw.xeList.filter(x => String(x.maTuyen || '').trim().toUpperCase() === k).length;
+        raw.tuyenList[k].soXeKh = c; raw.tuyenList[k].soXe = c;
+      });
+    }
+    await saveRawData(raw);
+    res.json({ success: true, message: `Đã xóa thành công ${oldLen - raw.xeList.length} xe!` });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
