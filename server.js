@@ -1391,6 +1391,103 @@ app.post('/api/toggle-status-tuyen', verifyAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
+app.post('/api/admin/quet-bieu-do-ai', verifyAdmin, async (req, res) => {
+  try {
+    const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+    if (!apiKey) {
+      return res.status(400).json({
+        success: false,
+        message: 'Chưa cấu hình GEMINI_API_KEY trên Render (Environment Variables). Vui lòng thêm key miễn phí từ aistudio.google.com!'
+      });
+    }
+
+    const { fileDataBase64, mimeType } = req.body || {};
+    if (!fileDataBase64 || !mimeType) {
+      return res.status(400).json({ success: false, message: 'Thiếu dữ liệu file Ảnh hoặc PDF!' });
+    }
+
+    const cleanBase64 = String(fileDataBase64).replace(/^data:[^;]+;base64,/, '');
+    const prompt = `Bạn là chuyên gia số hóa biểu đồ chạy xe buýt Việt Nam (Transerco, Liên Ninh, Bảo Yến, VinFast Green Bus...).
+Hãy đọc kỹ file Ảnh hoặc PDF biểu đồ chạy xe đính kèm và trích xuất chính xác thành JSON thuần túy (không bọc markdown \`\`\`json).
+
+Cấu trúc JSON bắt buộc:
+{
+  "tieuDe": ["Dòng tiêu đề 1", "Dòng tiêu đề 2 (nếu có)"],
+  "ngayHieuLuc": "DD/MM/YYYY hoặc rỗng nếu không ghi",
+  "ngayApDungList": ["2","3","4","5","6","7","CN"],
+  "dauA": "Tên bến đầu A",
+  "dauB": "Tên bến đầu B",
+  "rows": [
+    ["NỐT", "ĐẦU A-B", "GIỜ XE XUẤT BẾN", "", "", "LƯỢT"],
+    ["1", "Tên đầu A", "5:00", "", "7:30", "12"],
+    ["", "Tên đầu B", "", "6:15", "", ""]
+  ],
+  "warnings": ["Ghi chú nếu phát hiện lỗi gõ nhầm trên bảng gốc hoặc lệch tổng lượt"]
+}
+
+QUY TẮC BẮT BUỘC:
+1. Mỗi NỐT xe (1, 2, 3...) PHẢI được biểu diễn bằng ĐÚNG 2 DÒNG liên tiếp trong "rows":
+   - Dòng trên (Đầu A): cột 0 là số Nốt ("1", "2"...), cột 1 là tên Đầu A, các cột giữa là giờ tương ứng của Đầu A (hoặc "Thay ca"), cột cuối cùng là tổng số Lượt của nốt đó.
+   - Dòng dưới (Đầu B): cột 0 để rỗng "", cột 1 là tên Đầu B, các cột giữa là giờ tương ứng của Đầu B, cột cuối cùng để rỗng "".
+2. Giữ ĐÚNG căn chỉnh cột theo chiều dọc của bảng gốc:
+   - Nếu mẫu bảng chỉ có 1 mốc giờ/ô đặt lệch dòng (như Tuyến 72: nốt 1-5 xuất phát từ đầu A ở cột đầu, nốt 6-10 xuất phát từ đầu B ở cột đầu), ô nào trống ở dòng trên hoặc dòng dưới thì điền chuỗi rỗng "" để giữ thẳng cột.
+   - Nếu mẫu bảng có 2 mốc giờ trên/dưới trong cùng 1 ô (như Tuyến 90), đưa mốc giờ trên vào dòng Đầu A và mốc giờ dưới vào dòng Đầu B ở cùng chỉ số cột.
+   - Các cột trống trước khi xe vào nốt (ví dụ nốt 1-5 bắt đầu muộn hơn nốt 6-9) phải giữ nguyên các ô rỗng "" ở đầu để thẳng cột với các nốt khác.
+3. Ô "Thay ca" ghi đúng chữ "Thay ca" ở dòng Đầu A và "" ở dòng Đầu B tại đúng cột đó.
+4. Chuẩn hóa giờ dạng H:MM hoặc HH:MM (ví dụ "6:30", "14:40"). Nếu gặp lỗi đánh máy lặp chữ trên file gốc (ví dụ "10:50 :50"), hãy sửa thành "10:50" và ghi chú vào mảng "warnings".
+5. Tất cả các dòng trong "rows" phải có CÙNG SỐ LƯỢNG PHẦN TỬ (cùng số cột).
+6. "ngayApDungList": nếu tiêu đề ghi "CÁC NGÀY TRONG TUẦN" hoặc "THỨ 2 ĐẾN CHỦ NHẬT" -> ["2","3","4","5","6","7","CN"]; "THỨ 2 ĐẾN THỨ 7" -> ["2","3","4","5","6","7"]; "CHỦ NHẬT" -> ["CN"]; không rõ thì [].`;
+
+    const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+    let parsedResult = null;
+    let lastError = '';
+
+    for (const model of models) {
+      const resp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: prompt },
+                { inline_data: { mime_type: mimeType, data: cleanBase64 } }
+              ]
+            }],
+            generationConfig: {
+              temperature: 0.1,
+              responseMimeType: 'application/json'
+            }
+          })
+        }
+      );
+
+      const data = await resp.json();
+      if (!resp.ok) {
+        lastError = data?.error?.message || `HTTP ${resp.status}`;
+        continue;
+      }
+
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const cleanedJson = rawText.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
+      parsedResult = JSON.parse(cleanedJson);
+      break;
+    }
+
+    if (!parsedResult || !Array.isArray(parsedResult.rows)) {
+      return res.status(502).json({
+        success: false,
+        message: 'AI không bóc tách được bảng dữ liệu: ' + (lastError || 'Phản hồi không hợp lệ')
+      });
+    }
+
+    res.json({ success: true, data: parsedResult });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Lỗi xử lý AI: ' + err.message });
+  }
+});
+
 app.post('/api/luu-bieu-do', verifyAdmin, async (req, res) => {
   try {
     const { xn, tuyen, bieuDo, tenTab, rawData } = req.body;
