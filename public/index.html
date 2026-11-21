@@ -302,7 +302,12 @@
       vertical-align: middle !important;
     }
     .colstt { width: 48px !important; min-width: 48px !important; }
-    .coldau { width: 185px !important; min-width: 175px !important; padding-left: 12px !important; padding-right: 10px !important; }
+    .coldau {
+      min-width: 175px !important;
+      padding-left: 12px !important;
+      padding-right: 12px !important;
+      white-space: nowrap !important;
+    }
     .colflight, .coldiemdanh { width: 62px !important; min-width: 62px !important; }
     .colthayca {
       width: 62px !important;
@@ -313,12 +318,15 @@
     .coltotal { width: 64px !important; min-width: 64px !important; }
     .coldau > span, .colflight > span {
       display: block !important;
-      line-height: 1.25 !important;
+      height: 18px !important;
+      line-height: 18px !important;
+      white-space: nowrap !important;
     }
-    .coldau > span:not(:empty) + span:not(:empty),
-    .colflight > span:not(:empty) + span:not(:empty) {
+    .coldau > span + span,
+    .colflight > span + span {
       margin-top: 6px !important;
     }
+
 
 
   </style>
