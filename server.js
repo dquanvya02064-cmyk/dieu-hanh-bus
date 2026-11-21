@@ -1438,17 +1438,25 @@ QUY TẮC BẮT BUỘC:
 5. Tất cả các dòng trong "rows" phải có CÙNG SỐ LƯỢNG PHẦN TỬ (cùng số cột).
 6. "ngayApDungList": nếu tiêu đề ghi "CÁC NGÀY TRONG TUẦN" hoặc "THỨ 2 ĐẾN CHỦ NHẬT" -> ["2","3","4","5","6","7","CN"]; "THỨ 2 ĐẾN THỨ 7" -> ["2","3","4","5","6","7"]; "CHỦ NHẬT" -> ["CN"]; không rõ thì [].`;
 
-    const models = ["gemini-3.8-flash", "gemini-2.5-flash"];
+    const models = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-3.8-flash"];
     let parsedResult = null;
     let errors = [];
 
-    const tryModel = async (modelName) => {
+    const tryModel = async (modelName, disableThinking = true) => {
       const cleanModel = modelName.replace(/^models\//, "");
+      const genConfig = {
+        temperature: 0.1,
+        responseMimeType: "application/json"
+      };
+      if (disableThinking) {
+        genConfig.thinkingConfig = { thinkingBudget: 0 };
+      }
       const resp = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${encodeURIComponent(apiKey)}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: AbortSignal.timeout(25000),
           body: JSON.stringify({
             contents: [{
               parts: [
@@ -1456,16 +1464,17 @@ QUY TẮC BẮT BUỘC:
                 { inline_data: { mime_type: mimeType, data: cleanBase64 } }
               ]
             }],
-            generationConfig: {
-              temperature: 0.1,
-              responseMimeType: "application/json"
-            }
+            generationConfig: genConfig
           })
         }
       );
       const data = await resp.json();
       if (!resp.ok) {
-        throw new Error(`${cleanModel}: ${data?.error?.message || "HTTP " + resp.status}`);
+        const msg = data?.error?.message || ("HTTP " + resp.status);
+        if (disableThinking && /thinking/i.test(msg)) {
+          return tryModel(modelName, false);
+        }
+        throw new Error(`${cleanModel}: ${msg}`);
       }
       const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
       const cleanedJson = rawText.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
@@ -1474,31 +1483,10 @@ QUY TẮC BẮT BUỘC:
 
     for (const m of models) {
       try {
-        parsedResult = await tryModel(m);
+        parsedResult = await tryModel(m, true);
         break;
       } catch (e) {
         errors.push(e.message);
-      }
-    }
-
-    if (!parsedResult) {
-      try {
-        const listResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
-        const listData = await listResp.json();
-        const availableFlash = (listData.models || [])
-          .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes("generateContent"))
-          .map(m => m.name.replace(/^models\//, ""))
-          .filter(name => /flash/i.test(name) && !models.includes(name));
-        for (const m of availableFlash.slice(0, 3)) {
-          try {
-            parsedResult = await tryModel(m);
-            break;
-          } catch (e) {
-            errors.push(e.message);
-          }
-        }
-      } catch (e) {
-        errors.push("ListModels: " + e.message);
       }
     }
 

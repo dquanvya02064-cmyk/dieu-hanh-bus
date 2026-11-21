@@ -2595,16 +2595,33 @@
       $status.show().css({ background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8' })
         .html(`<i class="fa fa-spinner fa-spin"></i> Đang dùng AI phân tích file <b>${file.name || 'ảnh dán'}</b>, vui lòng đợi 5–10 giây...`);
       try {
-        const base64Data = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = () => reject(new Error('Không đọc được file từ thiết bị.'));
-          reader.readAsDataURL(file);
+        const payload = await new Promise((resolve, reject) => {
+          if (file.type && file.type.startsWith('image/')) {
+            const img = new Image();
+            const url = URL.createObjectURL(file);
+            img.onload = () => {
+              URL.revokeObjectURL(url);
+              const maxW = 1600;
+              let w = img.width, h = img.height;
+              if (w > maxW) { h = Math.round(h * (maxW / w)); w = maxW; }
+              const canvas = document.createElement('canvas');
+              canvas.width = w; canvas.height = h;
+              canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+              resolve({ data: canvas.toDataURL('image/jpeg', 0.85), mime: 'image/jpeg' });
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Không đọc được ảnh.')); };
+            img.src = url;
+          } else {
+            const reader = new FileReader();
+            reader.onload = () => resolve({ data: reader.result, mime: file.type || 'application/pdf' });
+            reader.onerror = () => reject(new Error('Không đọc được file từ thiết bị.'));
+            reader.readAsDataURL(file);
+          }
         });
         const res = await fetch(`${API_BASE}/api/admin/quet-bieu-do-ai`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
-          body: JSON.stringify({ fileDataBase64: base64Data, mimeType: file.type || 'image/jpeg' })
+          body: JSON.stringify({ fileDataBase64: payload.data, mimeType: payload.mime })
         }).then(r => r.json());
         if (!res || !res.success || !res.data) {
           $status.css({ background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C' })
