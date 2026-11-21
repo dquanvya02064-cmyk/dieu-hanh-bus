@@ -668,14 +668,66 @@
       }
     }
 
-    function timTabPhuHop(xn, tuyen, ngayChonStr, thuDaChon) {
-      if (!tuyen) return null;
+    function tenThuTiengViet(thuCode) {
+      const map = { T2: 'Thứ 2', T3: 'Thứ 3', T4: 'Thứ 4', T5: 'Thứ 5', T6: 'Thứ 6', T7: 'Thứ 7', CN: 'Chủ nhật' };
+      return map[thuCode] || thuCode;
+    }
+
+    function timKetQuaTabPhuHop(xn, tuyen, ngayChonStr, thuDaChon) {
+      if (!tuyen) return { tabName: null, notice: '' };
       const dsTabCuaTuyen = locDanhMucTheoTuyen(xn, tuyen);
-      if (!dsTabCuaTuyen.length) return null;
-      const dsCungNgay = dsTabCuaTuyen.filter(item => parseTabInfo(item.tenTab).dateStr === ngayChonStr);
-      if (!dsCungNgay.length) return dsTabCuaTuyen[0].tenTab || null;
-      const matched = dsCungNgay.find(item => kiemTraNgayThuKhop(item.tenTab, thuDaChon));
-      return (matched && matched.tenTab) || dsCungNgay[0].tenTab || dsTabCuaTuyen[0].tenTab || null;
+      if (!dsTabCuaTuyen.length) return { tabName: null, notice: '' };
+
+      const enriched = dsTabCuaTuyen.map(item => {
+        const rawLabel = item.tenTab || item.bieuDo || '';
+        const info = parseTabInfo(rawLabel);
+        return {
+          item,
+          tenTab: item.tenTab || rawLabel,
+          dateStr: info.dateStr || '',
+          sortKey: info.sortKey || '00000000'
+        };
+      });
+
+      const targetInfo = parseTabInfo(ngayChonStr || '');
+      const targetKey = targetInfo.sortKey || '00000000';
+
+      // Lọc các tab khớp thứ trong tuần được chọn
+      const matchingDayTabs = enriched.filter(x => kiemTraNgayThuKhop(x.tenTab, thuDaChon));
+
+      // Ưu tiên các tab có hiệu lực <= ngày đang chọn, sắp xếp mới nhất lên đầu
+      const validUpToDate = matchingDayTabs
+        .filter(x => targetKey === '00000000' || x.sortKey === '00000000' || x.sortKey <= targetKey)
+        .sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+
+      if (validUpToDate.length > 0) {
+        const chosen = validUpToDate[0];
+        let notice = '';
+        if (targetKey !== '00000000' && chosen.sortKey !== '00000000' && chosen.sortKey < targetKey) {
+          notice = `Mốc <b>${ngayChonStr}</b> không có điều chỉnh riêng cho <b>${tenThuTiengViet(thuDaChon)}</b> — đang hiển thị biểu đồ tiếp tục áp dụng từ <b>${chosen.dateStr}</b>.`;
+        }
+        return { tabName: chosen.tenTab, notice };
+      }
+
+      // Không có biểu đồ nào cho thứ này ở mốc <= ngày đã chọn -> cảnh báo rõ ràng, không hiển thị nhầm thứ khác
+      const newerTabs = matchingDayTabs
+        .filter(x => x.sortKey > targetKey)
+        .sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+      const sameDateTabs = enriched.filter(x => x.dateStr === ngayChonStr);
+      const availableLabels = sameDateTabs.map(x => x.tenTab).join(', ');
+
+      let warnMsg = `Tại mốc <b>${ngayChonStr}</b> chưa có dữ liệu biểu đồ cho <b>${tenThuTiengViet(thuDaChon)}</b>`;
+      if (availableLabels) warnMsg += ` (hệ thống chỉ lưu: <b>${availableLabels}</b>)`;
+      if (newerTabs.length > 0) {
+        warnMsg += `. Biểu đồ <b>${tenThuTiengViet(thuDaChon)}</b> hiện có áp dụng từ <b>${newerTabs[0].dateStr}</b>.`;
+      } else {
+        warnMsg += '.';
+      }
+      return { tabName: null, notice: warnMsg, isMissingDay: true };
+    }
+
+    function timTabPhuHop(xn, tuyen, ngayChonStr, thuDaChon) {
+      return timKetQuaTabPhuHop(xn, tuyen, ngayChonStr, thuDaChon).tabName;
     }
 
     function kiemTraNgayThuKhop(tabName, thuDaChon) {
@@ -728,7 +780,15 @@
         return;
       }
 
-      const tabName = ngayApDung ? timTabPhuHop(xn, tuyen, ngayApDung, thuDaChon) : null;
+      const lookupRes = ngayApDung ? timKetQuaTabPhuHop(xn, tuyen, ngayApDung, thuDaChon) : { tabName: null, notice: '' };
+      if (ngayApDung && lookupRes.isMissingDay) {
+        hienThongBaoBieuDo(lookupRes.notice, 'warn');
+        $('#tableContainer, #scheduleWrapper, #bieuDoContainer').hide();
+        return;
+      }
+      if (lookupRes.notice) hienThongBaoBieuDo(lookupRes.notice, 'info');
+      else anThongBaoBieuDo();
+      const tabName = lookupRes.tabName;
       const $btn = $('.btn-view');
       $btn.html('<i class="fa fa-spinner fa-spin"></i> Đang tải...').prop('disabled', true);
 
