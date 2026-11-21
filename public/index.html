@@ -762,24 +762,96 @@
       }
     }
 
+    function tachDongThongMinh(str, maxChars) {
+      const clean = String(str || '').trim().replace(/\s+/g, ' ');
+      if (!clean) return [''];
+      if (clean.length <= maxChars) return [clean];
+
+      const words = clean.split(' ');
+      if (words.length === 1) return [clean];
+
+      // Nếu độ dài vừa tầm 2 dòng -> chia cân đối quanh điểm giữa
+      if (clean.length <= maxChars * 2.25) {
+        const mid = Math.floor(clean.length / 2);
+        let bestIdx = -1, bestDiff = Infinity, acc = 0;
+        for (let i = 0; i < words.length - 1; i++) {
+          acc += words[i].length + (i > 0 ? 1 : 0);
+          const diff = Math.abs(acc - mid);
+          if (diff < bestDiff) {
+            bestDiff = diff;
+            bestIdx = i;
+          }
+        }
+        if (bestIdx >= 0) {
+          return [
+            words.slice(0, bestIdx + 1).join(' '),
+            words.slice(bestIdx + 1).join(' ')
+          ];
+        }
+      }
+
+      // Trường hợp tên đặc biệt dài -> tự ngắt dòng theo ranh giới từ, tuyệt đối không dùng '...'
+      const lines = [];
+      let cur = '';
+      words.forEach(w => {
+        if (!cur) cur = w;
+        else if ((cur + ' ' + w).length <= maxChars) cur += ' ' + w;
+        else { lines.push(cur); cur = w; }
+      });
+      if (cur) lines.push(cur);
+      return lines;
+    }
+
+    function escapeXmlSvg(s) {
+      return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
     function veSoDoTuyenSVG(dauA, dauB, tramDiStr, tramVeStr) {
       const listDi = tramDiStr ? tramDiStr.split(',').map(s => s.trim()).filter(Boolean) : [];
       const listVe = tramVeStr ? tramVeStr.split(',').map(s => s.trim()).filter(Boolean) : [];
 
-      let maxLen = 0;
-      [...listDi, ...listVe].forEach(t => { if (t.length > maxLen) maxLen = t.length; });
-
-      let paddingY = maxLen > 20 ? 85 : 60;
       const maxStations = Math.max(listDi.length, listVe.length, 1);
-      const dynamicWidth = Math.max(1300, maxStations * 100 + 500);
+      const dynamicWidth = Math.max(1300, maxStations * 105 + 560);
+      const scaleRatio = Math.max(1, dynamicWidth / 1300);
 
-      let yTop = 90 + paddingY;
-      let yBottom = yTop + 80;
-      let totalHeight = yBottom + paddingY + 40;
-      
-      let startX = 220;
-      let endX = dynamicWidth - 220;
-      let span = endX - startX;
+      // Tăng cỡ chữ 2 đầu A/B và tự bù tỷ lệ khi tuyến dài để không bị co nhỏ
+      const epFontSize = Math.round(16 * Math.pow(scaleRatio, 0.85));
+      const epLineHeight = Math.round(epFontSize * 1.22);
+
+      const rawA = (dauA || "Đầu A").toUpperCase();
+      const rawB = (dauB || "Đầu B").toUpperCase();
+      const epLinesA = tachDongThongMinh(rawA, 20);
+      const epLinesB = tachDongThongMinh(rawB, 20);
+
+      const wrappedDi = listDi.map(t => tachDongThongMinh(t, 20));
+      const wrappedVe = listVe.map(t => tachDongThongMinh(t, 20));
+
+      let maxVisualStationLen = 0;
+      let hasMultiLineStation = false;
+      [...wrappedDi, ...wrappedVe].forEach(lines => {
+        if (lines.length > 1) hasMultiLineStation = true;
+        lines.forEach(l => { if (l.length > maxVisualStationLen) maxVisualStationLen = l.length; });
+      });
+
+      let paddingY = (maxVisualStationLen > 16 || hasMultiLineStation) ? 95 : 68;
+      let yTop = 85 + paddingY;
+      let yBottom = yTop + 84;
+      let totalHeight = yBottom + paddingY + 35;
+
+      // Đảm bảo chiều cao đủ chứa tên 2 đầu A/B xoay dọc mà không bị cắt mép
+      const maxEpChars = Math.max(...epLinesA.map(l => l.length), ...epLinesB.map(l => l.length), 1);
+      const neededEpHeight = Math.ceil(maxEpChars * epFontSize * 0.64) + 50;
+      if (totalHeight < neededEpHeight) {
+        const extra = Math.ceil((neededEpHeight - totalHeight) / 2);
+        yTop += extra;
+        yBottom += extra;
+        totalHeight += extra * 2;
+      }
+
+      const marginSide = Math.max(240, 175 + Math.max(epLinesA.length, epLinesB.length) * epLineHeight);
+      const startX = marginSide;
+      const endX = dynamicWidth - marginSide;
+      const span = endX - startX;
 
       let svgHtml = `
         <svg viewBox="0 0 ${dynamicWidth} ${totalHeight}" style="width: 100%; height: auto; min-width: 950px; overflow: visible;">
@@ -793,14 +865,9 @@
             .station-text-bottom { font-size: 11px; fill: #000; font-weight: 600; text-anchor: end; }
             .line-bus { stroke: #111; stroke-width: 3; fill: none; stroke-linejoin: round; }
             .node-dot { fill: #E74C3C; stroke: #fff; stroke-width: 0.8; r: 5; }
-            .endpoint-text { font-size: 11px; font-weight: 900; fill: #C0392B; text-anchor: middle; }
+            .endpoint-text { font-size: ${epFontSize}px; font-weight: 900; fill: #C0392B; text-anchor: middle; letter-spacing: 0.3px; }
           </style>
       `;
-
-      let rawA = (dauA || "Đầu A").toUpperCase();
-      let rawB = (dauB || "Đầu B").toUpperCase();
-      const dauAInHoa = rawA.length > 30 ? rawA.substring(0, 28) + '...' : rawA;
-      const dauBInHoa = rawB.length > 30 ? rawB.substring(0, 28) + '...' : rawB;
 
       svgHtml += `
         <polygon points="${startX},${yTop} ${endX},${yTop} ${endX + 35},${yBottom} ${startX - 35},${yBottom}" 
@@ -809,30 +876,55 @@
         <line x1="${startX}" y1="${yBottom}" x2="${endX}" y2="${yBottom}" class="line-bus" />
       `;
 
-      let yCenter = (yTop + yBottom) / 2;
+      const yCenter = (yTop + yBottom) / 2;
+      const xPosA = startX - 65 - ((epLinesA.length - 1) * epLineHeight * 0.55);
+      const xPosB = endX + 65 + ((epLinesB.length - 1) * epLineHeight * 0.55);
+
+      const tspansA = epLinesA.map((line, i) => {
+        const dy = i === 0 ? -((epLinesA.length - 1) * epLineHeight) / 2 : epLineHeight;
+        return `<tspan x="0" dy="${dy}">${escapeXmlSvg(line)}</tspan>`;
+      }).join('');
+
+      const tspansB = epLinesB.map((line, i) => {
+        const dy = i === 0 ? -((epLinesB.length - 1) * epLineHeight) / 2 : epLineHeight;
+        return `<tspan x="0" dy="${dy}">${escapeXmlSvg(line)}</tspan>`;
+      }).join('');
+
       svgHtml += `
-        <text x="${startX - 75}" y="${yCenter}" class="endpoint-text" transform="rotate(-90, ${startX - 75}, ${yCenter})">${dauAInHoa}</text>
-        <text x="${endX + 75}" y="${yCenter}" class="endpoint-text" transform="rotate(-90, ${endX + 75}, ${yCenter})">${dauBInHoa}</text>
+        <g transform="translate(${xPosA}, ${yCenter}) rotate(-90)">
+          <text class="endpoint-text">${tspansA}</text>
+        </g>
+        <g transform="translate(${xPosB}, ${yCenter}) rotate(-90)">
+          <text class="endpoint-text">${tspansB}</text>
+        </g>
       `;
 
-      let stepDi = span / (listDi.length + 1);
-      listDi.forEach((tram, idx) => {
-        let cx = startX + stepDi * (idx + 1);
+      const stepDi = span / (wrappedDi.length + 1);
+      wrappedDi.forEach((lines, idx) => {
+        const cx = startX + stepDi * (idx + 1);
+        const tspans = lines.map((line, i) => {
+          const dy = i === 0 ? -((lines.length - 1) * 13) : 13;
+          return `<tspan x="0" dy="${dy}">${escapeXmlSvg(line)}</tspan>`;
+        }).join('');
         svgHtml += `
           <circle cx="${cx}" cy="${yTop}" class="node-dot" />
           <g transform="translate(${cx}, ${yTop - 14})">
-            <text class="station-text-top" transform="rotate(-35)">${tram}</text>
+            <text class="station-text-top" transform="rotate(-35)">${tspans}</text>
           </g>
         `;
       });
 
-      let stepVe = span / (listVe.length + 1);
-      listVe.forEach((tram, idx) => {
-        let cx = endX - stepVe * (idx + 1);
+      const stepVe = span / (wrappedVe.length + 1);
+      wrappedVe.forEach((lines, idx) => {
+        const cx = endX - stepVe * (idx + 1);
+        const tspans = lines.map((line, i) => {
+          const dy = i === 0 ? 0 : 13;
+          return `<tspan x="0" dy="${dy}">${escapeXmlSvg(line)}</tspan>`;
+        }).join('');
         svgHtml += `
           <circle cx="${cx}" cy="${yBottom}" class="node-dot" />
           <g transform="translate(${cx}, ${yBottom + 18})">
-            <text class="station-text-bottom" transform="rotate(-35)">${tram}</text>
+            <text class="station-text-bottom" transform="rotate(-35)">${tspans}</text>
           </g>
         `;
       });
