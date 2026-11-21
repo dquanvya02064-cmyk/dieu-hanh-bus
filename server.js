@@ -1438,16 +1438,17 @@ QUY TẮC BẮT BUỘC:
 5. Tất cả các dòng trong "rows" phải có CÙNG SỐ LƯỢNG PHẦN TỬ (cùng số cột).
 6. "ngayApDungList": nếu tiêu đề ghi "CÁC NGÀY TRONG TUẦN" hoặc "THỨ 2 ĐẾN CHỦ NHẬT" -> ["2","3","4","5","6","7","CN"]; "THỨ 2 ĐẾN THỨ 7" -> ["2","3","4","5","6","7"]; "CHỦ NHẬT" -> ["CN"]; không rõ thì [].`;
 
-    const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+    const models = ["gemini-3.8-flash", "gemini-2.5-flash"];
     let parsedResult = null;
-    let lastError = '';
+    let errors = [];
 
-    for (const model of models) {
+    const tryModel = async (modelName) => {
+      const cleanModel = modelName.replace(/^models\//, "");
       const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${encodeURIComponent(apiKey)}`,
         {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{
               parts: [
@@ -1457,28 +1458,54 @@ QUY TẮC BẮT BUỘC:
             }],
             generationConfig: {
               temperature: 0.1,
-              responseMimeType: 'application/json'
+              responseMimeType: "application/json"
             }
           })
         }
       );
-
       const data = await resp.json();
       if (!resp.ok) {
-        lastError = data?.error?.message || `HTTP ${resp.status}`;
-        continue;
+        throw new Error(`${cleanModel}: ${data?.error?.message || "HTTP " + resp.status}`);
       }
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      const cleanedJson = rawText.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+      return JSON.parse(cleanedJson);
+    };
 
-      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const cleanedJson = rawText.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
-      parsedResult = JSON.parse(cleanedJson);
-      break;
+    for (const m of models) {
+      try {
+        parsedResult = await tryModel(m);
+        break;
+      } catch (e) {
+        errors.push(e.message);
+      }
+    }
+
+    if (!parsedResult) {
+      try {
+        const listResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
+        const listData = await listResp.json();
+        const availableFlash = (listData.models || [])
+          .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes("generateContent"))
+          .map(m => m.name.replace(/^models\//, ""))
+          .filter(name => /flash/i.test(name) && !models.includes(name));
+        for (const m of availableFlash.slice(0, 3)) {
+          try {
+            parsedResult = await tryModel(m);
+            break;
+          } catch (e) {
+            errors.push(e.message);
+          }
+        }
+      } catch (e) {
+        errors.push("ListModels: " + e.message);
+      }
     }
 
     if (!parsedResult || !Array.isArray(parsedResult.rows)) {
       return res.status(502).json({
         success: false,
-        message: 'AI không bóc tách được bảng dữ liệu: ' + (lastError || 'Phản hồi không hợp lệ')
+        message: "AI không bóc tách được bảng dữ liệu: " + (errors.join(" | ") || "Phản hồi không hợp lệ")
       });
     }
 
