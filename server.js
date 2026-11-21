@@ -353,22 +353,14 @@ async function saveRawDataFast(data) {
   delete data._isDataChanged;
   delete data.historyLog;
   cachedData = data;
-  await BusModel.findOneAndUpdate(
-    { key: 'main_data' },
-    { key: 'main_data', data: data },
-    { upsert: true, returnDocument: 'after' }
-  );
+  await BusModel.updateOne({ key: 'main_data' }, { $set: { key: 'main_data', data: data } }, { upsert: true });
 }
 
 async function saveRawData(data) {
   const cleaned = await cleanAndSyncData(data);
   delete cleaned._isDataChanged;
   cachedData = cleaned;
-  await BusModel.findOneAndUpdate(
-    { key: 'main_data' },
-    { key: 'main_data', data: cleaned },
-    { upsert: true, returnDocument: 'after' }
-  );
+  await BusModel.updateOne({ key: 'main_data' }, { $set: { key: 'main_data', data: cleaned } }, { upsert: true });
 }
 
 // --- API HỆ THỐNG LỊCH HẸN ---
@@ -1565,6 +1557,32 @@ app.post('/api/dieu-chuyen-xe-hang-loat', verifyAdmin, async (req, res) => {
 
     await saveRawDataFast(raw);
     res.json({ success: true, message: `Đã điều chuyển thành công ${count} xe sang tuyến [${tuyenMoi}]!` });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+});
+
+app.post('/api/admin/import-xe-hang-loat', verifyAdmin, async (req, res) => {
+  try {
+    if (!hasAdminPermission(req.adminUser, 'fleet.edit')) return res.status(403).json({ success: false, message: 'Không có quyền import xe.' });
+    const { cars } = req.body;
+    if (!Array.isArray(cars) || !cars.length) return res.status(400).json({ success: false, message: 'Danh sách xe trống!' });
+    const raw = await getRawData(true);
+    if (!Array.isArray(raw.xeList)) raw.xeList = [];
+    const normKey = b => String(b || '').replace(/[\s\-\.]/g, '').toUpperCase();
+    const existSet = new Set(raw.xeList.map(x => normKey(x.bks)));
+    const touched = new Set();
+    let added = 0, skipped = 0;
+    cars.forEach(c => {
+      const bks = String(c.bks || '').trim().toUpperCase();
+      const key = normKey(bks);
+      if (!key || existSet.has(key)) { skipped++; return; }
+      const maTuyen = String(c.maTuyen || 'DP').trim().toUpperCase() || 'DP';
+      existSet.add(key); touched.add(maTuyen);
+      raw.xeList.push({ bks, maTuyen, donVi: String(c.donVi || '').trim(), chungLoai: String(c.chungLoai || '').trim(), sucChua: String(c.sucChua || '').trim(), namSx: String(c.namSx || '').trim(), nhanHieu: '', updatedAt: new Date() });
+      added++;
+    });
+    if (raw.tuyenList) touched.forEach(k => { if (raw.tuyenList[k]) { const cnt = raw.xeList.filter(x => String(x.maTuyen || '').trim().toUpperCase() === k).length; raw.tuyenList[k].soXeKh = cnt; raw.tuyenList[k].soXe = cnt; } });
+    if (added > 0) await saveRawData(raw);
+    res.json({ success: true, message: added > 0 ? `Đã import thành công ${added} xe${skipped ? ` (bỏ qua ${skipped} xe đã tồn tại)` : ''}!` : `Tất cả ${skipped} xe đều đã có trong hệ thống!` });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
