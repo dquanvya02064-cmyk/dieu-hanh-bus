@@ -871,16 +871,40 @@
       return {};
     }
 
+    // Danh thuc may chu & nap san cache ngay khi mo trang
+    setTimeout(() => { fetch(`${API_BASE}/api/warmup`).catch(() => {}); }, 50);
+
     async function xuLyDangNhapAdmin() {
+      if (window._isAdminLoggingIn) return;
       const username = $('#txtAdminId').val().trim();
       const password = $('#txtAdminPass').val().trim();
       const $errorBox = $('#authErrorMsg');
+
+      if (!username || !password) {
+        $errorBox.text("Vui lòng nhập đầy đủ tài khoản và mật khẩu!");
+        return;
+      }
+
+      window._isAdminLoggingIn = true;
+      $errorBox.text("");
+      const $inputs = $('#txtAdminId, #txtAdminPass');
+      const $loginBtn = $('#authOverlay button').first();
+      const oldBtnHtml = $loginBtn.html();
+      $inputs.prop('disabled', true);
+      $loginBtn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Đang đăng nhập...');
+
+      const slowTimer = setTimeout(() => {
+        $errorBox.css('color', '#D35400').text("Máy chủ đang khởi động sau thời gian nghỉ, vui lòng đợi thêm giây lát...");
+      }, 3500);
 
       try {
         const res = await fetch(`${API_BASE}/api/admin/login`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password })
         }).then(r => r.json());
+
+        clearTimeout(slowTimer);
+        $errorBox.css('color', '');
 
         if (res.success) {
           sessionStorage.setItem('admin_token', res.token);
@@ -889,15 +913,22 @@
           sessionStorage.setItem('admin_permissions', JSON.stringify(res.permissions || []));
           
           $('body').removeClass('locked');
-          $('#authOverlay').fadeOut(300, function() { $(this).remove(); }); await napDuLieuTong();
-          showToast(res.message, "success");
           apDungQuyenTruyCap();
+          $('#authOverlay').fadeOut(250, function() { $(this).remove(); });
+          showToast(res.message, "success");
+          await napDuLieuTong();
         } else {
-          $errorBox.text(res.message || "Tài khoản không tồn tại trên hệ thống");
-          $('#txtAdminPass').val('').focus();
+          $errorBox.text(res.message || "Tài khoản hoặc mật khẩu không đúng!");
+          $('#txtAdminPass').val('');
         }
       } catch (err) {
-        $errorBox.text("Không thể kết nối máy chủ quản trị!");
+        clearTimeout(slowTimer);
+        $errorBox.css('color', '').text("Không thể kết nối máy chủ quản trị!");
+      } finally {
+        window._isAdminLoggingIn = false;
+        $inputs.prop('disabled', false);
+        $loginBtn.prop('disabled', false).html(oldBtnHtml);
+        if ($('#authOverlay').length) $('#txtAdminPass').focus();
       }
     }
 

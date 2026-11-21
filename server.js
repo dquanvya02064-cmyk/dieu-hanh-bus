@@ -662,6 +662,10 @@ app.post('/api/admin/xoa-lich-thong-bao', verifyAdmin, async (req, res) => {
 });
 
 // --- AUTHENTICATION & QUẢN TRỊ NGƯỜI DÙNG ---
+app.get('/api/warmup', async (req, res) => {
+  try { await getRawData(false); res.json({ ok: true }); } catch (e) { res.json({ ok: false }); }
+});
+
 app.post('/api/admin/login', async (req, res) => {
   try {
     const { username, password } = req.body;
