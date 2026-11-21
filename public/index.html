@@ -438,19 +438,30 @@
     }
 
     $(document).ready(function() {
-      fetch(`${API_BASE}/api/thong-bao-chi-tiet`)
-        .then(r => r.json())
-        .then(res => {
-          const noiDungChay = res.currentActiveText || res.defaultText || "";
-          if (res.success && noiDungChay.trim() !== "") {
-            $('#marqueeText').html(`<span>${noiDungChay}</span>`);
-            $('#marqueeWrapper').css('display', 'flex');
-          } else {
-            $('#marqueeWrapper').hide();
-          }
-        }).catch(err => {
-          $('#marqueeWrapper').hide();
-        });
+      let _lastMarquee = null;
+      function capNhatMarqueeRealtime() {
+        fetch(`${API_BASE}/api/thong-bao-chi-tiet`)
+          .then(r => r.json())
+          .then(res => {
+            const txt = (res && res.success ? (res.currentActiveText || res.defaultText || "") : "").trim();
+            if (txt === _lastMarquee) return;
+            const isFirst = _lastMarquee === null;
+            _lastMarquee = txt;
+            if (txt !== "") {
+              $('#marqueeText').html(`<span>${txt}</span>`);
+              if (isFirst) $('#marqueeWrapper').css('display', 'flex');
+              else $('#marqueeWrapper').css('display', 'flex').hide().fadeIn(300);
+            } else {
+              if (isFirst) $('#marqueeWrapper').hide();
+              else $('#marqueeWrapper').fadeOut(300);
+            }
+          }).catch(() => {
+            if (_lastMarquee === null) $('#marqueeWrapper').hide();
+          });
+      }
+      capNhatMarqueeRealtime();
+      setInterval(() => { if (!document.hidden) capNhatMarqueeRealtime(); }, 30000);
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) capNhatMarqueeRealtime(); });
 
       $('.select2-search').select2({
         language: { noResults: () => "Không tìm thấy kết quả phù hợp" }
