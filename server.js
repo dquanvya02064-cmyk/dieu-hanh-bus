@@ -1395,10 +1395,7 @@ app.post('/api/admin/quet-bieu-do-ai', verifyAdmin, async (req, res) => {
   try {
     const apiKey = (process.env.GEMINI_API_KEY || '').trim();
     if (!apiKey) {
-      return res.status(400).json({
-        success: false,
-        message: 'Chưa cấu hình GEMINI_API_KEY trên Render (Environment Variables). Vui lòng thêm key miễn phí từ aistudio.google.com!'
-      });
+      return res.status(400).json({ success: false, message: 'Chưa cấu hình GEMINI_API_KEY trên Render!' });
     }
 
     const { fileDataBase64, mimeType } = req.body || {};
@@ -1407,55 +1404,47 @@ app.post('/api/admin/quet-bieu-do-ai', verifyAdmin, async (req, res) => {
     }
 
     const cleanBase64 = String(fileDataBase64).replace(/^data:[^;]+;base64,/, '');
-    const prompt = `Bạn là chuyên gia số hóa biểu đồ chạy xe buýt Việt Nam (Transerco, Liên Ninh, Bảo Yến, VinFast Green Bus...).
-Hãy đọc kỹ file Ảnh hoặc PDF biểu đồ chạy xe đính kèm và trích xuất chính xác thành JSON thuần túy (không bọc markdown \`\`\`json).
+    const prompt = [
+      'Trích xuất bảng biểu đồ chạy xe buýt từ ảnh/PDF thành JSON gọn (không bọc markdown):',
+      '{',
+      '  "tieuDe": ["Dòng tiêu đề 1", "Dòng tiêu đề 2"],',
+      '  "ngayHieuLuc": "DD/MM/YYYY hoặc rỗng",',
+      '  "ngayApDungList": ["2","3","4","5","6","7","CN"],',
+      '  "dauA": "Tên đầu A",',
+      '  "dauB": "Tên đầu B",',
+      '  "tableLines": [',
+      '    "NỐT|ĐẦU A-B|GIỜ XE XUẤT BẾN||||LƯỢT",',
+      '    "1|Đầu A|5:00||7:30||12",',
+      '    "|Đầu B||6:15||8:45|"',
+      '  ],',
+      '  "warnings": []',
+      '}',
+      'Quy tắc:',
+      '- Mỗi nốt xe = ĐÚNG 2 dòng liên tiếp trong tableLines, ngăn cách cột bằng dấu |',
+      '- Dòng 1: số Nốt | tên Đầu A | các giờ đầu A hoặc "Thay ca" | tổng Lượt.',
+      '- Dòng 2: rỗng | tên Đầu B | các giờ đầu B | rỗng.',
+      '- Giữ đúng vị trí cột trống giữa các dấu | để các cột giờ thẳng hàng dọc (cả mẫu lệch cột lẫn mẫu 2 giờ trên/dưới trong 1 ô).',
+      '- Sửa lỗi gõ lặp kiểu "10:50 :50" -> "10:50" và ghi vào warnings.',
+      '- ngayApDungList: cả tuần -> ["2","3","4","5","6","7","CN"], T2-T7 -> ["2","3","4","5","6","7"], CN -> ["CN"].'
+    ].join('\n');
 
-Cấu trúc JSON bắt buộc:
-{
-  "tieuDe": ["Dòng tiêu đề 1", "Dòng tiêu đề 2 (nếu có)"],
-  "ngayHieuLuc": "DD/MM/YYYY hoặc rỗng nếu không ghi",
-  "ngayApDungList": ["2","3","4","5","6","7","CN"],
-  "dauA": "Tên bến đầu A",
-  "dauB": "Tên bến đầu B",
-  "rows": [
-    ["NỐT", "ĐẦU A-B", "GIỜ XE XUẤT BẾN", "", "", "LƯỢT"],
-    ["1", "Tên đầu A", "5:00", "", "7:30", "12"],
-    ["", "Tên đầu B", "", "6:15", "", ""]
-  ],
-  "warnings": ["Ghi chú nếu phát hiện lỗi gõ nhầm trên bảng gốc hoặc lệch tổng lượt"]
-}
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const errors = [];
 
-QUY TẮC BẮT BUỘC:
-1. Mỗi NỐT xe (1, 2, 3...) PHẢI được biểu diễn bằng ĐÚNG 2 DÒNG liên tiếp trong "rows":
-   - Dòng trên (Đầu A): cột 0 là số Nốt ("1", "2"...), cột 1 là tên Đầu A, các cột giữa là giờ tương ứng của Đầu A (hoặc "Thay ca"), cột cuối cùng là tổng số Lượt của nốt đó.
-   - Dòng dưới (Đầu B): cột 0 để rỗng "", cột 1 là tên Đầu B, các cột giữa là giờ tương ứng của Đầu B, cột cuối cùng để rỗng "".
-2. Giữ ĐÚNG căn chỉnh cột theo chiều dọc của bảng gốc:
-   - Nếu mẫu bảng chỉ có 1 mốc giờ/ô đặt lệch dòng (như Tuyến 72: nốt 1-5 xuất phát từ đầu A ở cột đầu, nốt 6-10 xuất phát từ đầu B ở cột đầu), ô nào trống ở dòng trên hoặc dòng dưới thì điền chuỗi rỗng "" để giữ thẳng cột.
-   - Nếu mẫu bảng có 2 mốc giờ trên/dưới trong cùng 1 ô (như Tuyến 90), đưa mốc giờ trên vào dòng Đầu A và mốc giờ dưới vào dòng Đầu B ở cùng chỉ số cột.
-   - Các cột trống trước khi xe vào nốt (ví dụ nốt 1-5 bắt đầu muộn hơn nốt 6-9) phải giữ nguyên các ô rỗng "" ở đầu để thẳng cột với các nốt khác.
-3. Ô "Thay ca" ghi đúng chữ "Thay ca" ở dòng Đầu A và "" ở dòng Đầu B tại đúng cột đó.
-4. Chuẩn hóa giờ dạng H:MM hoặc HH:MM (ví dụ "6:30", "14:40"). Nếu gặp lỗi đánh máy lặp chữ trên file gốc (ví dụ "10:50 :50"), hãy sửa thành "10:50" và ghi chú vào mảng "warnings".
-5. Tất cả các dòng trong "rows" phải có CÙNG SỐ LƯỢNG PHẦN TỬ (cùng số cột).
-6. "ngayApDungList": nếu tiêu đề ghi "CÁC NGÀY TRONG TUẦN" hoặc "THỨ 2 ĐẾN CHỦ NHẬT" -> ["2","3","4","5","6","7","CN"]; "THỨ 2 ĐẾN THỨ 7" -> ["2","3","4","5","6","7"]; "CHỦ NHẬT" -> ["CN"]; không rõ thì [].`;
-
-    const models = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-3.8-flash"];
-    let parsedResult = null;
-    let errors = [];
-
-    const tryModel = async (modelName, disableThinking = true) => {
-      const cleanModel = modelName.replace(/^models\//, "");
+    const callGemini = async (modelName, disableThinking = true) => {
+      const cleanModel = String(modelName).replace(/^models\//, '');
       const genConfig = {
         temperature: 0.1,
-        responseMimeType: "application/json"
+        responseMimeType: 'application/json'
       };
       if (disableThinking) {
         genConfig.thinkingConfig = { thinkingBudget: 0 };
       }
       const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        'https://generativelanguage.googleapis.com/v1beta/models/' + cleanModel + ':generateContent?key=' + encodeURIComponent(apiKey),
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           signal: AbortSignal.timeout(25000),
           body: JSON.stringify({
             contents: [{
@@ -1470,34 +1459,90 @@ QUY TẮC BẮT BUỘC:
       );
       const data = await resp.json();
       if (!resp.ok) {
-        const msg = data?.error?.message || ("HTTP " + resp.status);
+        const msg = data?.error?.message || ('HTTP ' + resp.status);
         if (disableThinking && /thinking/i.test(msg)) {
-          return tryModel(modelName, false);
+          return callGemini(cleanModel, false);
         }
-        throw new Error(`${cleanModel}: ${msg}`);
+        const err = new Error(cleanModel + ': ' + msg);
+        err.status = resp.status;
+        err.rawMsg = msg;
+        throw err;
       }
-      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      const cleanedJson = rawText.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const cleanedJson = rawText.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
       return JSON.parse(cleanedJson);
     };
 
-    for (const m of models) {
+    let parsedResult = null;
+
+    // Thử gemini-3.8-flash tối đa 3 lần (tự đợi 1.5s nếu Google báo high demand / 503)
+    for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        parsedResult = await tryModel(m, true);
+        parsedResult = await callGemini('gemini-3.8-flash', true);
         break;
       } catch (e) {
-        errors.push(e.message);
+        errors.push('[Lần ' + attempt + '] ' + e.message);
+        const isTransient = e.status === 503 || e.status === 429 || /high demand|overloaded|unavailable|try again/i.test(e.rawMsg || '');
+        if (isTransient && attempt < 3) {
+          await sleep(1500 * attempt);
+          continue;
+        }
+        break;
       }
     }
 
-    if (!parsedResult || !Array.isArray(parsedResult.rows)) {
+    // Dự phòng: tự dò model mới nhất khả dụng trên API key nếu 3.8-flash đang nghẽn
+    if (!parsedResult) {
+      try {
+        const listResp = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + encodeURIComponent(apiKey));
+        const listData = await listResp.json();
+        const fallbacks = (listData.models || [])
+          .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+          .map(m => m.name.replace(/^models\//, ''))
+          .filter(n => /gemini-(3|4)/i.test(n) && !/3\.8-flash$|tts|image|audio|computer|deep-research/i.test(n));
+
+        for (const fb of fallbacks.slice(0, 2)) {
+          try {
+            parsedResult = await callGemini(fb, true);
+            break;
+          } catch (e) {
+            errors.push(e.message);
+          }
+        }
+      } catch (e) {
+        errors.push('ListModels: ' + e.message);
+      }
+    }
+
+    if (!parsedResult || (!Array.isArray(parsedResult.tableLines) && !Array.isArray(parsedResult.rows))) {
       return res.status(502).json({
         success: false,
-        message: "AI không bóc tách được bảng dữ liệu: " + (errors.join(" | ") || "Phản hồi không hợp lệ")
+        message: 'AI chưa bóc tách được bảng: ' + (errors.join(' | ') || 'Lỗi định dạng')
       });
     }
 
-    res.json({ success: true, data: parsedResult });
+    let rows = Array.isArray(parsedResult.tableLines)
+      ? parsedResult.tableLines.map(line => String(line).split('|').map(c => c.trim()))
+      : parsedResult.rows;
+    const maxCols = Math.max(...rows.map(r => r.length), 1);
+    rows = rows.map(r => {
+      const copy = [...r];
+      while (copy.length < maxCols) copy.push('');
+      return copy;
+    });
+
+    res.json({
+      success: true,
+      data: {
+        tieuDe: parsedResult.tieuDe || [],
+        ngayHieuLuc: parsedResult.ngayHieuLuc || '',
+        ngayApDungList: parsedResult.ngayApDungList || [],
+        dauA: parsedResult.dauA || '',
+        dauB: parsedResult.dauB || '',
+        rows,
+        warnings: parsedResult.warnings || []
+      }
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Lỗi xử lý AI: ' + err.message });
   }

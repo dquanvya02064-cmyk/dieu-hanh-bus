@@ -2592,8 +2592,15 @@
     async function guiFileQuetAiBieuDo(file) {
       if (!file) return;
       const $status = $('#aiScanStatusBox');
-      $status.show().css({ background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8' })
-        .html(`<i class="fa fa-spinner fa-spin"></i> Đang dùng AI phân tích file <b>${file.name || 'ảnh dán'}</b>, vui lòng đợi 5–10 giây...`);
+      const startTime = Date.now();
+      const renderTimer = () => {
+        const sec = ((Date.now() - startTime) / 1000).toFixed(0);
+        $status.show().css({ background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8' })
+          .html('<i class="fa fa-spinner fa-spin"></i> Đang quét file <b>' + (file.name || 'ảnh dán') + '</b> bằng Gemini 3.8 Flash... (' + sec + 's)');
+      };
+      renderTimer();
+      const timerId = setInterval(renderTimer, 1000);
+
       try {
         const payload = await new Promise((resolve, reject) => {
           if (file.type && file.type.startsWith('image/')) {
@@ -2601,13 +2608,13 @@
             const url = URL.createObjectURL(file);
             img.onload = () => {
               URL.revokeObjectURL(url);
-              const maxW = 1600;
+              const maxW = 1400;
               let w = img.width, h = img.height;
               if (w > maxW) { h = Math.round(h * (maxW / w)); w = maxW; }
               const canvas = document.createElement('canvas');
               canvas.width = w; canvas.height = h;
               canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-              resolve({ data: canvas.toDataURL('image/jpeg', 0.85), mime: 'image/jpeg' });
+              resolve({ data: canvas.toDataURL('image/jpeg', 0.82), mime: 'image/jpeg' });
             };
             img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Không đọc được ảnh.')); };
             img.src = url;
@@ -2618,36 +2625,51 @@
             reader.readAsDataURL(file);
           }
         });
-        const res = await fetch(`${API_BASE}/api/admin/quet-bieu-do-ai`, {
+
+        const controller = new AbortController();
+        const abortTimer = setTimeout(() => controller.abort(), 60000);
+        const res = await fetch(API_BASE + '/api/admin/quet-bieu-do-ai', {
           method: 'POST',
+          signal: controller.signal,
           headers: { 'Content-Type': 'application/json', 'x-admin-user': sessionStorage.getItem('admin_user') },
           body: JSON.stringify({ fileDataBase64: payload.data, mimeType: payload.mime })
-        }).then(r => r.json());
+        }).then(r => r.json()).finally(() => clearTimeout(abortTimer));
+
+        clearInterval(timerId);
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
         if (!res || !res.success || !res.data) {
           $status.css({ background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C' })
-            .html(`<i class="fa fa-times-circle"></i> ${(res && res.message) || 'Quét AI thất bại.'}`);
+            .html('<i class="fa fa-times-circle"></i> ' + ((res && res.message) || 'Quét AI thất bại.'));
           return;
         }
+
         const ai = res.data;
         const allRows = [];
         if (Array.isArray(ai.tieuDe)) ai.tieuDe.forEach(l => { if (l && String(l).trim()) allRows.push([String(l).trim()]); });
         if (Array.isArray(ai.rows)) ai.rows.forEach(r => { if (Array.isArray(r)) allRows.push(r.map(c => String(c ?? '').trim())); });
         $('#txtRawData').val(allRows.map(r => r.join('\t')).join('\n'));
         capNhatPreviewBieuDo();
+
         if (ai.ngayHieuLuc && !$('#txtNgayBatDau').val().trim()) $('#txtNgayBatDau').val(ai.ngayHieuLuc);
         if (Array.isArray(ai.ngayApDungList) && ai.ngayApDungList.length > 0) {
           $('.chk-ngay-le').prop('checked', false);
-          ai.ngayApDungList.forEach(d => $(`.chk-ngay-le[value="${d}"]`).prop('checked', true));
+          ai.ngayApDungList.forEach(d => $('.chk-ngay-le[value="' + d + '"]').prop('checked', true));
         }
         if (typeof onCheckboxDayChange === 'function') onCheckboxDayChange();
+
         const warnHtml = (Array.isArray(ai.warnings) && ai.warnings.length > 0)
-          ? `<div style="margin-top:5px;color:#B45309;"><i class="fa fa-exclamation-triangle"></i> <b>Lưu ý từ AI:</b> ${ai.warnings.join(' | ')}</div>` : '';
+          ? '<div style="margin-top:5px;color:#B45309;"><i class="fa fa-exclamation-triangle"></i> <b>Lưu ý từ AI:</b> ' + ai.warnings.join(' | ') + '</div>' : '';
         $status.css({ background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46' })
-          .html(`<i class="fa fa-check-circle"></i> Đã bóc tách xong (<b>${ai.dauA || 'Đầu A'}</b> – <b>${ai.dauB || 'Đầu B'}</b>). Kiểm tra bảng xem trước rồi bấm <b>Lưu biểu đồ</b>!${warnHtml}`);
-        showToast('Quét biểu đồ từ Ảnh/PDF thành công!', 'success');
+          .html('<i class="fa fa-check-circle"></i> Xong trong <b>' + elapsed + 's</b> (<b>' + (ai.dauA || 'Đầu A') + '</b> – <b>' + (ai.dauB || 'Đầu B') + '</b>). Kiểm tra bảng xem trước rồi bấm <b>Lưu biểu đồ</b>!' + warnHtml);
+        showToast('Quét xong biểu đồ trong ' + elapsed + 's!', 'success');
       } catch (err) {
+        clearInterval(timerId);
+        const msg = err && err.name === 'AbortError'
+          ? 'Quá thời gian chờ 60s. Vui lòng bấm thử lại!'
+          : (err.message || err);
         $status.css({ background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C' })
-          .html(`<i class="fa fa-times-circle"></i> Lỗi: ${err.message || err}`);
+          .html('<i class="fa fa-times-circle"></i> Lỗi: ' + msg);
       }
     }
 
