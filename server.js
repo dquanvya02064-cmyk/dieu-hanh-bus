@@ -625,7 +625,7 @@ app.get('/api/thong-bao-chi-tiet', (req, res, next) => {
     if (activeTexts.length > 0) {
       finalActiveText = activeTexts.join("    •    ");
     } else {
-      finalActiveText = raw.thongBaoChay || "Hệ thống điều hành xe buýt Hà Nội";
+      finalActiveText = String(raw.thongBaoChay || "").trim();
     }
 
     if (req.query.admin === 'true') {
