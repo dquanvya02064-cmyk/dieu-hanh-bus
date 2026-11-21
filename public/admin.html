@@ -24,7 +24,7 @@
     }
 
     button, .btn, select, input, textarea, .sidebar-menu li a, .nav-btn {
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
       font-size: 12px;
       -webkit-tap-highlight-color: transparent;
       transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.2s ease, box-shadow 0.2s ease;
@@ -123,7 +123,7 @@
     }
     .form-control:focus { border-color: #3B86C4; box-shadow: 0 0 0 3px rgba(59, 134, 196, 0.15); }
     .form-control[readonly] { background-color: #EBF2F8; color: #555; cursor: not-allowed; }
-    textarea.form-control { height: 90px; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; max-width: 100%; resize: vertical; }
+    textarea.form-control { height: 90px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, Arial, sans-serif; max-width: 100%; resize: vertical; }
 
     .btn {
       padding: 6px 12px; font-size: 12px; font-weight: bold; border-radius: 6px;
@@ -167,9 +167,9 @@
 
     .select2-container { width: 100% !important; max-width: 100% !important; font-size: 12px !important; }
     .select2-container .select2-selection--single { height: 32px !important; border: 1px solid #ccc !important; border-radius: 6px !important; display: flex; align-items: center; }
-    .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 30px !important; font-size: 12px !important; color: #333 !important; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif !important; }
+    .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 30px !important; font-size: 12px !important; color: #333 !important; font-family: 'Inter', -apple-system, BlinkMacSystemFont, Arial, sans-serif !important; }
     .select2-container--default .select2-selection--single .select2-selection__arrow { height: 30px !important; }
-    .select2-dropdown { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif !important; font-size: 12px !important; }
+    .select2-dropdown { font-family: 'Inter', -apple-system, BlinkMacSystemFont, Arial, sans-serif !important; font-size: 12px !important; }
 
     #toast-container { position: fixed; top: 20px; right: 20px; z-index: 999999; display: flex; flex-direction: column; gap: 10px; }
     .custom-toast {
@@ -223,6 +223,9 @@
   .compact-s2 + .select2-container .select2-selection--single .select2-selection__rendered { line-height: 26px !important; font-size: 11px !important; }
   .compact-s2 + .select2-container .select2-selection--single .select2-selection__arrow { height: 26px !important; }
 </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body class="locked">
 
