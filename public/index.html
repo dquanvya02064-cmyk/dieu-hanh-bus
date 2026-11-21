@@ -720,42 +720,53 @@
       const ngayApDung = $('#selNgayApDung').val();
       const thuDaChon = $('input[name="rdDay"]:checked').val() || "T2";
 
-      if (!xn || !tuyen || !ngayApDung) {
-        hienThongBaoBieuDo("Vui lòng chọn đầy đủ Đơn vị chủ quản, Tuyến xe và Ngày áp dụng!", "warn");
+      if (!xn || !tuyen) {
+        hienThongBaoBieuDo("Vui lòng chọn đầy đủ Đơn vị chủ quản và Tuyến xe!", "warn");
         return;
       }
 
-      const tabName = timTabPhuHop(xn, tuyen, ngayApDung, thuDaChon);
-      if (!tabName) {
-        $("#viewerWrapper, #routeSchemaWrapper").hide(); hienThongBaoBieuDo("Tuyến này chưa có biểu đồ chạy xe phù hợp cho ngày đã chọn.", "warn");
-        return;
-      }
-
+      const tabName = ngayApDung ? timTabPhuHop(xn, tuyen, ngayApDung, thuDaChon) : null;
       const $btn = $('.btn-view');
       $btn.html('<i class="fa fa-spinner fa-spin"></i> Đang tải...').prop('disabled', true);
-      $('#viewerWrapper').show();
 
       try {
         const [resTable, resTuyen] = await Promise.all([
-          fetch(`${API_BASE}/api/table-data?tab=${encodeURIComponent(tabName)}&tuyen=${encodeURIComponent(tuyen)}`).then(r => r.json()),
+          tabName
+            ? fetch(`${API_BASE}/api/table-data?tab=${encodeURIComponent(tabName)}&tuyen=${encodeURIComponent(tuyen)}`).then(r => r.json())
+            : Promise.resolve(null),
           fetch(`${API_BASE}/api/chi-tiet-tuyen?tuyen=${encodeURIComponent(tuyen)}`).then(r => r.json()).catch(() => ({ success: false }))
         ]);
 
         $btn.html('<i class="fa fa-eye"></i> Xem Biểu Đồ').prop('disabled', false);
-        
+
+        const hasRouteDetails = resTuyen && resTuyen.success && (
+          (resTuyen.tramDi && resTuyen.tramDi.trim() !== "") ||
+          (resTuyen.tramVe && resTuyen.tramVe.trim() !== "") ||
+          (resTuyen.dauA && resTuyen.dauA.trim() !== "") ||
+          (resTuyen.dauB && resTuyen.dauB.trim() !== "")
+        );
+
+        if (hasRouteDetails) {
+          $('#schemaTitle').text(tuyen);
+          const tramDiStr = resTuyen.tramDi || "";
+          const tramVeStr = resTuyen.tramVe || "";
+          const dauA = resTuyen.dauA || "Đầu A";
+          const dauB = resTuyen.dauB || "Đầu B";
+          veSoDoTuyenSVG(dauA, dauB, tramDiStr, tramVeStr);
+          $('#routeSchemaWrapper').show();
+        } else {
+          $('#routeSchemaWrapper').hide();
+        }
+
+        if (!tabName) {
+          $('#viewerWrapper').hide();
+          hienThongBaoBieuDo("Tuyến này chưa có biểu đồ chạy xe phù hợp cho ngày đã chọn.", "warn");
+          return;
+        }
+
         anThongBaoBieuDo();
+        $('#viewerWrapper').show();
         hienThiBangHTML(resTable);
-
-        $('#schemaTitle').text(tuyen);
-        
-        let tramDiStr = (resTuyen && resTuyen.success) ? (resTuyen.tramDi || "") : "";
-        let tramVeStr = (resTuyen && resTuyen.success) ? (resTuyen.tramVe || "") : "";
-        let dauA = (resTuyen && resTuyen.success) ? (resTuyen.dauA || "Đầu A") : "Đầu A";
-        let dauB = (resTuyen && resTuyen.success) ? (resTuyen.dauB || "Đầu B") : "Đầu B";
-
-        veSoDoTuyenSVG(dauA, dauB, tramDiStr, tramVeStr);
-        $('#routeSchemaWrapper').show();
-
       } catch (err) {
         $btn.html('<i class="fa fa-eye"></i> Xem Biểu Đồ').prop('disabled', false);
         hienThongBaoBieuDo("Lỗi kết nối máy chủ: " + err, "error");
@@ -960,7 +971,7 @@
 
       const rawData = res.rawData;
       if (!rawData || rawData.length === 0) {
-        $("#viewerWrapper, #routeSchemaWrapper").hide(); hienThongBaoBieuDo("Biểu đồ này hiện chưa có dữ liệu chi tiết.", "warn");
+        $("#viewerWrapper").hide(); hienThongBaoBieuDo("Biểu đồ này hiện chưa có dữ liệu chi tiết.", "warn");
         return;
       }
 
