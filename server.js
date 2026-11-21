@@ -1167,41 +1167,42 @@ app.get('/api/danh-muc', (req, res, next) => {
     let danhMucList = [];
     let allRoutesList = [];
     const activeRouteNames = new Set();
-
+    const routeByCode = new Map();
+    const normCode = (v) => {
+      const m = String(v || '').trim().match(/^([0-9A-Za-z]+)/);
+      return m ? m[1].toUpperCase().replace(/[^0-9A-Z]/g, '') : '';
+    };
     if (raw.tuyenList && typeof raw.tuyenList === 'object') {
       for (let k in raw.tuyenList) {
         const item = raw.tuyenList[k];
+        const code = normCode(item.maTuyen || k);
+        if (code) routeByCode.set(code, item);
         if (isAdmin || item.status !== 'locked') {
           activeRouteNames.add(item.tenTuyen || k);
           allRoutesList.push({
-            maTuyen: item.maTuyen || k,
-            tenTuyen: item.tenTuyen || k,
-            xn: item.xn || "",
-            dauA: item.dauA || "",
-            dauB: item.dauB || "",
-            tramDi: item.tramDi || "",
-            tramVe: item.tramVe || "",
-            soXeVd: item.soXeVd || 0,
-            soXeKh: item.soXeKh || item.soXe || 0,
-            loaiXe: item.loaiXe || "",
-            sucChua: item.sucChua || "",
-            status: item.status || "active"
+            maTuyen: item.maTuyen || k, tenTuyen: item.tenTuyen || k, xn: item.xn || "",
+            dauA: item.dauA || "", dauB: item.dauB || "", tramDi: item.tramDi || "", tramVe: item.tramVe || "",
+            soXeVd: item.soXeVd || 0, soXeKh: item.soXeKh || item.soXe || 0,
+            loaiXe: item.loaiXe || "", sucChua: item.sucChua || "", status: item.status || "active"
           });
         }
       }
     }
-
     if (canViewAdminCharts && Array.isArray(raw.bieuDoList)) {
       danhMucList = raw.bieuDoList
-        .filter(item => isAdmin || activeRouteNames.has(item.tuyen))
-        .map(item => ({
-          xn: item.xn || "",
-          tuyen: item.tuyen || "",
-          bieuDo: item.bieuDo || "",
-          tenTab: item.tenTab || ""
+        .map(item => {
+          const code = normCode(item.tuyen) || normCode(item.tenTab);
+          const matchedRoute = code ? routeByCode.get(code) : null;
+          return { item, code, matchedRoute };
+        })
+        .filter(({ item, matchedRoute }) => isAdmin ? true : (matchedRoute ? matchedRoute.status !== 'locked' : activeRouteNames.has(item.tuyen)))
+        .map(({ item, code, matchedRoute }) => ({
+          maTuyen: (matchedRoute && matchedRoute.maTuyen) || code || "",
+          xn: (matchedRoute && matchedRoute.xn) || item.xn || "",
+          tuyen: (matchedRoute && matchedRoute.tenTuyen) || item.tuyen || "",
+          bieuDo: item.bieuDo || "", tenTab: item.tenTab || ""
         }));
     }
-
     const dashboard = isAdmin && hasAdminPermission(req.adminUser, 'dashboard.view')
       ? Object.values(raw.tuyenList || {}).reduce((summary, route) => {
         const vehicles = parseInt(route.soXeVd || route.soXe, 10) || 0;

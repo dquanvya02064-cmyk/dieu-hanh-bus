@@ -368,6 +368,7 @@
         </div>
 
         <!-- 2. KHUNG BẢNG GIỜ BIỂU ĐỒ -->
+        <div id="scheduleInlineNotice" style="display:none;margin:12px 0;padding:10px 14px;border-radius:6px;font-size:13px;align-items:center;gap:8px;"></div>
         <div id="viewerWrapper" class="viewer-wrapper">
           <div class="table-scroll">
             <table id="mainScheduleTable" class="table-schedule"></table>
@@ -609,40 +610,42 @@
       return { dayRange, dateStr, dateObj, sortKey };
     }
 
+    function extractMaTuyenIdx(str) {
+      const m = String(str || '').trim().match(/^([0-9A-Za-z]+)/);
+      return m ? m[1].toUpperCase().replace(/[^0-9A-Z]/g, '') : '';
+    }
+    function hienThongBaoBieuDo(msg, type = 'warn') {
+      const $el = $('#scheduleInlineNotice');
+      const st = type === 'error' ? 'background:#FDEDEC;color:#922B21;border:1px solid #F5B7B1;' : 'background:#FEF9E7;color:#7D6608;border:1px solid #F9E79F;';
+      $el.attr('style', 'display:flex;margin:12px 0;padding:10px 14px;border-radius:6px;font-size:13px;align-items:center;gap:8px;' + st)
+         .html(`<i class="fa ${type === 'error' ? 'fa-exclamation-triangle' : 'fa-info-circle'}"></i><span>${msg}</span>`);
+    }
+    function anThongBaoBieuDo() { $('#scheduleInlineNotice').hide().empty(); }
+    function locDanhMucTheoTuyen(xn, tuyen) {
+      const maTarget = extractMaTuyenIdx(tuyen), tuyenUpper = String(tuyen || '').trim().toUpperCase();
+      const isSame = (item) => {
+        const itemMa = extractMaTuyenIdx(item.maTuyen || item.tuyen || item.tenTab);
+        if (maTarget && itemMa) return itemMa === maTarget;
+        const tStr = String(item.tuyen || '').trim().toUpperCase();
+        return tStr === tuyenUpper || tStr.startsWith(tuyenUpper + ' -') || tStr.startsWith(tuyenUpper + '.');
+      };
+      const byXn = danhMucData.filter(item => (!xn || item.xn === xn) && isSame(item));
+      return byXn.length ? byXn : danhMucData.filter(isSame);
+    }
     function onTuyenChange() {
-      const xn = $('#selXn').val();
-      const tuyen = $('#selTuyen').val();
-      const $selNgay = $('#selNgayApDung');
-
+      const xn = $('#selXn').val(), tuyen = $('#selTuyen').val(), $selNgay = $('#selNgayApDung');
+      anThongBaoBieuDo();
       $selNgay.empty().append('<option value="">Chọn ngày áp dụng</option>');
       if (!xn || !tuyen) { $selNgay.trigger('change'); return; }
-
-      const bieuDoCuaTuyen = danhMucData.filter(item => item.xn === xn && (item.tuyen === tuyen || item.tuyen.startsWith(tuyen)));
-      
       const dateSet = new Set();
-      bieuDoCuaTuyen.forEach(item => {
+      locDanhMucTheoTuyen(xn, tuyen).forEach(item => {
         const info = parseTabInfo(item.tenTab || item.bieuDo || "");
-        if (info.sortKey !== "00000000") {
-          dateSet.add(info.dateStr); 
-        }
+        if (info.sortKey !== "00000000") dateSet.add(info.dateStr);
       });
-
-      const sortedDates = Array.from(dateSet).sort((a, b) => {
-        const pA = parseTabInfo(a);
-        const pB = parseTabInfo(b);
-        return pB.sortKey.localeCompare(pA.sortKey);
-      });
-
-      sortedDates.forEach(dateLabel => {
-        $selNgay.append(new Option(dateLabel, dateLabel));
-      });
-
-      if (sortedDates.length > 0) {
-        $selNgay.val(sortedDates[0]).trigger('change');
-      } else {
-        $selNgay.append(new Option("Hiện hành", "Hiện hành"));
-        $selNgay.val("Hiện hành").trigger('change');
-      }
+      const sortedDates = Array.from(dateSet).sort((a, b) => parseTabInfo(b).sortKey.localeCompare(parseTabInfo(a).sortKey));
+      sortedDates.forEach(d => $selNgay.append(new Option(d, d)));
+      if (sortedDates.length) $selNgay.val(sortedDates[0]).trigger('change');
+      else { $selNgay.append(new Option("Hiện hành", "Hiện hành")); $selNgay.val("Hiện hành").trigger('change'); }
     }
 
     function onDayChange() {
@@ -653,38 +656,12 @@
 
     function timTabPhuHop(xn, tuyen, ngayChonStr, thuDaChon) {
       if (!tuyen) return null;
-      
-      let dsTabCuaTuyen = danhMucData.filter(item => {
-        let matchXn = !xn || item.xn === xn;
-        let tStr = String(item.tuyen || "").trim().toUpperCase();
-        let targetTuyen = tuyen.trim().toUpperCase();
-        return matchXn && (tStr === targetTuyen || tStr.startsWith(targetTuyen + " -") || tStr.startsWith(targetTuyen + "."));
-      });
-
-      if (dsTabCuaTuyen.length === 0) {
-        dsTabCuaTuyen = danhMucData.filter(item => {
-          let tStr = String(item.tuyen || "").trim().toUpperCase();
-          return tStr.includes(tuyen.trim().toUpperCase());
-        });
-      }
-
-      if (dsTabCuaTuyen.length === 0) return null;
-
-      let dsCungNgay = dsTabCuaTuyen.filter(item => {
-        let info = parseTabInfo(item.tenTab);
-        return info.dateStr === ngayChonStr;
-      });
-
-      if (dsCungNgay.length === 0) {
-        return dsTabCuaTuyen[0].tenTab || null;
-      }
-
-      let matchedTab = dsCungNgay.find(item => {
-        return kiemTraNgayThuKhop(item.tenTab, thuDaChon);
-      });
-
-      if (matchedTab) return matchedTab.tenTab;
-      return dsCungNgay[0].tenTab || dsTabCuaTuyen[0].tenTab || null;
+      const dsTabCuaTuyen = locDanhMucTheoTuyen(xn, tuyen);
+      if (!dsTabCuaTuyen.length) return null;
+      const dsCungNgay = dsTabCuaTuyen.filter(item => parseTabInfo(item.tenTab).dateStr === ngayChonStr);
+      if (!dsCungNgay.length) return dsTabCuaTuyen[0].tenTab || null;
+      const matched = dsCungNgay.find(item => kiemTraNgayThuKhop(item.tenTab, thuDaChon));
+      return (matched && matched.tenTab) || dsCungNgay[0].tenTab || dsTabCuaTuyen[0].tenTab || null;
     }
 
     function kiemTraNgayThuKhop(tabName, thuDaChon) {
@@ -733,13 +710,13 @@
       const thuDaChon = $('input[name="rdDay"]:checked').val() || "T2";
 
       if (!xn || !tuyen || !ngayApDung) {
-        alert("Vui lòng chọn đầy đủ Đơn vị chủ quản, Tuyến xe và Ngày áp dụng!");
+        hienThongBaoBieuDo("Vui lòng chọn đầy đủ Đơn vị chủ quản, Tuyến xe và Ngày áp dụng!", "warn");
         return;
       }
 
       const tabName = timTabPhuHop(xn, tuyen, ngayApDung, thuDaChon);
       if (!tabName) {
-        alert("Không tìm thấy biểu đồ chạy xe phù hợp cho ngày đã chọn!");
+        $("#viewerWrapper, #routeSchemaWrapper").hide(); hienThongBaoBieuDo("Tuyến này chưa có biểu đồ chạy xe phù hợp cho ngày đã chọn.", "warn");
         return;
       }
 
@@ -755,6 +732,7 @@
 
         $btn.html('<i class="fa fa-eye"></i> Xem Biểu Đồ').prop('disabled', false);
         
+        anThongBaoBieuDo();
         hienThiBangHTML(resTable);
 
         $('#schemaTitle').text(tuyen);
@@ -769,7 +747,7 @@
 
       } catch (err) {
         $btn.html('<i class="fa fa-eye"></i> Xem Biểu Đồ').prop('disabled', false);
-        alert("Lỗi kết nối máy chủ: " + err);
+        hienThongBaoBieuDo("Lỗi kết nối máy chủ: " + err, "error");
       }
     }
 
@@ -872,14 +850,14 @@
 
     function hienThiBangHTML(res) {
       if (!res || !res.success) {
-        alert("Không tải được dữ liệu: " + (res.message || "Lỗi không xác định"));
+        hienThongBaoBieuDo("Không tải được dữ liệu: " + (res.message || "Lỗi không xác định"), "error");
         $('#viewerWrapper').hide();
         return;
       }
 
       const rawData = res.rawData;
       if (!rawData || rawData.length === 0) {
-        alert("Tab này không có dữ liệu!");
+        $("#viewerWrapper, #routeSchemaWrapper").hide(); hienThongBaoBieuDo("Biểu đồ này hiện chưa có dữ liệu chi tiết.", "warn");
         return;
       }
 
