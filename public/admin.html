@@ -214,6 +214,15 @@
   
     #sec-xe input, #sec-xe select, #sec-xe button, #sec-xe textarea, #modalSuaXeHangLoat input, #modalSuaXeHangLoat select, #modalSuaXeHangLoat button, #modalThemXeMoi input, #modalThemXeMoi select, #modalThemXeMoi button { font-family: inherit; }
   </style>
+<style>/* S2_UNIFIED_STYLE */
+  .select2-container--open { z-index: 99999 !important; }
+  .select2-container .select2-selection--single { height: 30px !important; border: 1px solid #ccc !important; border-radius: 4px !important; display: flex !important; align-items: center !important; background: #fff !important; }
+  .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 28px !important; font-size: 12px !important; padding-left: 8px !important; padding-right: 24px !important; color: #333 !important; }
+  .select2-container--default .select2-selection--single .select2-selection__arrow { height: 28px !important; }
+  .compact-s2 + .select2-container .select2-selection--single { height: 28px !important; }
+  .compact-s2 + .select2-container .select2-selection--single .select2-selection__rendered { line-height: 26px !important; font-size: 11px !important; }
+  .compact-s2 + .select2-container .select2-selection--single .select2-selection__arrow { height: 26px !important; }
+</style>
 </head>
 <body class="locked">
 
@@ -285,6 +294,22 @@
           <div id="dashboardRoutesPanel" class="panel-custom">
             <div class="panel-heading"><span><i class="fa fa-list"></i> Danh sách Tuyến & Trạng thái hoạt động</span></div>
             <div class="panel-body">
+              <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; background:#F8FAFC; padding:10px 12px; border:1px solid #D0D7DE; border-radius:6px; margin-bottom:12px;">
+                <div style="min-width:220px; flex:1;">
+                  <select id="filterTongQuanXn" class="form-control" style="width:100%;"><option value="">-- Tất cả đơn vị chủ quản --</option></select>
+                </div>
+                <div style="width:165px;">
+                  <select id="filterTongQuanStatus" class="form-control" style="height:30px; font-size:12px;" onchange="_tqRenderLimit=50; veBangDanhSachTuyen(_sortedRoutesCache);">
+                    <option value="">-- Tất cả trạng thái --</option>
+                    <option value="active">Đang hoạt động</option>
+                    <option value="locked">Tạm dừng / Khóa</option>
+                  </select>
+                </div>
+                <div style="min-width:220px; flex:1.3;">
+                  <input type="text" id="filterTongQuanKeyword" class="form-control" style="height:30px; font-size:12px;" placeholder="Tìm mã tuyến, tên tuyến, dòng xe..." oninput="_tqRenderLimit=50; veBangDanhSachTuyen(_sortedRoutesCache);">
+                </div>
+                <button type="button" class="btn btn-default" style="height:30px; font-size:12px;" onclick="resetBoLocTongQuan()"><i class="fa fa-refresh"></i> Làm mới</button>
+              </div>
               <div class="table-responsive-wrapper">
                 <table class="table-custom">
                   <thead>
@@ -391,7 +416,7 @@
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;background:#EBF2F8;padding:8px 12px;border:1px solid #C4D5E5;border-radius:6px;">
                 <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                   <span id="lblSoXeDaChon" style="font-size:11px;font-weight:bold;color:#1A5276;background:#FFF;padding:4px 8px;border-radius:4px;border:1px solid #C4D5E5;">Đã chọn: 0 xe</span>
-                  <select id="selTuyenChuyenHangLoat" class="form-control" style="width:170px;height:28px;font-size:11px;"><option value="DP">-- Bến Dự Phòng (DP) --</option></select>
+                  <select id="selTuyenChuyenHangLoat" class="form-control compact-s2" style="width:170px;height:28px;font-size:11px;"><option value="DP">-- Bến Dự Phòng (DP) --</option></select>
                   <button type="button" class="btn btn-warning" data-action-permission="fleet.transfer" style="padding:4px 10px;font-size:11px;height:28px;color:#000;" onclick="chuyenTuyenHangLoatTabXe()"><i class="fa fa-exchange"></i> Chuyển tuyến</button>
                   <button type="button" class="btn btn-primary" data-action-permission="fleet.edit" style="padding:4px 10px;font-size:11px;height:28px;" onclick="moModalSuaXeHangLoat()"><i class="fa fa-pencil-square-o"></i> Sửa hàng loạt</button>
                   <button type="button" class="btn btn-danger" data-action-permission="fleet.edit" style="padding:4px 10px;font-size:11px;height:28px;" onclick="xoaXeHangLoatTabXe()"><i class="fa fa-trash"></i> Xóa xe</button>
@@ -408,7 +433,7 @@
               <div id="boxDanNhanhXeTab" style="display:none;margin-bottom:12px;background:#F8FAFC;padding:10px 12px;border:1px solid #D0D7DE;border-radius:6px;">
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;">
                   <span style="font-size:11px;color:#2C3E50;font-weight:bold;"><i class="fa fa-clipboard" style="color:#27AE60;"></i> Dán nhanh từ Excel (Biển số | Chủng loại | Sức chứa | Năm SX):</span>
-                  <select id="selTuyenDanNhanhXe" class="form-control" style="width:210px;height:28px;font-size:11px;"><option value="DP">Nạp vào: Bến Dự Phòng (DP)</option></select>
+                  <select id="selTuyenDanNhanhXe" class="form-control compact-s2" style="width:210px;height:28px;font-size:11px;"><option value="DP">Nạp vào: Bến Dự Phòng (DP)</option></select>
                 </div>
                 <div style="display:flex;gap:8px;">
                   <textarea id="txtImportXeTuyenRieng" class="form-control" style="height:50px;font-size:11px;" placeholder="29F-019.79     Vinfast Green Bus BNE1ELRVN     68 chỗ  2024"></textarea>
@@ -535,6 +560,12 @@
                 </div>
               </div>
 
+              <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; background:#F8FAFC; padding:10px 12px; border:1px solid #D0D7DE; border-radius:6px; margin-bottom:12px;">
+                <div style="flex:1; min-width:240px;">
+                  <input type="text" id="filterXeMauKeyword" class="form-control" style="height:30px; font-size:12px;" placeholder="Tìm kiếm chủng loại xe, sức chứa, năm sản xuất..." oninput="_xmRenderLimit=50; veBangXeMauAdmin();">
+                </div>
+                <button type="button" class="btn btn-default" style="height:30px; font-size:12px;" onclick="$('#filterXeMauKeyword').val(''); _xmRenderLimit=50; veBangXeMauAdmin();"><i class="fa fa-refresh"></i> Làm mới</button>
+              </div>
               <div class="table-responsive-wrapper">
                 <table class="table-custom">
                   <thead>
@@ -610,6 +641,22 @@
 
               <div style="margin-top: 25px; border-top: 1px solid #D0D7DE; padding-top: 15px;">
                 <h4 style="font-size: 13px; color: #2C3E50; margin-bottom: 10px;"><i class="fa fa-exclamation-triangle" style="color:#e67e22;"></i> Kiểm tra trạng thái Biểu đồ các tuyến:</h4>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; background:#F8FAFC; padding:10px 12px; border:1px solid #D0D7DE; border-radius:6px; margin-bottom:12px;">
+                  <div style="min-width:220px; flex:1;">
+                    <select id="filterBieuDoXn" class="form-control" style="width:100%;"><option value="">-- Tất cả đơn vị chủ quản --</option></select>
+                  </div>
+                  <div style="width:175px;">
+                    <select id="filterBieuDoStatus" class="form-control" style="height:30px; font-size:12px;" onchange="_bdRenderLimit=50; veBangTrangThaiBieuDo(_sortedRoutesCache);">
+                      <option value="">-- Tất cả trạng thái --</option>
+                      <option value="has">Đã có biểu đồ</option>
+                      <option value="missing">Thiếu biểu đồ</option>
+                    </select>
+                  </div>
+                  <div style="min-width:220px; flex:1.3;">
+                    <input type="text" id="filterBieuDoKeyword" class="form-control" style="height:30px; font-size:12px;" placeholder="Tìm mã tuyến, tên tuyến, tên file/tab..." oninput="_bdRenderLimit=50; veBangTrangThaiBieuDo(_sortedRoutesCache);">
+                  </div>
+                  <button type="button" class="btn btn-default" style="height:30px; font-size:12px;" onclick="resetBoLocBieuDo()"><i class="fa fa-refresh"></i> Làm mới</button>
+                </div>
                 <div class="table-responsive-wrapper">
                   <table class="table-custom">
                     <thead>
@@ -857,6 +904,9 @@
 
       napDuLieuTong();
       $('#selChonTuyen').on('change', onSelectTuyenChange);
+      $('#filterTongQuanXn').on('change', () => { _tqRenderLimit = 50; veBangDanhSachTuyen(_sortedRoutesCache); });
+      $('#filterBieuDoXn').on('change', () => { _bdRenderLimit = 50; veBangTrangThaiBieuDo(_sortedRoutesCache); });
+      khoiTaoSelect2ToanTrang();
     });
 
     // BẢO MẬT & ĐĂNG NHẬP
@@ -1166,24 +1216,59 @@
     const _viCollator = new Intl.Collator('vi', { numeric: true, sensitivity: 'base' });
     let _sortedRoutesCache = [];
     let _tabDirty = { 'sec-tongquan': true, 'sec-tuyen': true, 'sec-xe': true, 'sec-bieudo': true, 'sec-xemau': true };
-    let _xeRenderLimit = 100;
+    let _xeRenderLimit = 100, _tqRenderLimit = 50, _bdRenderLimit = 50, _xmRenderLimit = 50;
 
     function _escOpt(v) {
       return String(v ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    function khoiTaoSelect2ToanTrang() {
+      const ids = [
+        '#selChonTuyenDeSua', '#selXn', '#selDauA', '#selDauB', '#selChonTuyen',
+        '#filterXeXn', '#filterXeTuyen', '#selTuyenChuyenHangLoat', '#selTuyenDanNhanhXe',
+        '#bulkEditTuyen', '#bulkEditDonVi', '#bulkEditChungLoai',
+        '#addXeTuyen', '#addXeDonVi', '#addXeChungLoai',
+        '#filterTongQuanXn', '#filterBieuDoXn'
+      ];
+      ids.forEach(sel => {
+        const $el = $(sel);
+        if (!$el.length) return;
+        const $modal = $el.closest('#modalSuaXeHangLoat, #modalThemXeMoi');
+        const opts = {
+          width: $el.attr('id') === 'selTuyenChuyenHangLoat' ? '185px' : ($el.attr('id') === 'selTuyenDanNhanhXe' ? '220px' : '100%'),
+          minimumResultsForSearch: 0,
+          language: { noResults: () => "Không tìm thấy kết quả phù hợp" }
+        };
+        if ($modal.length) opts.dropdownParent = $modal;
+        if ($el.data('select2')) {
+          $el.trigger('change.select2');
+        } else {
+          $el.select2(opts);
+        }
+      });
+    }
+
+    $(document).on('select2:open', function() {
+      setTimeout(() => {
+        const field = document.querySelector('.select2-container--open .select2-search__field');
+        if (field) field.focus();
+      }, 10);
+    });
+
     function renderTabNeuCan(sectionId) {
-      if (!_tabDirty[sectionId]) return;
-      _tabDirty[sectionId] = false;
-      if (sectionId === 'sec-tongquan' || sectionId === 'sec-tuyen') {
-        veBangDanhSachTuyen(_sortedRoutesCache);
-      } else if (sectionId === 'sec-bieudo') {
-        veBangTrangThaiBieuDo(_sortedRoutesCache);
-      } else if (sectionId === 'sec-xemau') {
-        if (typeof veBangXeMauAdmin === 'function') veBangXeMauAdmin();
-      } else if (sectionId === 'sec-xe') {
-        capNhatBoLocVaBangXe(true);
+      if (_tabDirty[sectionId]) {
+        _tabDirty[sectionId] = false;
+        if (sectionId === 'sec-tongquan' || sectionId === 'sec-tuyen') {
+          veBangDanhSachTuyen(_sortedRoutesCache);
+        } else if (sectionId === 'sec-bieudo') {
+          veBangTrangThaiBieuDo(_sortedRoutesCache);
+        } else if (sectionId === 'sec-xemau') {
+          veBangXeMauAdmin();
+        } else if (sectionId === 'sec-xe') {
+          capNhatBoLocVaBangXe(true);
+        }
       }
+      khoiTaoSelect2ToanTrang();
     }
 
     function sapXepThongMinh(a, b) {
@@ -1240,6 +1325,14 @@
         doVaoSelect2("selDauA", dsDauBen, "đầu bến A");
         doVaoSelect2("selDauB", dsDauBen, "đầu bến B");
 
+        const sortedXnList = Array.from(dsXn).sort((a, b) => sapXepThongMinh(a, b));
+        let xnFilterOpts = '<option value="">-- Tất cả đơn vị chủ quản --</option>';
+        sortedXnList.forEach(xn => { xnFilterOpts += `<option value="${_escOpt(xn)}">${_escOpt(xn)}</option>`; });
+        const curTqXn = $('#filterTongQuanXn').val() || '';
+        const curBdXn = $('#filterBieuDoXn').val() || '';
+        $('#filterTongQuanXn').html(xnFilterOpts).val(curTqXn);
+        $('#filterBieuDoXn').html(xnFilterOpts).val(curBdXn);
+
         const sortedRoutes = Array.from(mapTuyenChiTiet.values()).sort((a, b) => sapXepThongMinh(a.maTuyen, b.maTuyen));
         _sortedRoutesCache = sortedRoutes;
 
@@ -1255,12 +1348,9 @@
           tuyenOpts += `<option value="${_escOpt(t.tenTuyen)}" data-xn="${_escOpt(t.xn || '')}">${_escOpt(t.tenTuyen)}</option>`;
         });
 
-        const $selSua = $('#selChonTuyenDeSua').html(suaOpts);
-        $selSua.trigger('change.select2');
-
+        $('#selChonTuyenDeSua').html(suaOpts);
         const $selTuyen = $('#selChonTuyen').html(tuyenOpts);
         if (selectedVal) $selTuyen.val(selectedVal);
-        $selTuyen.trigger('change.select2');
 
         capNhatThongKe(resDM.dashboard);
         _tabDirty = { 'sec-tongquan': true, 'sec-tuyen': true, 'sec-xe': true, 'sec-bieudo': true, 'sec-xemau': true };
@@ -1903,10 +1993,9 @@
 
       let xnOpts = '';
       sortedXn.forEach(xn => { xnOpts += `<option value="${_escOpt(xn)}">${_escOpt(xn)}</option>`; });
-      $('#filterXeXn').html('<option value="">-- Tất cả đơn vị chủ quản --</option>' + xnOpts);
+      $('#filterXeXn').html('<option value="">-- Tất cả đơn vị chủ quản --</option>' + xnOpts).val(fXn);
       $('#bulkEditDonVi').html('<option value="">-- Giữ nguyên đơn vị chủ quản --</option>' + xnOpts);
       $('#addXeDonVi').html('<option value="">-- Chọn đơn vị chủ quản --</option>' + xnOpts);
-      if (fXn) $('#filterXeXn').val(fXn);
 
       const routes = _sortedRoutesCache.length ? _sortedRoutesCache : Array.from(mapTuyenChiTiet.values()).sort((a, b) => sapXepThongMinh(a.maTuyen, b.maTuyen));
       let optFilter = '<option value="">-- Tất cả tuyến --</option><option value="DP">DP - Bến Dự Phòng (DP)</option>';
@@ -1925,14 +2014,11 @@
         optAdd += `<option value="${val}">Tuyến ${lbl}</option>`;
       });
 
-      $('#filterXeTuyen').html(optFilter);
-      $('#selTuyenChuyenHangLoat').html(optBatch);
-      $('#selTuyenDanNhanhXe').html(optPaste);
+      $('#filterXeTuyen').html(optFilter).val(fTy);
+      $('#selTuyenChuyenHangLoat').html(optBatch).val(bTy);
+      $('#selTuyenDanNhanhXe').html(optPaste).val(pTy);
       $('#bulkEditTuyen').html(optBulkEdit);
       $('#addXeTuyen').html(optAdd);
-      if (fTy) $('#filterXeTuyen').val(fTy);
-      if (bTy) $('#selTuyenChuyenHangLoat').val(bTy);
-      if (pTy) $('#selTuyenDanNhanhXe').val(pTy);
 
       let mauOpts = '';
       [...(danhMucXeMau || [])].sort((a, b) => sapXepThongMinh(a.chungLoai, b.chungLoai)).forEach(m => {
@@ -1943,6 +2029,7 @@
       $('#bulkEditChungLoai').html('<option value="">-- Giữ nguyên chủng loại hiện tại --</option>' + mauOpts);
       $('#addXeChungLoai').html('<option value="">-- Chọn mác xe mẫu --</option>' + mauOpts);
 
+      khoiTaoSelect2ToanTrang();
       locDanhSachXeTab();
     }
 
@@ -2034,7 +2121,8 @@
     }
 
     function resetBoLocXeTab() {
-      $('#filterXeXn, #filterXeTuyen, #filterXeKeyword').val('');
+      $('#filterXeXn, #filterXeTuyen').val('').trigger('change.select2');
+      $('#filterXeKeyword').val('');
       $('#chkFilterXeActive, #chkFilterXeLocked').prop('checked', true);
       locDanhSachXeTab();
     }
@@ -2246,23 +2334,32 @@
     // SECTION: MÁC XE MẪU
     function veBangXeMauAdmin() {
       let html = '';
-      if (!danhMucXeMau || danhMucXeMau.length === 0) {
-        html = '<tr><td colspan="5" style="text-align:center; color:#999; padding:15px;">Chưa có mác xe mẫu nào! Hãy thêm mới.</td></tr>';
+      const kw = ($('#filterXeMauKeyword').val() || '').trim().toLowerCase();
+      const sorted = [...(danhMucXeMau || [])].sort((a, b) => sapXepThongMinh(a.chungLoai, b.chungLoai));
+      const filtered = kw ? sorted.filter(m => `${m.chungLoai || ''} ${m.sucChua || ''} ${m.namSx || ''}`.toLowerCase().includes(kw)) : sorted;
+
+      if (filtered.length === 0) {
+        html = '<tr><td colspan="5" style="text-align:center; color:#999; padding:18px;">Không tìm thấy mác xe mẫu nào phù hợp!</td></tr>';
       } else {
-        danhMucXeMau.sort((a, b) => sapXepThongMinh(a.chungLoai, b.chungLoai));
-        danhMucXeMau.forEach((m, idx) => {
-          html += `
-            <tr>
-              <td style="text-align:center; font-weight:bold;">${idx + 1}</td>
-              <td><strong>${m.chungLoai}</strong></td>
-              <td>${m.sucChua || '-'}</td>
-              <td><strong>${m.namSx || '-'}</strong></td>
-              <td style="text-align:center;">
-                <button class="btn btn-danger" data-action-permission="vehicleModels.edit" style="padding:2px 6px; font-size:10px; height:26px;" onclick="xoaXeMau('${m.chungLoai.replace(/'/g, "\\'")}', '${m.namSx || ''}')"><i class="fa fa-trash"></i> Xóa</button>
-              </td>
-            </tr>
-          `;
+        const slice = filtered.slice(0, _xmRenderLimit);
+        slice.forEach((m, idx) => {
+          html += `<tr>
+            <td style="text-align:center; font-weight:bold;">${idx + 1}</td>
+            <td><strong>${m.chungLoai}</strong></td>
+            <td>${m.sucChua || '-'}</td>
+            <td><strong>${m.namSx || '-'}</strong></td>
+            <td style="text-align:center;">
+              <button class="btn btn-danger" data-action-permission="vehicleModels.edit" style="padding:2px 6px; font-size:10px; height:26px;" onclick="xoaXeMau('${String(m.chungLoai || '').replace(/'/g, "\\'")}', '${m.namSx || ''}')"><i class="fa fa-trash"></i> Xóa</button>
+            </td>
+          </tr>`;
         });
+        if (filtered.length > slice.length) {
+          html += `<tr><td colspan="5" style="text-align:center; padding:12px; background:#F8FBFF;">
+            <span style="color:#555; font-size:12px; margin-right:12px;">Đang hiển thị <strong>${slice.length}</strong> / <strong>${filtered.length}</strong> mác xe</span>
+            <button type="button" class="btn btn-primary" style="padding:4px 12px; font-size:12px; margin-right:6px;" onclick="_xmRenderLimit+=50; veBangXeMauAdmin();">+ Tải thêm 50 mẫu</button>
+            <button type="button" class="btn btn-default" style="padding:4px 12px; font-size:12px;" onclick="_xmRenderLimit=99999; veBangXeMauAdmin();">Hiển thị tất cả (${filtered.length} mẫu)</button>
+          </td></tr>`;
+        }
       }
       $('#tblDanhSachXeMau').html(html);
     }
@@ -2501,11 +2598,23 @@
       });
     }
 
+    function resetBoLocBieuDo() {
+      $('#filterBieuDoXn').val('').trigger('change.select2');
+      $('#filterBieuDoStatus').val('');
+      $('#filterBieuDoKeyword').val('');
+      _bdRenderLimit = 50;
+      veBangTrangThaiBieuDo(_sortedRoutesCache);
+    }
+
     function veBangTrangThaiBieuDo(sortedRoutes) {
       let html = '';
       if (!sortedRoutes || sortedRoutes.length === 0) {
         html = '<tr><td colspan="5" style="text-align:center; color:#999; padding:15px;">Chưa có tuyến nào!</td></tr>';
       } else {
+        const xnF = ($('#filterBieuDoXn').val() || '').trim().toLowerCase();
+        const stF = ($('#filterBieuDoStatus').val() || '').trim();
+        const kw = ($('#filterBieuDoKeyword').val() || '').trim().toLowerCase();
+
         const chartsByMa = new Map();
         const chartsByTen = new Map();
         (dsBieuDoLuu || []).forEach(b => {
@@ -2528,47 +2637,65 @@
           }
         });
 
+        const matchedItems = [];
         sortedRoutes.forEach(t => {
+          if (xnF && String(t.xn || '').trim().toLowerCase() !== xnF) return;
           const maNorm = chuanHoaMaTuyen(t.maTuyen);
           const tenUpper = String(t.tenTuyen || '').trim().toUpperCase();
-          const matchedSet = new Set([
+          const matchedCharts = Array.from(new Set([
             ...(chartsByTen.get(tenUpper) || []),
             ...(chartsByMa.get(maNorm) || [])
-          ]);
-          const matchedCharts = Array.from(matchedSet);
+          ]));
+          const hasChart = matchedCharts.length > 0;
+          if (stF === 'has' && !hasChart) return;
+          if (stF === 'missing' && hasChart) return;
+          if (kw) {
+            const tabNames = matchedCharts.map(c => c.tenTab).join(' ');
+            const hay = `${t.maTuyen} ${t.tenTuyen} ${t.xn || ''} ${tabNames}`.toLowerCase();
+            if (!hay.includes(kw)) return;
+          }
+          matchedItems.push({ t, matchedCharts });
+        });
 
-          if (matchedCharts.length > 0) {
-            matchedCharts.forEach((chart, idx) => {
-              const badge = '<span class="status-badge status-has-chart"><i class="fa fa-check-circle"></i> Đã có biểu đồ</span>';
-              const actionBtns = `
-                <div style="display:flex; gap:6px; justify-content:center;">
+        if (matchedItems.length === 0) {
+          html = '<tr><td colspan="5" style="text-align:center; color:#999; padding:18px;">Không tìm thấy tuyến / biểu đồ nào phù hợp!</td></tr>';
+        } else {
+          const slice = matchedItems.slice(0, _bdRenderLimit);
+          slice.forEach(({ t, matchedCharts }) => {
+            if (matchedCharts.length > 0) {
+              matchedCharts.forEach((chart, idx) => {
+                const badge = '<span class="status-badge status-has-chart"><i class="fa fa-check-circle"></i> Đã có biểu đồ</span>';
+                const actionBtns = `<div style="display:flex; gap:6px; justify-content:center;">
                   <button class="btn btn-primary" data-action-permission="charts.edit" style="padding:3px 8px; font-size:11px; height:26px;" onclick="napBieuDoLenSua('${chart.tenTab}')"><i class="fa fa-pencil"></i> Sửa</button>
                   <button class="btn btn-danger" data-action-permission="charts.edit" style="padding:3px 8px; font-size:11px; height:26px;" onclick="xoaBieuDoChiDinh('${chart.tenTab}')"><i class="fa fa-trash"></i> Xóa</button>
-                </div>
-              `;
-              html += `
-                <tr>
+                </div>`;
+                html += `<tr>
                   <td style="text-align:center; font-weight:bold; color:#3B86C4;">${idx === 0 ? t.maTuyen : ''}</td>
                   <td><strong>${idx === 0 ? t.tenTuyen : ''}</strong></td>
                   <td><code style="color:#0F86DB; font-weight:bold;">${chart.tenTab}</code></td>
                   <td style="text-align:center;">${badge}</td>
                   <td style="text-align:center;">${actionBtns}</td>
-                </tr>
-              `;
-            });
-          } else {
-            const badge = '<span class="status-badge status-missing-chart"><i class="fa fa-exclamation-circle"></i> Thiếu biểu đồ</span>';
-            html += `
-              <tr>
+                </tr>`;
+              });
+            } else {
+              const badge = '<span class="status-badge status-missing-chart"><i class="fa fa-exclamation-circle"></i> Thiếu biểu đồ</span>';
+              html += `<tr>
                 <td style="text-align:center; font-weight:bold; color:#3B86C4;">${t.maTuyen}</td>
                 <td><strong>${t.tenTuyen}</strong></td>
                 <td><span style="color:#aaa; font-style:italic;">Chưa có file</span></td>
                 <td style="text-align:center;">${badge}</td>
                 <td style="text-align:center;"><span style="color:#ccc;">-</span></td>
-              </tr>
-            `;
+              </tr>`;
+            }
+          });
+          if (matchedItems.length > slice.length) {
+            html += `<tr><td colspan="5" style="text-align:center; padding:12px; background:#F8FBFF;">
+              <span style="color:#555; font-size:12px; margin-right:12px;">Đang hiển thị <strong>${slice.length}</strong> / <strong>${matchedItems.length}</strong> tuyến</span>
+              <button type="button" class="btn btn-primary" style="padding:4px 12px; font-size:12px; margin-right:6px;" onclick="_bdRenderLimit+=50; veBangTrangThaiBieuDo(_sortedRoutesCache);">+ Tải thêm 50 tuyến</button>
+              <button type="button" class="btn btn-default" style="padding:4px 12px; font-size:12px;" onclick="_bdRenderLimit=99999; veBangTrangThaiBieuDo(_sortedRoutesCache);">Hiển thị tất cả (${matchedItems.length} tuyến)</button>
+            </td></tr>`;
           }
-        });
+        }
       }
       $('#tblTrangThaiBieuDo').html(html);
     }
@@ -2793,54 +2920,85 @@
       $('#statXeLocked').text(`${tongXeLocked} xe tạm dừng hoạt động`);
     }
 
+    function resetBoLocTongQuan() {
+      $('#filterTongQuanXn').val('').trigger('change.select2');
+      $('#filterTongQuanStatus').val('');
+      $('#filterTongQuanKeyword').val('');
+      _tqRenderLimit = 50;
+      veBangDanhSachTuyen(_sortedRoutesCache);
+    }
+
     function veBangDanhSachTuyen(sortedList) {
       let html = '';
-      const listToRender = sortedList || Array.from(mapTuyenChiTiet.values());
-      if (listToRender.length === 0) {
-        html = '<tr><td colspan="6" style="text-align:center; color:#999; padding:15px;">Chưa có tuyến xe nào!</td></tr>';
-      } else {
-        const xeTheoTuyen = new Map();
-        (tatCaXeHeThong || []).forEach(x => {
-          const k = chuanHoaMaTuyen(x.maTuyen);
-          if (!xeTheoTuyen.has(k)) xeTheoTuyen.set(k, []);
-          xeTheoTuyen.get(k).push(x);
-        });
-        const setMauChuan = new Set((danhMucXeMau || []).map(m => m.chungLoai).filter(Boolean));
+      const baseList = sortedList || Array.from(mapTuyenChiTiet.values());
+      const xnF = ($('#filterTongQuanXn').val() || '').trim().toLowerCase();
+      const stF = ($('#filterTongQuanStatus').val() || '').trim();
+      const kw = ($('#filterTongQuanKeyword').val() || '').trim().toLowerCase();
 
-        listToRender.forEach(t => {
-          const isLocked = t.status === 'locked';
+      const xeTheoTuyen = new Map();
+      (tatCaXeHeThong || []).forEach(x => {
+        const k = chuanHoaMaTuyen(x.maTuyen);
+        if (!xeTheoTuyen.has(k)) xeTheoTuyen.set(k, []);
+        xeTheoTuyen.get(k).push(x);
+      });
+      const setMauChuan = new Set((danhMucXeMau || []).map(m => m.chungLoai).filter(Boolean));
+
+      const prepared = [];
+      baseList.forEach(t => {
+        const isLocked = t.status === 'locked';
+        if (stF === 'active' && isLocked) return;
+        if (stF === 'locked' && !isLocked) return;
+        if (xnF && String(t.xn || '').trim().toLowerCase() !== xnF) return;
+
+        const xeCuaTuyen = xeTheoTuyen.get(chuanHoaMaTuyen(t.maTuyen)) || [];
+        const setLoai = new Set();
+        xeCuaTuyen.forEach(x => {
+          const ten = chuanHoaTenXe(x);
+          const tenHienThi = setMauChuan.has(x.chungLoai) ? x.chungLoai : ten;
+          if (tenHienThi) setLoai.add(tenHienThi);
+        });
+        const loaiXeHienThi = Array.from(setLoai).join(' & ');
+
+        if (kw) {
+          const hay = `${t.maTuyen} ${t.tenTuyen} ${t.xn || ''} ${loaiXeHienThi}`.toLowerCase();
+          if (!hay.includes(kw)) return;
+        }
+        prepared.push({ t, isLocked, xeCuaTuyen, loaiXeHienThi });
+      });
+
+      if (prepared.length === 0) {
+        html = '<tr><td colspan="6" style="text-align:center; color:#999; padding:18px;">Không tìm thấy tuyến xe nào phù hợp!</td></tr>';
+      } else {
+        const slice = prepared.slice(0, _tqRenderLimit);
+        slice.forEach(({ t, isLocked, xeCuaTuyen, loaiXeHienThi }) => {
           const badge = isLocked ? '<span class="status-badge status-locked">Khóa</span>' : '<span class="status-badge status-active">Hoạt động</span>';
-          const xeCuaTuyen = xeTheoTuyen.get(chuanHoaMaTuyen(t.maTuyen)) || [];
           const khCount = xeCuaTuyen.length || t.soXeKh || t.soXe || 0;
           const vdCount = t.soXeVd || "?";
-
           let phuongTienStr = `<strong style="color:#0F86DB;">${vdCount}/${khCount} xe</strong>`;
-          const setLoai = new Set();
-          xeCuaTuyen.forEach(x => {
-            const ten = chuanHoaTenXe(x);
-            const tenHienThi = setMauChuan.has(x.chungLoai) ? x.chungLoai : (setMauChuan.has(ten) ? ten : ten);
-            if (tenHienThi) setLoai.add(tenHienThi);
-          });
-          const loaiXeHienThi = Array.from(setLoai).join(' & ');
-          if (loaiXeHienThi) {
-            phuongTienStr += `<div style="color: #444; font-weight: normal; margin-top: 2px; line-height: 1.2;">${loaiXeHienThi}</div>`;
-          }
+          if (loaiXeHienThi) phuongTienStr += `<div style="color:#444; font-weight:normal; margin-top:2px; line-height:1.2;">${loaiXeHienThi}</div>`;
 
           const btnToggle = isLocked
             ? `<button class="btn btn-success" data-action-permission="routes.status" onclick="doiTrangThai('${t.maTuyen}', 'active')">Mở</button>`
             : `<button class="btn btn-warning" data-action-permission="routes.status" onclick="doiTrangThai('${t.maTuyen}', 'locked')">Khóa</button>`;
 
           html += `<tr>
-            <td style="text-align: center; font-weight: bold; color: #3B86C4;">${t.maTuyen}</td>
+            <td style="text-align:center; font-weight:bold; color:#3B86C4;">${t.maTuyen}</td>
             <td><strong>${t.tenTuyen}</strong></td>
             <td>${t.xn || '-'}</td>
             <td>${phuongTienStr}</td>
-            <td style="text-align: center;">${badge}</td>
-            <td style="text-align: center;"><div style="display:flex; gap:5px; justify-content:center;">
+            <td style="text-align:center;">${badge}</td>
+            <td style="text-align:center;"><div style="display:flex; gap:5px; justify-content:center;">
               <button class="btn btn-default" data-action-permission="routes.edit" onclick="napTuyenLenSua('${t.maTuyen}')">Sửa</button>${btnToggle}
             </div></td>
           </tr>`;
         });
+        if (prepared.length > slice.length) {
+          html += `<tr><td colspan="6" style="text-align:center; padding:12px; background:#F8FBFF;">
+            <span style="color:#555; font-size:12px; margin-right:12px;">Đang hiển thị <strong>${slice.length}</strong> / <strong>${prepared.length}</strong> tuyến</span>
+            <button type="button" class="btn btn-primary" style="padding:4px 12px; font-size:12px; margin-right:6px;" onclick="_tqRenderLimit+=50; veBangDanhSachTuyen(_sortedRoutesCache);">+ Tải thêm 50 tuyến</button>
+            <button type="button" class="btn btn-default" style="padding:4px 12px; font-size:12px;" onclick="_tqRenderLimit=99999; veBangDanhSachTuyen(_sortedRoutesCache);">Hiển thị tất cả (${prepared.length} tuyến)</button>
+          </td></tr>`;
+        }
       }
       $('#tblDanhSachTuyen').html(html);
     }
