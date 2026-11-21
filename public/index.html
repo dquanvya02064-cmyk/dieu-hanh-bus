@@ -296,7 +296,6 @@
         row-gap: 6px;
       }
     }
-  
     /* TUNED_SCHEDULE_CELL_SPACING */
     .table-schedule th, .table-schedule td {
       padding: 7px 6px !important;
@@ -312,15 +311,15 @@
       white-space: nowrap !important;
     }
     .coltotal { width: 64px !important; min-width: 64px !important; }
-    .colsa, .colsb, .cold1a, .cold2a, .cold2b {
-      display: block;
+    .coldau > span, .colflight > span {
+      display: block !important;
       line-height: 1.25 !important;
     }
-    .colsa:not(:empty) + .colsb:not(:empty),
-    .cold1a:not(:empty) + .cold2b:not(:empty),
-    .cold2a:not(:empty) + .cold2b:not(:empty) {
+    .coldau > span:not(:empty) + span:not(:empty),
+    .colflight > span:not(:empty) + span:not(:empty) {
       margin-top: 6px !important;
     }
+
 
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
