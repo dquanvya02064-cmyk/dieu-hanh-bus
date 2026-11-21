@@ -610,8 +610,8 @@ app.get('/api/thong-bao-chi-tiet', (req, res, next) => {
 
     if (scheduleList.length > 0) {
       for (let item of scheduleList) {
-        const start = new Date(`${item.tuNgay}T${item.tuGio || '00:00'}`);
-        const end = new Date(`${item.denNgay}T${item.denGio || '23:59'}`);
+        const start = new Date(`${item.tuNgay}T${(item.tuGio || '00:00').slice(0,5)}:00+07:00`);
+        const end = new Date(`${item.denNgay}T${item.denGio ? item.denGio.slice(0,5) + ':00' : '23:59:59'}+07:00`);
         
         if (now >= start && now <= end) {
           if (item.noiDung && !activeTexts.includes(item.noiDung)) {
