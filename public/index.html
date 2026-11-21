@@ -296,6 +296,32 @@
         row-gap: 6px;
       }
     }
+  
+    /* TUNED_SCHEDULE_CELL_SPACING */
+    .table-schedule th, .table-schedule td {
+      padding: 7px 6px !important;
+      vertical-align: middle !important;
+    }
+    .colstt { width: 48px !important; min-width: 48px !important; }
+    .coldau { width: 185px !important; min-width: 175px !important; padding-left: 12px !important; padding-right: 10px !important; }
+    .colflight, .coldiemdanh { width: 62px !important; min-width: 62px !important; }
+    .colthayca {
+      width: 62px !important;
+      min-width: 62px !important;
+      max-width: 68px !important;
+      white-space: nowrap !important;
+    }
+    .coltotal { width: 64px !important; min-width: 64px !important; }
+    .colsa, .colsb, .cold1a, .cold2a, .cold2b {
+      display: block;
+      line-height: 1.25 !important;
+    }
+    .colsa:not(:empty) + .colsb:not(:empty),
+    .cold1a:not(:empty) + .cold2b:not(:empty),
+    .cold2a:not(:empty) + .cold2b:not(:empty) {
+      margin-top: 6px !important;
+    }
+
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
