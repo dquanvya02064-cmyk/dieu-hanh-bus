@@ -297,35 +297,52 @@
       }
     }
     /* TUNED_SCHEDULE_CELL_SPACING */
-    .table-schedule th, .table-schedule td {
-      padding: 7px 6px !important;
+    #mainScheduleTable.table-schedule {
+      width: auto !important;
+      max-width: none !important;
+      margin: 0 auto !important;
+    }
+    #mainScheduleTable.table-schedule th,
+    #mainScheduleTable.table-schedule td {
+      padding: 4px 4px !important;
       vertical-align: middle !important;
     }
-    .colstt { width: 48px !important; min-width: 48px !important; }
-    .coldau {
-      min-width: 175px !important;
-      padding-left: 12px !important;
-      padding-right: 12px !important;
+    #mainScheduleTable .colstt {
+      width: 42px !important;
+      min-width: 42px !important;
+      max-width: 42px !important;
+    }
+    #mainScheduleTable .coldau {
+      width: auto !important;
+      min-width: 155px !important;
+      padding: 4px 12px 4px 10px !important;
       white-space: nowrap !important;
     }
-    .colflight, .coldiemdanh { width: 62px !important; min-width: 62px !important; }
-    .colthayca {
-      width: 62px !important;
-      min-width: 62px !important;
-      max-width: 68px !important;
+    #mainScheduleTable .colflight,
+    #mainScheduleTable .coldiemdanh,
+    #mainScheduleTable .colthayca {
+      width: 50px !important;
+      min-width: 50px !important;
+      max-width: 50px !important;
       white-space: nowrap !important;
     }
-    .coltotal { width: 64px !important; min-width: 64px !important; }
-    .coldau > span, .colflight > span {
+    #mainScheduleTable .coltotal {
+      width: 54px !important;
+      min-width: 54px !important;
+      max-width: 54px !important;
+    }
+    #mainScheduleTable .coldau > span,
+    #mainScheduleTable .colflight > span {
       display: block !important;
-      height: 18px !important;
-      line-height: 18px !important;
+      height: 15px !important;
+      line-height: 15px !important;
       white-space: nowrap !important;
     }
-    .coldau > span + span,
-    .colflight > span + span {
-      margin-top: 6px !important;
+    #mainScheduleTable .coldau > span + span,
+    #mainScheduleTable .colflight > span + span {
+      margin-top: 4px !important;
     }
+
 
 
 
