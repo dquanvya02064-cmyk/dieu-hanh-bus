@@ -341,7 +341,7 @@
                 <button type="button" class="btn btn-default" style="height:30px; font-size:12px;" onclick="resetBoLocTongQuan()"><i class="fa fa-refresh"></i> Làm mới</button>
               </div>
               <div class="table-responsive-wrapper">
-                <table class="table-custom">
+                <table class="table-custom" style="width: 100%; table-layout: auto;">
                   <thead>
                     <tr>
                       <th style="width: 56px; min-width: 56px; text-align: center; white-space: nowrap;">Mã</th>
@@ -3238,13 +3238,13 @@
     
     function getDanhSachDonViChuQuan() {
       const set = new Set();
-      if (typeof allRoutes === 'object' && allRoutes) {
-        Object.values(allRoutes).forEach(r => { if (r && r.xn) set.add(String(r.xn).trim()); });
+      if (typeof dsXn !== "undefined" && dsXn) {
+        dsXn.forEach(x => { if (x) set.add(String(x).trim()); });
       }
-      if (typeof danhMucData === 'object' && danhMucData) {
-        Object.keys(danhMucData).forEach(k => { if (k) set.add(String(k).trim()); });
+      if (typeof mapTuyenChiTiet !== "undefined" && mapTuyenChiTiet && typeof mapTuyenChiTiet.forEach === "function") {
+        mapTuyenChiTiet.forEach(r => { if (r && r.xn) set.add(String(r.xn).trim()); });
       }
-      return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
+      return Array.from(set).sort((a, b) => a.localeCompare(b, "vi"));
     }
 
     function napOptionsDonViChoTaiKhoan() {
@@ -3275,31 +3275,24 @@
     function apDungGioiHanDonVi() {
       const allowed = getUserAllowedXns();
       if (!allowed.length) return;
-      if (typeof allRoutes === 'object' && allRoutes) {
-        Object.keys(allRoutes).forEach(k => {
-          const xn = String(allRoutes[k]?.xn || '').trim();
-          if (xn && !allowed.includes(xn)) delete allRoutes[k];
+      if (typeof mapTuyenChiTiet !== "undefined" && mapTuyenChiTiet && typeof mapTuyenChiTiet.forEach === "function") {
+        const delKeys = [];
+        mapTuyenChiTiet.forEach((r, k) => {
+          const xn = String(r?.xn || "").trim();
+          if (xn && !allowed.includes(xn)) delKeys.push(k);
         });
+        delKeys.forEach(k => mapTuyenChiTiet.delete(k));
       }
-      if (typeof danhMucData === 'object' && danhMucData) {
-        Object.keys(danhMucData).forEach(k => {
-          if (!allowed.includes(String(k).trim())) delete danhMucData[k];
-        });
+      if (typeof dsXn !== "undefined" && dsXn && typeof dsXn.forEach === "function") {
+        const delXn = [];
+        dsXn.forEach(x => { if (!allowed.includes(String(x).trim())) delXn.push(x); });
+        delXn.forEach(x => dsXn.delete(x));
       }
-      if (Array.isArray(allXeList)) {
-        const validRoutes = new Set(Object.keys(allRoutes || {}));
-        allXeList = allXeList.filter(x => {
-          const mt = String(x.maTuyen || '').trim().toUpperCase();
-          return !mt || mt === 'DP' || validRoutes.has(mt);
-        });
-      }
-      // Khoa o chon XN neu tai khoan chi thuoc 1 don vi
-      if (allowed.length === 1) {
-        ['#selXnTuyenMoi', '#selXnSuaTuyen', '#selXnBieuDo', '#filterXnTuyen', '#filterXnXe'].forEach(sel => {
-          const $el = $(sel);
-          if ($el.length) {
-            $el.val(allowed[0]).trigger('change');
-          }
+      if (typeof tatCaXeHeThong !== "undefined" && Array.isArray(tatCaXeHeThong)) {
+        const validRoutes = new Set(typeof mapTuyenChiTiet !== "undefined" ? Array.from(mapTuyenChiTiet.keys()).map(k => chuanHoaMaTuyen(k)) : []);
+        tatCaXeHeThong = tatCaXeHeThong.filter(x => {
+          const mt = chuanHoaMaTuyen(x.maTuyen || "");
+          return !mt || mt === "DP" || validRoutes.has(mt);
         });
       }
     }
@@ -3431,7 +3424,7 @@
 
             if (isRootQuan) {
               btnAction = `
-                <div style="display:flex; gap:4px; justify-content:center; align-items:center; flex-wrap:wrap;">
+                <div style="display:flex; gap:4px; justify-content:center; align-items:center; flex-wrap:nowrap; white-space:nowrap;">
                   <span style="background:#FEF3C7; color:#92400E; border:1px solid #F59E0B; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">
                     <i class="fa fa-shield"></i> Gốc (Cần PIN)
                   </span>
@@ -3442,7 +3435,7 @@
               `;
             } else {
               btnAction = `
-                <div style="display:flex; gap:4px; justify-content:center; align-items:center; flex-wrap:wrap;">
+                <div style="display:flex; gap:4px; justify-content:center; align-items:center; flex-wrap:nowrap; white-space:nowrap;">
                   <select class="form-control" data-action-permission="users.permissions" style="width: 92px; height: 26px; font-size: 11px;" onchange="doiVaiTro('${acc.username}', this.value)">
                     <option value="staff" ${acc.role === 'staff' ? 'selected' : ''}>Bình thường</option>
                     <option value="master" ${acc.role === 'master' ? 'selected' : ''} ${sessionStorage.getItem('admin_role') === 'master' ? '' : 'disabled'}>Quản trị</option>
