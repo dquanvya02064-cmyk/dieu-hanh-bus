@@ -299,41 +299,70 @@
     /* TUNED_SCHEDULE_CELL_SPACING */
     #mainScheduleTable.table-schedule {
       width: 100% !important;
+      table-layout: auto !important;
+      white-space: normal !important;
     }
     #mainScheduleTable.table-schedule th,
     #mainScheduleTable.table-schedule td {
-      padding: 5px 4px !important;
+      padding: 5px 3px !important;
       vertical-align: middle !important;
     }
-    #mainScheduleTable .colthayca {
+    #mainScheduleTable .colstt {
+      width: 38px !important;
+      min-width: 36px !important;
       white-space: nowrap !important;
     }
-    #mainScheduleTable .coldau > span,
+    #mainScheduleTable .coldau {
+      width: auto !important;
+      min-width: 82px !important;
+      max-width: 195px !important;
+      padding: 5px 6px 5px 8px !important;
+      text-align: left !important;
+      white-space: normal !important;
+      word-break: normal !important;
+      overflow-wrap: break-word !important;
+    }
+    #mainScheduleTable .coldau > span {
+      display: block !important;
+      height: auto !important;
+      line-height: 1.3 !important;
+      white-space: normal !important;
+    }
+    #mainScheduleTable .coldau > span + span {
+      margin-top: 4px !important;
+    }
+    #mainScheduleTable .colflight,
+    #mainScheduleTable .coldiemdanh {
+      width: auto !important;
+      min-width: 38px !important;
+      padding: 5px 2px !important;
+      white-space: nowrap !important;
+    }
     #mainScheduleTable .colflight > span {
       display: block !important;
       height: 16px !important;
       line-height: 16px !important;
       white-space: nowrap !important;
     }
-    #mainScheduleTable .coldau > span + span,
     #mainScheduleTable .colflight > span + span {
-      margin-top: 5px !important;
+      margin-top: 4px !important;
+    }
+    #mainScheduleTable .colthayca {
+      width: auto !important;
+      min-width: 38px !important;
+      max-width: none !important;
+      padding: 4px 3px !important;
+      white-space: normal !important;
+      word-break: normal !important;
+      line-height: 1.2 !important;
+    }
+    #mainScheduleTable .coltotal {
+      width: 48px !important;
+      min-width: 42px !important;
+      white-space: normal !important;
+      line-height: 1.2 !important;
     }
 
-
-
-
-
-  
-    /* INDEX_RESPONSIVE_POLISH */
-    @media (max-width: 768px) {
-      body { padding: 8px; padding-bottom: 72px; }
-      .panel-heading { padding: 10px 12px; font-size: 12px; }
-      .panel-body { padding: 12px; }
-      .days-row { gap: 8px 10px; }
-      .btn-view { width: 100%; justify-content: center; }
-      .bus-card-custom { padding: 10px 12px; font-size: 12px; }
-    }
 
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
