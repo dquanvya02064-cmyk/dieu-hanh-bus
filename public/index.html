@@ -482,7 +482,147 @@
     }
 
 
-  </style>
+  
+    /* THREE_CHART_MODES_STYLES */
+    .chart-action-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .btn-chart-blue {
+      background: #0066CC;
+      color: #FFFFFF;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 5px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+    .btn-chart-blue:hover {
+      background: #0052A3;
+    }
+    .btn-chart-blue:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+    .btn-chart-cancel {
+      background: #FFFFFF;
+      color: #333333;
+      border: 1px solid #CCCCCC;
+      padding: 8px 14px;
+      border-radius: 5px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .btn-chart-cancel:hover {
+      background: #F5F5F5;
+    }
+    .btn-chart-green {
+      background: #4CAF50;
+      color: #FFFFFF;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 5px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+    .btn-chart-green:hover {
+      background: #43A047;
+    }
+    .btn-chart-green:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    /* Biểu đồ dọc 3 bảng song song */
+    .vchart-3col-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 8px;
+      align-items: start;
+    }
+    .table-vchart-sub {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      background: #FFFFFF;
+    }
+    .table-vchart-sub th,
+    .table-vchart-sub td {
+      border: 1px solid #CCCCCC;
+      padding: 5px 6px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    .table-vchart-sub th {
+      background: #E4E7EB;
+      color: #222222;
+      font-weight: bold;
+      font-size: 12px;
+    }
+    .table-vchart-sub tr:nth-child(even) td {
+      background: #FAFBFD;
+    }
+    .vchart-time-a {
+      font-weight: 600;
+      color: #111111;
+    }
+    .vchart-time-b {
+      font-weight: 600;
+      color: #111111;
+    }
+
+    /* Bảng Xem tổng lượt */
+    .table-total-trips {
+      width: 100%;
+      min-width: 820px;
+      border-collapse: collapse;
+      font-size: 12.5px;
+      background: #FFFFFF;
+    }
+    .table-total-trips th,
+    .table-total-trips td {
+      border: 1px solid #CCCCCC;
+      padding: 7px 8px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    .table-total-trips th {
+      background: #E4E7EB;
+      color: #222222;
+      font-weight: bold;
+    }
+    .table-total-trips tr:nth-child(even) td {
+      background: #FAFBFD;
+    }
+    .table-total-trips tr.total-summary-row td {
+      background: #F4F6F8;
+      font-weight: bold;
+      color: #111111;
+    }
+    @media (max-width: 768px) {
+      .vchart-3col-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+    }
+</style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -542,7 +682,12 @@
 
           <div></div>
           <div>
-            <button class="btn-view" onclick="xemBieuDo()"><i class="fa fa-eye"></i> Xem Biểu Đồ</button>
+            <div class="chart-action-bar">
+              <button type="button" id="btnViewHorizontal" class="btn-chart-blue" onclick="xemBieuDoNgang()"><i class="fa fa-eye"></i> Xem biểu đồ ngang</button>
+              <button type="button" id="btnViewVertical" class="btn-chart-blue" onclick="xemBieuDoDoc()"><i class="fa fa-eye"></i> Xem biểu đồ dọc</button>
+              <button type="button" id="btnResetChart" class="btn-chart-cancel" onclick="huyBoLocBieuDo()"><i class="fa fa-ban"></i> Hủy</button>
+              <button type="button" id="btnViewTotalTrips" class="btn-chart-green" onclick="xemTongLuot()"><i class="fa fa-eye"></i> Xem tổng lượt</button>
+            </div>
           </div>
         </div>
 
@@ -560,14 +705,20 @@
         <div id="scheduleInlineNotice" style="display:none;margin:12px 0;padding:10px 14px;border-radius:6px;font-size:13px;align-items:center;gap:8px;"></div>
         <div id="viewerWrapper" class="viewer-wrapper">
           <div class="schedule-top-bar">
-            <span style="font-size:12px; color:#555; font-weight:bold;"><i class="fa fa-table" style="color:#3B86C4;"></i> Biểu đồ vận hành chi tiết</span>
+            <span id="scheduleHeaderLabel" style="font-size:12px; color:#555; font-weight:bold;"><i class="fa fa-table" style="color:#3B86C4;"></i> Biểu đồ vận hành chi tiết</span>
             <button type="button" id="btnViewRouteFleet" onclick="moDanhSachXeTuBieuDo()" style="background:#EBF2F8; color:#1A5276; border:1px solid #B6D0E6; padding:5px 11px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
               <i class="fa fa-bus"></i> <span>Danh sách xe tuyến này</span>
             </button>
           </div>
-          <div class="table-scroll">
+          <div id="horizontalScheduleBox" class="table-scroll">
             <table id="mainScheduleTable" class="table-schedule"></table>
           </div>
+          <div id="verticalScheduleBox" style="display:none;"></div>
+        </div>
+
+        <!-- 3. KHUNG BẢNG XEM TỔNG LƯỢT -->
+        <div id="totalTripsWrapper" class="viewer-wrapper" style="display:none;">
+          <div id="totalTripsBox" class="table-scroll"></div>
         </div>
       </div>
 
@@ -1222,7 +1373,44 @@
       return false;
     }
     
-    async function xemBieuDo() {
+    let _activeChartMode = 'horizontal';
+    const _tableDataCache = {};
+
+    function xemBieuDo() {
+      if (_activeChartMode === 'vertical') return xemBieuDoDoc();
+      return xemBieuDoNgang();
+    }
+
+    function xemBieuDoNgang() {
+      _activeChartMode = 'horizontal';
+      $('#totalTripsWrapper').hide();
+      return taiVaHienThiBieuDo('horizontal');
+    }
+
+    function xemBieuDoDoc() {
+      _activeChartMode = 'vertical';
+      $('#totalTripsWrapper').hide();
+      return taiVaHienThiBieuDo('vertical');
+    }
+
+    function huyBoLocBieuDo() {
+      _activeChartMode = 'horizontal';
+      $('#selXn').val('').trigger('change');
+      $('input[name="rdDay"][value="T2"]').prop('checked', true);
+      anThongBaoBieuDo();
+      $('#routeSchemaWrapper, #viewerWrapper, #totalTripsWrapper').hide();
+      $('#mainScheduleTable, #verticalScheduleBox, #totalTripsBox').empty();
+    }
+
+    async function fetchTableDataCached(tabName, tuyen) {
+      const key = tabName + '|||' + tuyen;
+      if (_tableDataCache[key]) return _tableDataCache[key];
+      const res = await fetch(`${API_BASE}/api/table-data?tab=${encodeURIComponent(tabName)}&tuyen=${encodeURIComponent(tuyen)}`).then(r => r.json());
+      if (res && res.success) _tableDataCache[key] = res;
+      return res;
+    }
+
+    async function taiVaHienThiBieuDo(mode) {
       const xn = $('#selXn').val();
       const tuyen = $('#selTuyen').val();
       const ngayApDung = $('#selNgayApDung').val();
@@ -1236,24 +1424,26 @@
       const lookupRes = ngayApDung ? timKetQuaTabPhuHop(xn, tuyen, ngayApDung, thuDaChon) : { tabName: null, notice: '' };
       if (ngayApDung && lookupRes.isMissingDay) {
         hienThongBaoBieuDo(lookupRes.notice, 'warn');
-        $('#tableContainer, #scheduleWrapper, #bieuDoContainer').hide();
+        $('#viewerWrapper, #totalTripsWrapper').hide();
         return;
       }
       if (lookupRes.notice) hienThongBaoBieuDo(lookupRes.notice, 'info');
       else anThongBaoBieuDo();
+
       const tabName = lookupRes.tabName;
-      const $btn = $('.btn-view');
-      $btn.html('<i class="fa fa-spinner fa-spin"></i> Đang tải...').prop('disabled', true);
+      const $btn = mode === 'vertical' ? $('#btnViewVertical') : $('#btnViewHorizontal');
+      const oldHtml = $btn.html();
+      $('#btnViewHorizontal, #btnViewVertical').prop('disabled', true);
+      $btn.html('<i class="fa fa-spinner fa-spin"></i> Đang tải...');
 
       try {
         const [resTable, resTuyen] = await Promise.all([
-          tabName
-            ? fetch(`${API_BASE}/api/table-data?tab=${encodeURIComponent(tabName)}&tuyen=${encodeURIComponent(tuyen)}`).then(r => r.json())
-            : Promise.resolve(null),
+          tabName ? fetchTableDataCached(tabName, tuyen) : Promise.resolve(null),
           fetch(`${API_BASE}/api/chi-tiet-tuyen?tuyen=${encodeURIComponent(tuyen)}`).then(r => r.json()).catch(() => ({ success: false }))
         ]);
 
-        $btn.html('<i class="fa fa-eye"></i> Xem Biểu Đồ').prop('disabled', false);
+        $('#btnViewHorizontal, #btnViewVertical').prop('disabled', false);
+        $btn.html(oldHtml);
 
         const hasRouteDetails = resTuyen && resTuyen.success && (
           (resTuyen.tramDi && resTuyen.tramDi.trim() !== "") ||
@@ -1264,11 +1454,12 @@
 
         if (hasRouteDetails) {
           $('#schemaTitle').text(tuyen);
-          const tramDiStr = resTuyen.tramDi || "";
-          const tramVeStr = resTuyen.tramVe || "";
-          const dauA = resTuyen.dauA || "Đầu A";
-          const dauB = resTuyen.dauB || "Đầu B";
-          veSoDoTuyenSVG(dauA, dauB, tramDiStr, tramVeStr);
+          veSoDoTuyenSVG(
+            resTuyen.dauA || "Đầu A",
+            resTuyen.dauB || "Đầu B",
+            resTuyen.tramDi || "",
+            resTuyen.tramVe || ""
+          );
           $('#routeSchemaWrapper').show();
         } else {
           $('#routeSchemaWrapper').hide();
@@ -1280,12 +1471,418 @@
           return;
         }
 
-        anThongBaoBieuDo();
+        if (!lookupRes.notice) anThongBaoBieuDo();
         $('#viewerWrapper').show();
-        hienThiBangHTML(resTable);
+
+        if (mode === 'vertical') {
+          $('#scheduleHeaderLabel').html('<i class="fa fa-columns" style="color:#3B86C4;"></i> Biểu đồ dọc (Giờ xuất bến 2 đầu)');
+          $('#horizontalScheduleBox').hide();
+          $('#verticalScheduleBox').show();
+          hienThiBieuDoDocHTML(resTable);
+        } else {
+          $('#scheduleHeaderLabel').html('<i class="fa fa-table" style="color:#3B86C4;"></i> Biểu đồ vận hành chi tiết');
+          $('#verticalScheduleBox').hide();
+          $('#horizontalScheduleBox').show();
+          hienThiBangHTML(resTable);
+        }
       } catch (err) {
-        $btn.html('<i class="fa fa-eye"></i> Xem Biểu Đồ').prop('disabled', false);
+        $('#btnViewHorizontal, #btnViewVertical').prop('disabled', false);
+        $btn.html(oldHtml);
         hienThongBaoBieuDo("Lỗi kết nối máy chủ: " + err, "error");
+      }
+    }
+
+    function phanTichPhutGio(timeStr) {
+      const m = String(timeStr || '').trim().match(/^(\d{1,2}):(\d{2})/);
+      if (!m) return NaN;
+      return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    }
+
+    function dinhDangGioChuH(timeStr) {
+      const m = String(timeStr || '').trim().match(/^(\d{1,2}):(\d{2})/);
+      if (!m) return String(timeStr || '').trim();
+      return parseInt(m[1], 10) + 'h' + m[2];
+    }
+
+    function phanTichDuLieuBieuDo(res) {
+      if (!res || !res.success || !Array.isArray(res.rawData) || res.rawData.length === 0) {
+        return null;
+      }
+
+      const rawData = res.rawData;
+      const customDauA = res.dauA || "";
+      const customDauB = res.dauB || "";
+      const bannerLines = [];
+      let startRow = -1;
+      const diemDanhCols = [];
+
+      for (let i = 0; i < rawData.length; i++) {
+        const valCol0 = String(rawData[i][0] || "").trim();
+        if (valCol0 === "1" || valCol0 === "01") { startRow = i; break; }
+
+        for (let col = 0; col < rawData[i].length; col++) {
+          const cellStr = String(rawData[i][col] || "").toLowerCase();
+          if (cellStr.includes("điểm danh") && !diemDanhCols.includes(col)) {
+            diemDanhCols.push(col);
+          }
+        }
+
+        const rowString = rawData[i].join(" ");
+        if ((valCol0 === "" && rowString.includes(":")) || rowString.toLowerCase().includes("giờ gạch chân")) continue;
+
+        const fullText = rawData[i].filter(c => c && c.trim() !== "").join(" - ").trim();
+        if (fullText.length > 3 && !fullText.toLowerCase().includes("đầu a-b") && fullText.toLowerCase() !== "nốt" && !fullText.toLowerCase().includes("điểm danh")) {
+          bannerLines.push(fullText);
+        }
+      }
+
+      if (startRow === -1) startRow = 0;
+      const tableData = rawData.slice(startRow);
+      const cleanTableData = [];
+
+      for (let j = 0; j < tableData.length; j++) {
+        const col0 = String(tableData[j][0] || "").trim();
+        if (col0 !== "" && !isNaN(col0)) {
+          cleanTableData.push(tableData[j]);
+          if (j + 1 < tableData.length) cleanTableData.push(tableData[j + 1]);
+        }
+      }
+
+      const rawA = [];
+      const rawB = [];
+      let resolvedDauA = customDauA;
+      let resolvedDauB = customDauB;
+      let totalTrips = 0;
+
+      for (let r = 0; r < cleanTableData.length; r += 2) {
+        const rowA = cleanTableData[r];
+        const rowB = cleanTableData[r + 1] || [];
+        const notVal = rowA[0] ? String(rowA[0]).trim() : "";
+        if (!notVal && (!rowA[1] || rowA[1].trim() === "")) continue;
+
+        const dauA = customDauA || (rowA[1] ? rowA[1].trim() : "");
+        const dauB = customDauB || (rowB[1] ? rowB[1].trim() : "");
+        if (!resolvedDauA && dauA) resolvedDauA = dauA;
+        if (!resolvedDauB && dauB) resolvedDauB = dauB;
+
+        let endC = Math.max(rowA.length, rowB.length);
+        const lastA = String(rowA[endC - 1] || "").trim();
+        const lastB = String(rowB[endC - 1] || "").trim();
+        if ((lastA !== "" && !isNaN(lastA) && !lastA.includes(":")) || (lastB !== "" && !isNaN(lastB) && !lastB.includes(":"))) {
+          endC = endC - 1;
+        }
+
+        for (let c = 2; c < endC; c++) {
+          const valA = chuanHoaGio(rowA[c] ? rowA[c].trim() : "");
+          const valB = chuanHoaGio(rowB[c] ? rowB[c].trim() : "");
+
+          if (diemDanhCols.includes(c)) continue;
+          if (valA.toLowerCase().includes("thay ca") || valB.toLowerCase().includes("thay ca")) continue;
+          if (!valA && !valB) continue;
+
+          totalTrips++;
+          const pA = phanTichPhutGio(valA);
+          const pB = phanTichPhutGio(valB);
+
+          if (valA && valB && !isNaN(pA) && !isNaN(pB)) {
+            let adjA = pA, adjB = pB;
+            if (pA >= 1140 && pB < 300) adjB += 1440;
+            else if (pB >= 1140 && pA < 300) adjA += 1440;
+            if (adjA < adjB) rawA.push({ time: valA, rawMin: pA });
+            else rawB.push({ time: valB, rawMin: pB });
+          } else if (valA && !isNaN(pA)) {
+            rawA.push({ time: valA, rawMin: pA });
+          } else if (valB && !isNaN(pB)) {
+            rawB.push({ time: valB, rawMin: pB });
+          }
+        }
+      }
+
+      const sortByOpTime = list => {
+        const hasEvening = list.some(x => x.rawMin >= 1020);
+        return list
+          .map(x => ({
+            time: x.time,
+            rawMin: x.rawMin,
+            opMin: (hasEvening && x.rawMin < 240) ? (x.rawMin + 1440) : x.rawMin
+          }))
+          .sort((a, b) => a.opMin - b.opMin);
+      };
+
+      return {
+        bannerLines,
+        dauAName: resolvedDauA || 'Đầu A',
+        dauBName: resolvedDauB || 'Đầu B',
+        tripsA: sortByOpTime(rawA),
+        tripsB: sortByOpTime(rawB),
+        totalTrips
+      };
+    }
+
+    function hienThiBieuDoDocHTML(res) {
+      const parsed = phanTichDuLieuBieuDo(res);
+      if (!parsed) {
+        hienThongBaoBieuDo("Biểu đồ này hiện chưa có dữ liệu chi tiết.", "warn");
+        $('#viewerWrapper').hide();
+        return;
+      }
+
+      const { bannerLines, dauAName, dauBName, tripsA, tripsB } = parsed;
+      let html = '';
+
+      if (bannerLines.length > 0) {
+        html += '<table class="table-schedule" style="margin-bottom:8px;"><thead>';
+        bannerLines.forEach(line => {
+          html += `<tr><th style="font-size:12px; font-weight:bold; padding:6px; background:#FFFFFF; border:1px solid #CCCCCC; text-align:center; color:#111;">${line}</th></tr>`;
+        });
+        html += '</thead></table>';
+      }
+
+      const maxRows = Math.max(tripsA.length, tripsB.length);
+      if (maxRows === 0) {
+        html += '<div style="padding:16px; text-align:center; color:#777;">Không có dữ liệu giờ xuất bến.</div>';
+        $('#verticalScheduleBox').html(html);
+        return;
+      }
+
+      const rowsPerCol = Math.ceil(maxRows / 3);
+      html += '<div class="vchart-3col-grid">';
+
+      for (let col = 0; col < 3; col++) {
+        const start = col * rowsPerCol;
+        const end = Math.min(start + rowsPerCol, maxRows);
+        if (start >= maxRows) {
+          html += '<div></div>';
+          continue;
+        }
+        let subHtml = `
+          <div>
+            <table class="table-vchart-sub">
+              <thead>
+                <tr>
+                  <th style="width:46px;">STT</th>
+                  <th>${dauAName}</th>
+                  <th>${dauBName}</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+        for (let r = start; r < end; r++) {
+          const timeA = tripsA[r] ? tripsA[r].time : '';
+          const timeB = tripsB[r] ? tripsB[r].time : '';
+          subHtml += `
+            <tr>
+              <td style="font-weight:bold; color:#444;">${r + 1}</td>
+              <td class="vchart-time-a">${timeA}</td>
+              <td class="vchart-time-b">${timeB}</td>
+            </tr>
+          `;
+        }
+        subHtml += '</tbody></table></div>';
+        html += subHtml;
+      }
+
+      html += '</div>';
+      $('#verticalScheduleBox').html(html);
+      const scrollTarget = $('#routeSchemaWrapper').is(':visible') ? $('#routeSchemaWrapper') : $('#viewerWrapper');
+      $('html, body').animate({ scrollTop: scrollTarget.offset().top - 20 }, 300);
+    }
+
+    function tinhThoiGianHoatDongVaTanSuat(parsed) {
+      if (!parsed) return { thoiGianHoatDong: '-', tanSuat: '-' };
+      const { tripsA, tripsB } = parsed;
+
+      let thoiGianHoatDong = '-';
+      const hasA = tripsA.length > 0;
+      const hasB = tripsB.length > 0;
+
+      if (hasA && hasB) {
+        const startA = dinhDangGioChuH(tripsA[0].time);
+        const endA = dinhDangGioChuH(tripsA[tripsA.length - 1].time);
+        const startB = dinhDangGioChuH(tripsB[0].time);
+        const endB = dinhDangGioChuH(tripsB[tripsB.length - 1].time);
+        if (startA === startB && endA === endB) {
+          thoiGianHoatDong = `${startA} - ${endA}`;
+        } else {
+          thoiGianHoatDong = `Đầu A: ${startA} - ${endA}; Đầu B: ${startB} - ${endB}`;
+        }
+      } else if (hasA) {
+        thoiGianHoatDong = `${dinhDangGioChuH(tripsA[0].time)} - ${dinhDangGioChuH(tripsA[tripsA.length - 1].time)}`;
+      } else if (hasB) {
+        thoiGianHoatDong = `${dinhDangGioChuH(tripsB[0].time)} - ${dinhDangGioChuH(tripsB[tripsB.length - 1].time)}`;
+      }
+
+      const diffSet = new Set();
+      for (let i = 1; i < tripsA.length; i++) {
+        const d = tripsA[i].opMin - tripsA[i - 1].opMin;
+        if (d > 0) diffSet.add(d);
+      }
+      for (let i = 1; i < tripsB.length; i++) {
+        const d = tripsB[i].opMin - tripsB[i - 1].opMin;
+        if (d > 0) diffSet.add(d);
+      }
+
+      const sortedDiffs = Array.from(diffSet).sort((a, b) => a - b);
+      const tanSuat = sortedDiffs.length > 0 ? (sortedDiffs.join(' - ') + ' phút/chuyến') : '-';
+
+      return { thoiGianHoatDong, tanSuat };
+    }
+
+    async function xemTongLuot() {
+      const xn = $('#selXn').val() || '';
+      const tuyen = $('#selTuyen').val() || '';
+      const ngayApDung = $('#selNgayApDung').val() || '';
+
+      anThongBaoBieuDo();
+      $('#routeSchemaWrapper, #viewerWrapper').hide();
+
+      const routeMap = new Map();
+      if (tuyen) {
+        const ma = extractMaTuyenIdx(tuyen) || tuyen;
+        routeMap.set((xn || '') + '|' + ma, { xn, tenTuyen: tuyen, maTuyen: ma });
+      } else {
+        (allRoutes || []).forEach(r => {
+          if (r.status === 'locked') return;
+          if (xn && r.xn !== xn) return;
+          const ten = r.tenTuyen || r.maTuyen || '';
+          const ma = extractMaTuyenIdx(r.maTuyen || ten) || ten;
+          const key = (r.xn || '') + '|' + ma;
+          if (ten && !routeMap.has(key)) {
+            routeMap.set(key, { xn: r.xn || '', tenTuyen: ten, maTuyen: ma });
+          }
+        });
+        (danhMucData || []).forEach(item => {
+          if (xn && item.xn !== xn) return;
+          const ten = item.tuyen || '';
+          const ma = extractMaTuyenIdx(ten) || ten;
+          const key = (item.xn || '') + '|' + ma;
+          if (ten && !routeMap.has(key)) {
+            routeMap.set(key, { xn: item.xn || '', tenTuyen: ten, maTuyen: ma });
+          }
+        });
+      }
+
+      const routes = Array.from(routeMap.values()).sort((a, b) => sapXepThongMinh(a.maTuyen, b.maTuyen));
+      if (routes.length === 0) {
+        hienThongBaoBieuDo("Không tìm thấy dữ liệu tuyến phù hợp để thống kê tổng lượt.", "warn");
+        return;
+      }
+
+      const $btn = $('#btnViewTotalTrips');
+      const oldHtml = $btn.html();
+      $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Đang tổng hợp...');
+      $('#totalTripsWrapper').show();
+      $('#totalTripsBox').html('<div style="padding:24px; text-align:center; color:#555;"><i class="fa fa-spinner fa-spin" style="color:#4CAF50;"></i> Đang tổng hợp dữ liệu <strong>' + routes.length + '</strong> tuyến...</div>');
+
+      const dayCodes = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+
+      try {
+        const uniqueTasks = new Map();
+        const routePlan = routes.map(r => {
+          const dayTabs = {};
+          dayCodes.forEach(dc => {
+            const resLookup = timKetQuaTabPhuHop(r.xn, r.tenTuyen, ngayApDung, dc);
+            const tab = resLookup && resLookup.tabName ? resLookup.tabName : null;
+            dayTabs[dc] = tab;
+            if (tab) {
+              const tKey = tab + '|||' + r.tenTuyen;
+              if (!uniqueTasks.has(tKey)) {
+                uniqueTasks.set(tKey, { tab, tuyen: r.tenTuyen });
+              }
+            }
+          });
+          return { ...r, dayTabs };
+        });
+
+        const taskList = Array.from(uniqueTasks.values());
+        const BATCH_SIZE = 10;
+        for (let i = 0; i < taskList.length; i += BATCH_SIZE) {
+          const batch = taskList.slice(i, i + BATCH_SIZE);
+          await Promise.all(batch.map(t => fetchTableDataCached(t.tab, t.tuyen).catch(() => null)));
+        }
+
+        const sumDays = { T2: 0, T3: 0, T4: 0, T5: 0, T6: 0, T7: 0, CN: 0 };
+        let rowsHtml = '';
+
+        routePlan.forEach((rp, idx) => {
+          const counts = {};
+          let repParsed = null;
+
+          dayCodes.forEach(dc => {
+            const tab = rp.dayTabs[dc];
+            if (!tab) {
+              counts[dc] = 0;
+              return;
+            }
+            const rawRes = _tableDataCache[tab + '|||' + rp.tenTuyen];
+            const parsed = phanTichDuLieuBieuDo(rawRes);
+            const trips = parsed ? parsed.totalTrips : 0;
+            counts[dc] = trips;
+            sumDays[dc] += trips;
+            if (!repParsed && parsed && trips > 0) repParsed = parsed;
+          });
+
+          const { thoiGianHoatDong, tanSuat } = tinhThoiGianHoatDongVaTanSuat(repParsed);
+
+          rowsHtml += `
+            <tr>
+              <td>${idx + 1}</td>
+              <td style="font-weight:600;">${rp.maTuyen}</td>
+              <td>${thoiGianHoatDong}</td>
+              <td>${tanSuat}</td>
+              <td>${counts.T2}</td>
+              <td>${counts.T3}</td>
+              <td>${counts.T4}</td>
+              <td>${counts.T5}</td>
+              <td>${counts.T6}</td>
+              <td>${counts.T7}</td>
+              <td>${counts.CN}</td>
+            </tr>
+          `;
+        });
+
+        const tableHtml = `
+          <table class="table-total-trips">
+            <thead>
+              <tr>
+                <th style="width:46px;">STT</th>
+                <th style="width:82px;">Tuyến</th>
+                <th style="width:185px;">Thời gian hoạt động</th>
+                <th style="width:210px;">Tần suất</th>
+                <th>Thứ 2</th>
+                <th>Thứ 3</th>
+                <th>Thứ 4</th>
+                <th>Thứ 5</th>
+                <th>Thứ 6</th>
+                <th>Thứ 7</th>
+                <th>Chủ nhật</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+              <tr class="total-summary-row">
+                <td></td>
+                <td>Tổng</td>
+                <td></td>
+                <td></td>
+                <td>${sumDays.T2}</td>
+                <td>${sumDays.T3}</td>
+                <td>${sumDays.T4}</td>
+                <td>${sumDays.T5}</td>
+                <td>${sumDays.T6}</td>
+                <td>${sumDays.T7}</td>
+                <td>${sumDays.CN}</td>
+              </tr>
+            </tbody>
+          </table>
+        `;
+
+        $('#totalTripsBox').html(tableHtml);
+        $('html, body').animate({ scrollTop: $('#totalTripsWrapper').offset().top - 20 }, 300);
+      } catch (err) {
+        hienThongBaoBieuDo("Lỗi khi tổng hợp tổng lượt: " + err, "error");
+      } finally {
+        $btn.prop('disabled', false).html(oldHtml);
       }
     }
 
