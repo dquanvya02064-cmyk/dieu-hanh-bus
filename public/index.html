@@ -651,14 +651,14 @@
           <label class="form-label">Đơn vị chủ quản:</label>
           <div>
             <select id="selXn" class="form-control select2-search" style="width: 100%;">
-              <option value="">Chọn xí nghiệp</option>
+              <option value="">Chọn đơn vị chủ quản</option>
             </select>
           </div>
 
           <label class="form-label">Tuyến xe buýt:</label>
           <div>
             <select id="selTuyen" class="form-control select2-search" style="width: 100%;">
-              <option value="">Chọn xí nghiệp trước</option>
+              <option value="">Chọn đơn vị chủ quản trước</option>
             </select>
           </div>
 
@@ -726,13 +726,13 @@
       <div id="tab-xe" class="tab-content">
         <div class="fleet-filter-box">
           <div class="form-label" style="margin-bottom: 6px;"><i class="fa fa-search" style="color:#3B86C4;"></i> Tra cứu theo Biển kiểm soát hoặc xem Danh sách xe theo Tuyến:</div>
-          <input type="text" id="txtSearchBks" class="form-control" style="font-size: 13px; font-weight: bold; text-transform: uppercase; height: 34px;" placeholder="Nhập biển số (VD: 29B14667) hoặc chọn Xí nghiệp / Tuyến bên dưới..." oninput="timKiemXeLive()">
+          <input type="text" id="txtSearchBks" class="form-control" style="font-size: 13px; font-weight: bold; text-transform: uppercase; height: 34px;" placeholder="Nhập biển số hoặc chọn đơn vị chủ quản/tuyến bên dưới" oninput="timKiemXeLive()">
 
           <div class="fleet-filter-grid">
             <div>
-              <div style="font-size:11px; font-weight:bold; color:#555; margin-bottom:4px;">Đơn vị chủ quản (Xí nghiệp)</div>
+              <div style="font-size:11px; font-weight:bold; color:#555; margin-bottom:4px;">Đơn vị chủ quản</div>
               <select id="selXePublicXn" class="form-control select2-search" style="width:100%;">
-                <option value="">-- Tất cả xí nghiệp --</option>
+                <option value="">-- Tất cả Đơn vị chủ quản --</option>
               </select>
             </div>
             <div>
@@ -767,7 +767,7 @@
         <div id="ketQuaTraCuuXe">
           <div style="text-align:center; padding:24px 12px; color:#666; background:#FFF; border:1px dashed #C4D5E5; border-radius:6px;">
             <i class="fa fa-bus" style="font-size:24px; color:#3B86C4; margin-bottom:6px; display:block;"></i>
-            Nhập <strong>Biển kiểm soát</strong> hoặc chọn <strong>Xí nghiệp / Tuyến buýt</strong> để xem danh sách phương tiện công khai.
+            Nhập <strong>Biển kiểm soát</strong> hoặc chọn <strong>Đơn vị chủ quản / Tuyến buýt</strong> để xem danh sách phương tiện công khai.
           </div>
         </div>
       </div>
@@ -895,7 +895,7 @@
       $('#ketQuaTraCuuXe').html(`
         <div style="text-align:center; padding:24px 12px; color:#666; background:#FFF; border:1px dashed #C4D5E5; border-radius:6px;">
           <i class="fa fa-bus" style="font-size:24px; color:#3B86C4; margin-bottom:6px; display:block;"></i>
-          Nhập <strong>Biển kiểm soát</strong> hoặc chọn <strong>Xí nghiệp / Tuyến buýt</strong> để xem danh sách phương tiện công khai.
+          Nhập <strong>Biển kiểm soát</strong> hoặc chọn <strong>Đơn vị chủ quản / Tuyến buýt</strong> để xem danh sách phương tiện công khai.
         </div>
       `);
     }
@@ -1092,7 +1092,7 @@
         $box.html(`
           <div style="text-align:center; padding:24px 12px; color:#666; background:#FFF; border:1px dashed #C4D5E5; border-radius:6px;">
             <i class="fa fa-bus" style="font-size:24px; color:#3B86C4; margin-bottom:6px; display:block;"></i>
-            Nhập <strong>Biển kiểm soát</strong> hoặc chọn <strong>Xí nghiệp / Tuyến buýt</strong> để xem danh sách phương tiện công khai.
+            Nhập <strong>Biển kiểm soát</strong> hoặc chọn <strong>Đơn vị chủ quản / Tuyến buýt</strong> để xem danh sách phương tiện công khai.
           </div>
         `);
         return;
@@ -1146,12 +1146,12 @@
         const sortedXn = Array.from(xnSet).sort((a, b) => sapXepThongMinh(a, b));
 
         const $selXn = $('#selXn');
-        $selXn.empty().append('<option value="">Chọn xí nghiệp</option>');
+        $selXn.empty().append('<option value="">Chọn đơn vị chủ quản</option>');
         sortedXn.forEach(xn => { $selXn.append(new Option(xn, xn)); });
         $selXn.trigger('change');
 
         const $selXePublicXn = $('#selXePublicXn');
-        $selXePublicXn.empty().append('<option value="">-- Tất cả xí nghiệp --</option>');
+        $selXePublicXn.empty().append('<option value="">-- Tất cả Đơn vị chủ quản --</option>');
         sortedXn.forEach(xn => { $selXePublicXn.append(new Option(xn, xn)); });
         $selXePublicXn.trigger('change.select2');
         capNhatDropdownTuyenXePublic('');
