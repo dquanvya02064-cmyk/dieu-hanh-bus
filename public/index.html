@@ -357,6 +357,132 @@
     }
 
 
+  
+    /* PUBLIC_FLEET_LIST_STYLES */
+    .fleet-filter-box {
+      background: #F8FAFC;
+      border: 1px solid #D0D7DE;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .fleet-filter-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .fleet-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed #D0D7DE;
+    }
+    .fleet-pill-group {
+      display: inline-flex;
+      border: 1px solid #C4D5E5;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #FFF;
+    }
+    .fleet-pill-btn {
+      border: none;
+      background: transparent;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: bold;
+      color: #555;
+      cursor: pointer;
+    }
+    .fleet-pill-btn.active {
+      background: #3B86C4;
+      color: #FFF;
+    }
+    .fleet-summary-bar {
+      background: #EBF2F8;
+      border: 1px solid #C4D5E5;
+      border-radius: 6px;
+      padding: 9px 12px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 12px;
+      color: #1A5276;
+    }
+    .table-public-fleet {
+      width: 100%;
+      min-width: 620px;
+      border-collapse: collapse;
+      font-size: 12px;
+      background: #FFF;
+    }
+    .table-public-fleet th, .table-public-fleet td {
+      border: 1px solid #D0D7DE;
+      padding: 7px 9px;
+      vertical-align: middle;
+      text-align: left;
+    }
+    .table-public-fleet th {
+      background: #EBF2F8;
+      color: #2C3E50;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+    .table-public-fleet tr:hover {
+      background: #F5F9FD;
+    }
+    .badge-route-pill {
+      display: inline-block;
+      background: #EBF2F8;
+      color: #1A5276;
+      border: 1px solid #B6D0E6;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .badge-fleet-active {
+      display: inline-block;
+      background: #E6F4EA;
+      color: #137333;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .badge-fleet-dp {
+      display: inline-block;
+      background: #FEF3C7;
+      color: #92400E;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .schedule-top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    @media (max-width: 768px) {
+      .fleet-filter-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -885,6 +1011,10 @@
     }
 
     $(document).ready(function() {
+      $('#selXePublicXn, #selXePublicTuyen').select2({
+        width: '100%',
+        language: { noResults: () => 'Không tìm thấy kết quả phù hợp' }
+      });
       $('#selXePublicXn').on('change', function() {
         capNhatDropdownTuyenXePublic($(this).val() || '');
         timKiemXeLive(true);

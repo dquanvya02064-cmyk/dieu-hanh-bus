@@ -1624,7 +1624,7 @@ app.get('/api/tim-kiem-xe', (req, res, next) => {
       const item = {
         ...x,
         tenTuyen: maXe === 'DP' ? 'Bến Dự Phòng (DP)' : (foundTuyen ? foundTuyen.tenTuyen : `Tuyến ${x.maTuyen}`),
-        xn: foundTuyen ? foundTuyen.xn : (x.donVi || x.xn || ''),
+        xn: (foundTuyen && foundTuyen.xn) ? foundTuyen.xn : (x.xn || x.donVi || ''),
         soXeVd: foundTuyen ? (foundTuyen.soXeVd || 0) : 0,
         soXeKh: foundTuyen ? (foundTuyen.soXeKh || foundTuyen.soXe || 0) : 0,
         isDp
