@@ -421,30 +421,26 @@
       }
     }
 
-    /* TUNED_SCHEDULE_CELL_SPACING */
+    /* EQUAL_SCHEDULE_COLUMNS */
     #mainScheduleTable.table-schedule {
       width: 100% !important;
-      table-layout: auto !important;
-      white-space: normal !important;
+      min-width: 760px !important;
+      table-layout: fixed !important;
     }
     #mainScheduleTable.table-schedule th,
     #mainScheduleTable.table-schedule td {
-      width: auto !important;
-      min-width: 0 !important;
-      max-width: none !important;
-      padding: 4px 4px !important;
+      padding: 4px 2px !important;
       vertical-align: middle !important;
-      word-break: normal !important;
-      overflow-wrap: break-word !important;
+      overflow: hidden !important;
     }
     #mainScheduleTable .colstt {
       text-align: center !important;
-      padding: 4px 5px !important;
     }
     #mainScheduleTable .coldau {
       text-align: left !important;
-      padding: 4px 8px !important;
+      padding: 4px 7px !important;
       white-space: normal !important;
+      word-break: break-word !important;
     }
     #mainScheduleTable .coldau > span {
       display: block !important;
@@ -457,7 +453,7 @@
     }
     #mainScheduleTable .colflight,
     #mainScheduleTable .coldiemdanh {
-      padding: 4px 3px !important;
+      text-align: center !important;
       white-space: nowrap !important;
     }
     #mainScheduleTable .colflight > span {
@@ -470,17 +466,15 @@
       margin-top: 3px !important;
     }
     #mainScheduleTable .colthayca {
-      padding: 4px 3px !important;
+      text-align: center !important;
       white-space: normal !important;
-      line-height: 1.2 !important;
+      word-break: keep-all !important;
+      line-height: 1.15 !important;
     }
     #mainScheduleTable .coltotal {
       text-align: center !important;
-      padding: 4px 5px !important;
-      white-space: normal !important;
-      line-height: 1.2 !important;
+      white-space: nowrap !important;
     }
-
 
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1643,6 +1637,41 @@
         }
       }, 350);
     }
+  
+    /* EQUAL_SCHEDULE_COLGROUP_OBSERVER */
+    (function initEqualScheduleColgroup() {
+      function syncColgroup() {
+        const tbl = document.getElementById('mainScheduleTable');
+        if (!tbl) return;
+        const rows = Array.from(tbl.querySelectorAll('tr'));
+        let maxCells = 0;
+        rows.forEach(tr => {
+          let count = 0;
+          Array.from(tr.children).forEach(cell => {
+            count += parseInt(cell.getAttribute('colspan') || '1', 10);
+          });
+          if (count > maxCells) maxCells = count;
+        });
+        if (maxCells < 4) return;
+        let cg = tbl.querySelector('colgroup[data-equal-cols="1"]');
+        if (!cg) {
+          cg = document.createElement('colgroup');
+          cg.setAttribute('data-equal-cols', '1');
+          tbl.insertBefore(cg, tbl.firstChild);
+        }
+        const midCount = maxCells - 3;
+        let colsHtml = '<col style="width:44px;"><col style="width:148px;">';
+        for (let i = 0; i < midCount; i++) colsHtml += '<col>';
+        colsHtml += '<col style="width:54px;">';
+        if (cg.innerHTML !== colsHtml) cg.innerHTML = colsHtml;
+      }
+      const target = document.getElementById('mainScheduleTable');
+      if (target) {
+        new MutationObserver(syncColgroup).observe(target, { childList: true, subtree: true });
+        syncColgroup();
+      }
+    })();
+
   </script>
 </body>
 </html>
