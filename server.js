@@ -8,7 +8,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const mongoose = require('mongoose');
-const { ADMIN_PERMISSIONS, canAccessAdminRequest, canGrantAdminPermissions, canUpdateAdminPermissions, createAdminToken, expandAdminPermissions, hasAdminPermission, hashPassword, verifyAdminToken, verifyPassword } = require('./security');
+const { ADMIN_PERMISSIONS, canAccessAdminRequest, canAccessXn, canGrantAdminPermissions, canUpdateAdminPermissions, createAdminToken, expandAdminPermissions, getAllowedXns, hasAdminPermission, hashPassword, verifyAdminToken, verifyPassword, verifyRootPin } = require('./security');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -752,7 +752,7 @@ app.post('/api/admin/login', async (req, res) => {
     return res.json({
       success: true, 
       role: user.role, 
-      permissions: expandAdminPermissions(user.permissions || []),
+      permissions: expandAdminPermissions(user.permissions || []), allowedXns: getAllowedXns(user), allowedXns: getAllowedXns(user),
       token: createAdminToken(user.username, AUTH_TOKEN_SECRET, Date.now(), user.tokenVersion || 0),
       message: 'Đăng nhập thành công!' 
     });
@@ -777,7 +777,7 @@ app.get('/api/admin/danh-sach-tai-khoan', verifyAdmin, async (req, res) => {
 
 app.post('/api/admin/dang-ky', verifyAdmin, async (req, res) => {
   try {
-    const { targetUsername, password, role, permissions } = req.body;
+    const { targetUsername, password, role, permissions, allowedXns } = req.body;
     if (typeof targetUsername !== 'string' || !targetUsername.trim() || typeof password !== 'string' || password.length < 12) {
       return res.status(400).json({ success: false, message: 'Tên tài khoản và mật khẩu tối thiểu 12 ký tự là bắt buộc.' });
     }
@@ -815,7 +815,7 @@ app.post('/api/admin/dang-ky', verifyAdmin, async (req, res) => {
 
 app.post('/api/admin/sua-tai-khoan', verifyAdmin, async (req, res) => {
   try {
-    const { targetUsername, status, role, permissions } = req.body;
+    const { targetUsername, status, role, permissions, allowedXns, rootPin } = req.body;
     if (status !== undefined && !['active', 'locked'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Trạng thái tài khoản không hợp lệ.' });
     }
@@ -852,7 +852,7 @@ app.post('/api/admin/sua-tai-khoan', verifyAdmin, async (req, res) => {
 
 app.post('/api/admin/doi-mat-khau', verifyAdmin, async (req, res) => {
   try {
-    const { targetUsername, newPassword } = req.body;
+    const { targetUsername, newPassword, rootPin } = req.body;
     if (typeof targetUsername !== 'string' || !targetUsername || typeof newPassword !== 'string' || newPassword.length < 12) {
       return res.status(400).json({ success: false, message: 'Mật khẩu mới phải có ít nhất 12 ký tự.' });
     }

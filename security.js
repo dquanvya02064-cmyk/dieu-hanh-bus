@@ -33,8 +33,46 @@ function expandAdminPermissions(permissions = []) {
   return [...expanded];
 }
 
+
+function getAllowedXns(user) {
+  if (!user || !Array.isArray(user.allowedXns)) return [];
+  return user.allowedXns.map(x => String(x || '').trim()).filter(Boolean);
+}
+
+function canAccessXn(user, xn) {
+  const allowed = getAllowedXns(user);
+  if (allowed.length === 0) return true;
+  if (!xn) return false;
+  return allowed.includes(String(xn).trim());
+}
+
+function verifyRootPin(pin) {
+  const expected = String(process.env.ROOT_ADMIN_PIN || '091104').trim();
+  if (!expected) return false;
+  return String(pin || '').trim() === expected;
+}
+
+
+function getAllowedXns(user) {
+  if (!user || !Array.isArray(user.allowedXns)) return [];
+  return user.allowedXns.map(x => String(x || '').trim()).filter(Boolean);
+}
+
+function canAccessXn(user, xn) {
+  const allowed = getAllowedXns(user);
+  if (allowed.length === 0) return true;
+  if (!xn) return false;
+  return allowed.includes(String(xn).trim());
+}
+
+function verifyRootPin(pin) {
+  const expected = String(process.env.ROOT_ADMIN_PIN || '091104').trim();
+  if (!expected) return false;
+  return String(pin || '').trim() === expected;
+}
+
 function hasPermission(user, permission) {
-  if (user.role === 'master') return true;
+  if (user.role === 'master' && (!Array.isArray(user.allowedXns) || user.allowedXns.length === 0)) return true;
   const permissions = expandAdminPermissions(user.permissions);
   const [section] = permission.split('.');
   if (permissions.includes(permission)) return true;
@@ -53,7 +91,7 @@ function canGrantAdminPermissions(permissions, user) {
 }
 
 function canUpdateAdminPermissions(currentPermissions = [], nextPermissions = [], user) {
-  if (user.role === 'master') return true;
+  if (user.role === 'master' && (!Array.isArray(user.allowedXns) || user.allowedXns.length === 0)) return true;
   const current = new Set(expandAdminPermissions(currentPermissions));
   const next = new Set(expandAdminPermissions(nextPermissions));
   const changed = new Set([...current, ...next]);
@@ -190,4 +228,4 @@ function verifyAdminToken(token, secret, now = Date.now()) {
   }
 }
 
-module.exports = { ADMIN_PERMISSIONS, canAccessAdminRequest, canGrantAdminPermissions, canUpdateAdminPermissions, createAdminToken, expandAdminPermissions, hasAdminPermission: hasPermission, hashPassword, verifyAdminToken, verifyPassword };
+module.exports = { ADMIN_PERMISSIONS, canAccessXn, getAllowedXns, verifyRootPin, canAccessXn, getAllowedXns, verifyRootPin, canAccessAdminRequest, canGrantAdminPermissions, canUpdateAdminPermissions, createAdminToken, expandAdminPermissions, hasAdminPermission: hasPermission, hashPassword, verifyAdminToken, verifyPassword };
