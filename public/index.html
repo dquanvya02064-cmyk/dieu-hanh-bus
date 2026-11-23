@@ -1548,6 +1548,7 @@
         }
       }
 
+      // Chỉ lấy giờ xuất bến thuần của Đầu A (từ dòng trên) và Đầu B (từ dòng dưới)
       const rawA = [];
       const rawB = [];
       let resolvedDauA = customDauA;
@@ -1580,21 +1581,14 @@
           if (valA.toLowerCase().includes("thay ca") || valB.toLowerCase().includes("thay ca")) continue;
           if (!valA && !valB) continue;
 
-          totalTrips++;
+          if (valA) totalTrips++;
+          if (valB) totalTrips++;
+
           const pA = phanTichPhutGio(valA);
           const pB = phanTichPhutGio(valB);
 
-          if (valA && valB && !isNaN(pA) && !isNaN(pB)) {
-            let adjA = pA, adjB = pB;
-            if (pA >= 1140 && pB < 300) adjB += 1440;
-            else if (pB >= 1140 && pA < 300) adjA += 1440;
-            if (adjA < adjB) rawA.push({ time: valA, rawMin: pA });
-            else rawB.push({ time: valB, rawMin: pB });
-          } else if (valA && !isNaN(pA)) {
-            rawA.push({ time: valA, rawMin: pA });
-          } else if (valB && !isNaN(pB)) {
-            rawB.push({ time: valB, rawMin: pB });
-          }
+          if (valA && !isNaN(pA)) rawA.push({ time: valA, rawMin: pA });
+          if (valB && !isNaN(pB)) rawB.push({ time: valB, rawMin: pB });
         }
       }
 
