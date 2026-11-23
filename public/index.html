@@ -421,26 +421,30 @@
       }
     }
 
-    /* EQUAL_SCHEDULE_AND_VERTICAL_CHART_STYLES */
+    /* TUNED_SCHEDULE_CELL_SPACING */
     #mainScheduleTable.table-schedule {
       width: 100% !important;
-      min-width: 780px !important;
-      table-layout: fixed !important;
+      table-layout: auto !important;
+      white-space: normal !important;
     }
     #mainScheduleTable.table-schedule th,
     #mainScheduleTable.table-schedule td {
-      padding: 4px 2px !important;
+      width: auto !important;
+      min-width: 0 !important;
+      max-width: none !important;
+      padding: 4px 4px !important;
       vertical-align: middle !important;
-      overflow: hidden !important;
+      word-break: normal !important;
+      overflow-wrap: break-word !important;
     }
     #mainScheduleTable .colstt {
       text-align: center !important;
+      padding: 4px 5px !important;
     }
     #mainScheduleTable .coldau {
       text-align: left !important;
-      padding: 4px 7px !important;
+      padding: 4px 8px !important;
       white-space: normal !important;
-      word-break: break-word !important;
     }
     #mainScheduleTable .coldau > span {
       display: block !important;
@@ -453,7 +457,7 @@
     }
     #mainScheduleTable .colflight,
     #mainScheduleTable .coldiemdanh {
-      text-align: center !important;
+      padding: 4px 3px !important;
       white-space: nowrap !important;
     }
     #mainScheduleTable .colflight > span {
@@ -466,135 +470,17 @@
       margin-top: 3px !important;
     }
     #mainScheduleTable .colthayca {
-      text-align: center !important;
+      padding: 4px 3px !important;
       white-space: normal !important;
-      word-break: keep-all !important;
-      line-height: 1.15 !important;
+      line-height: 1.2 !important;
     }
     #mainScheduleTable .coltotal {
       text-align: center !important;
-      white-space: nowrap !important;
+      padding: 4px 5px !important;
+      white-space: normal !important;
+      line-height: 1.2 !important;
     }
 
-    /* Giao diện Biểu đồ dọc kiểu Hanoibus */
-    .vchart-banner {
-      background: #FFFFFF;
-      border: 1px solid #CCCCCC;
-      border-bottom: none;
-      padding: 6px 8px;
-      text-align: center;
-      font-size: 12px;
-      font-weight: bold;
-      color: #111;
-    }
-    .vchart-banner:last-of-type {
-      border-bottom: 1px solid #CCCCCC;
-      margin-bottom: 10px;
-    }
-    .vchart-terminal-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 8px;
-      background: #F4F8FB;
-      border: 1px solid #C4D5E5;
-      border-radius: 6px;
-      padding: 8px 10px;
-      margin-bottom: 10px;
-    }
-    .vchart-terminal-section {
-      background: #FFF;
-      border: 1px solid #C4D5E5;
-      border-radius: 6px;
-      margin-bottom: 14px;
-      overflow: hidden;
-    }
-    .vchart-terminal-header {
-      background: #EBF2F8;
-      border-bottom: 1px solid #C4D5E5;
-      padding: 8px 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 6px;
-      font-size: 12px;
-      color: #1A5276;
-    }
-    .vchart-terminal-header.dir-b {
-      background: #FDF2F2;
-      border-bottom-color: #F5C6CB;
-      color: #922B21;
-    }
-    .vchart-stats-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      padding: 6px 12px;
-      background: #FAFCFF;
-      border-bottom: 1px solid #E1E8ED;
-      font-size: 11px;
-      color: #444;
-    }
-    .vchart-3col-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      padding: 10px;
-      align-items: start;
-    }
-    .table-vchart-sub {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-      background: #FFF;
-    }
-    .table-vchart-sub th,
-    .table-vchart-sub td {
-      border: 1px solid #D0D7DE;
-      padding: 5px 4px;
-      text-align: center;
-      vertical-align: middle;
-    }
-    .table-vchart-sub th {
-      background: #F1F5F9;
-      color: #2C3E50;
-      font-weight: bold;
-      font-size: 11px;
-      white-space: nowrap;
-    }
-    .table-vchart-sub tr:nth-child(even) td {
-      background: #FAFBFD;
-    }
-    .vchart-time-a {
-      font-weight: 800;
-      color: #0F62FE;
-    }
-    .vchart-time-b {
-      font-weight: 800;
-      color: #C0392B;
-    }
-    .vchart-gc {
-      color: #555;
-      font-size: 11px;
-    }
-    .vchart-not-badge {
-      display: inline-block;
-      min-width: 22px;
-      padding: 1px 5px;
-      border-radius: 4px;
-      background: #EEF2F6;
-      color: #334155;
-      font-size: 11px;
-      font-weight: bold;
-    }
-    @media (max-width: 768px) {
-      .vchart-3col-grid {
-        grid-template-columns: 1fr;
-        gap: 8px;
-      }
-    }
 
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -674,21 +560,14 @@
         <div id="scheduleInlineNotice" style="display:none;margin:12px 0;padding:10px 14px;border-radius:6px;font-size:13px;align-items:center;gap:8px;"></div>
         <div id="viewerWrapper" class="viewer-wrapper">
           <div class="schedule-top-bar">
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              <span style="font-size:12px; color:#555; font-weight:bold;"><i class="fa fa-table" style="color:#3B86C4;"></i> Kiểu hiển thị:</span>
-              <div class="fleet-pill-group" id="scheduleModePills">
-                <button type="button" class="fleet-pill-btn active" data-mode="horizontal" onclick="chuyenCheDoBieuDo('horizontal')"><i class="fa fa-arrows-h"></i> Biểu đồ ngang</button>
-                <button type="button" class="fleet-pill-btn" data-mode="vertical" onclick="chuyenCheDoBieuDo('vertical')"><i class="fa fa-columns"></i> Biểu đồ dọc (Hanoibus)</button>
-              </div>
-            </div>
+            <span style="font-size:12px; color:#555; font-weight:bold;"><i class="fa fa-table" style="color:#3B86C4;"></i> Biểu đồ vận hành chi tiết</span>
             <button type="button" id="btnViewRouteFleet" onclick="moDanhSachXeTuBieuDo()" style="background:#EBF2F8; color:#1A5276; border:1px solid #B6D0E6; padding:5px 11px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
               <i class="fa fa-bus"></i> <span>Danh sách xe tuyến này</span>
             </button>
           </div>
-          <div id="horizontalScheduleBox" class="table-scroll">
+          <div class="table-scroll">
             <table id="mainScheduleTable" class="table-schedule"></table>
           </div>
-          <div id="verticalScheduleBox" style="display:none;"></div>
         </div>
       </div>
 
@@ -1599,165 +1478,6 @@
       return p.length >= 2 ? parseInt(p[0], 10) * 60 + parseInt(p[1], 10) : 0;
     }
 
-    let _scheduleViewMode = 'horizontal';
-    let _verticalTerminalFilter = 'both';
-    let _parsedVerticalData = null;
-
-    function chuyenCheDoBieuDo(mode) {
-      _scheduleViewMode = mode;
-      $('#scheduleModePills .fleet-pill-btn').removeClass('active');
-      $('#scheduleModePills .fleet-pill-btn[data-mode="' + mode + '"]').addClass('active');
-      if (mode === 'vertical') {
-        $('#horizontalScheduleBox').hide();
-        $('#verticalScheduleBox').show();
-        renderBieuDoDocHanoibus();
-      } else {
-        $('#verticalScheduleBox').hide();
-        $('#horizontalScheduleBox').show();
-      }
-    }
-
-    function chonDauBenBieuDoDoc(dir) {
-      _verticalTerminalFilter = dir;
-      renderBieuDoDocHanoibus();
-    }
-
-    function phanTichPhutAnToan(timeStr) {
-      const m = String(timeStr || '').trim().match(/^(\d{1,2}):(\d{2})/);
-      if (!m) return NaN;
-      return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-    }
-
-    function chuanHoaSapXepQuaDem(list) {
-      if (!Array.isArray(list) || list.length === 0) return [];
-      const hasEvening = list.some(item => item.rawMin >= 1020); // >= 17:00
-      const mapped = list.map(item => ({
-        ...item,
-        opMin: (hasEvening && item.rawMin < 240) ? (item.rawMin + 1440) : item.rawMin
-      }));
-      mapped.sort((a, b) => {
-        if (a.opMin !== b.opMin) return a.opMin - b.opMin;
-        return sapXepThongMinh(String(a.not), String(b.not));
-      });
-      return mapped.map((item, idx) => ({
-        ...item,
-        stt: idx + 1,
-        headway: idx === 0 ? '-' : (item.opMin - mapped[idx - 1].opMin) + "'"
-      }));
-    }
-
-    function taoHtmlBangConDoc(subTrips, dirClass) {
-      let rowsHtml = '';
-      subTrips.forEach(t => {
-        rowsHtml += `
-          <tr>
-            <td style="width:48px; font-weight:bold; color:#555;">${t.stt}</td>
-            <td class="${dirClass}" style="width:74px;">${t.time}</td>
-            <td class="vchart-gc" style="width:68px;">${t.headway}</td>
-            <td style="width:52px;"><span class="vchart-not-badge">${t.not}</span></td>
-          </tr>
-        `;
-      });
-      return `
-        <table class="table-vchart-sub">
-          <thead>
-            <tr>
-              <th>Chuyến</th>
-              <th>Giờ XB</th>
-              <th>Giãn cách</th>
-              <th>Nốt</th>
-            </tr>
-          </thead>
-          <tbody>${rowsHtml}</tbody>
-        </table>
-      `;
-    }
-
-    function taoKhoiDauBenDoc(title, routeArrow, trips, isDirB) {
-      const dirClass = isDirB ? 'vchart-time-b' : 'vchart-time-a';
-      const headerCls = isDirB ? 'vchart-terminal-header dir-b' : 'vchart-terminal-header';
-
-      if (!trips || trips.length === 0) {
-        return `
-          <div class="vchart-terminal-section">
-            <div class="${headerCls}">
-              <div><i class="fa fa-map-marker"></i> <strong>${title}</strong> (${routeArrow})</div>
-              <div>Tổng: <strong>0 chuyến</strong></div>
-            </div>
-            <div style="padding:14px; text-align:center; color:#777; font-size:12px;">Không có dữ liệu giờ xuất bến tại đầu bến này.</div>
-          </div>
-        `;
-      }
-
-      const firstTime = trips[0].time;
-      const lastTime = trips[trips.length - 1].time;
-      const headways = trips.slice(1).map(t => parseInt(t.headway, 10)).filter(n => !isNaN(n) && n >= 0);
-      const avgGc = headways.length > 0 ? Math.round(headways.reduce((a, b) => a + b, 0) / headways.length) : 0;
-
-      const chunkSize = Math.ceil(trips.length / 3);
-      const col1 = trips.slice(0, chunkSize);
-      const col2 = trips.slice(chunkSize, chunkSize * 2);
-      const col3 = trips.slice(chunkSize * 2);
-
-      return `
-        <div class="vchart-terminal-section">
-          <div class="${headerCls}">
-            <div><i class="fa fa-map-marker"></i> <strong>${title}</strong> <span style="opacity:0.85;">(${routeArrow})</span></div>
-            <div>Tổng lượt xuất bến: <strong>${trips.length} chuyến</strong></div>
-          </div>
-          <div class="vchart-stats-row">
-            <span><i class="fa fa-play-circle" style="color:#137333;"></i> Mở bến: <strong>${firstTime}</strong></span>
-            <span><i class="fa fa-stop-circle" style="color:#C0392B;"></i> Đóng bến: <strong>${lastTime}</strong></span>
-            ${avgGc > 0 ? `<span><i class="fa fa-clock-o" style="color:#3B86C4;"></i> Giãn cách bình quân: <strong>~${avgGc} phút/chuyến</strong></span>` : ''}
-          </div>
-          <div class="vchart-3col-grid">
-            <div>${taoHtmlBangConDoc(col1, dirClass)}</div>
-            <div>${col2.length > 0 ? taoHtmlBangConDoc(col2, dirClass) : ''}</div>
-            <div>${col3.length > 0 ? taoHtmlBangConDoc(col3, dirClass) : ''}</div>
-          </div>
-        </div>
-      `;
-    }
-
-    function renderBieuDoDocHanoibus() {
-      const $box = $('#verticalScheduleBox');
-      if (!_parsedVerticalData) {
-        $box.html('<div style="padding:16px; text-align:center; color:#777;">Chưa có dữ liệu biểu đồ.</div>');
-        return;
-      }
-
-      const { bannerLines, dauAName, dauBName, tripsA, tripsB } = _parsedVerticalData;
-      let html = '';
-
-      if (bannerLines && bannerLines.length > 0) {
-        bannerLines.forEach(line => {
-          html += `<div class="vchart-banner">${line}</div>`;
-        });
-      }
-
-      html += `
-        <div class="vchart-terminal-bar">
-          <div style="font-size:12px; font-weight:bold; color:#2C3E50;">
-            <i class="fa fa-filter" style="color:#3B86C4;"></i> Chọn đầu bến xuất phát:
-          </div>
-          <div class="fleet-pill-group">
-            <button type="button" class="fleet-pill-btn ${_verticalTerminalFilter === 'both' ? 'active' : ''}" onclick="chonDauBenBieuDoDoc('both')">Cả 2 đầu bến (${tripsA.length + tripsB.length})</button>
-            <button type="button" class="fleet-pill-btn ${_verticalTerminalFilter === 'A' ? 'active' : ''}" onclick="chonDauBenBieuDoDoc('A')">Đầu A: ${dauAName} (${tripsA.length})</button>
-            <button type="button" class="fleet-pill-btn ${_verticalTerminalFilter === 'B' ? 'active' : ''}" onclick="chonDauBenBieuDoDoc('B')">Đầu B: ${dauBName} (${tripsB.length})</button>
-          </div>
-        </div>
-      `;
-
-      if (_verticalTerminalFilter === 'both' || _verticalTerminalFilter === 'A') {
-        html += taoKhoiDauBenDoc('XUẤT BẾN ĐẦU A: ' + dauAName.toUpperCase(), dauAName + ' → ' + dauBName, tripsA, false);
-      }
-      if (_verticalTerminalFilter === 'both' || _verticalTerminalFilter === 'B') {
-        html += taoKhoiDauBenDoc('XUẤT BẾN ĐẦU B: ' + dauBName.toUpperCase(), dauBName + ' → ' + dauAName, tripsB, true);
-      }
-
-      $box.html(html);
-    }
-
     function hienThiBangHTML(res) {
       if (!res || !res.success) {
         hienThongBaoBieuDo("Không tải được dữ liệu: " + (res.message || "Lỗi không xác định"), "error");
@@ -1810,11 +1530,6 @@
       }
 
       const notList = [];
-      const rawDeparturesA = [];
-      const rawDeparturesB = [];
-      let resolvedDauA = customDauA;
-      let resolvedDauB = customDauB;
-
       for (let r = 0; r < cleanTableData.length; r += 2) {
         const rowA = cleanTableData[r];
         const rowB = cleanTableData[r + 1] || [];
@@ -1823,9 +1538,6 @@
 
         const dauA = customDauA || (rowA[1] ? rowA[1].trim() : "");
         const dauB = customDauB || (rowB[1] ? rowB[1].trim() : "");
-        if (!resolvedDauA && dauA) resolvedDauA = dauA;
-        if (!resolvedDauB && dauB) resolvedDauB = dauB;
-
         const cells = [];
         let totalTrips = 0;
         let endC = Math.max(rowA.length, rowB.length);
@@ -1835,8 +1547,6 @@
         if ((lastA !== "" && !isNaN(lastA) && !lastA.includes(":")) || (lastB !== "" && !isNaN(lastB) && !lastB.includes(":"))) {
           endC = endC - 1;
         }
-
-        const currentNot = notVal || String(r / 2 + 1);
 
         for (let c = 2; c < endC; c++) {
           const valA = chuanHoaGio(rowA[c] ? rowA[c].trim() : "");
@@ -1854,32 +1564,19 @@
           if (!valA && !valB) { cells.push({ type: "empty" }); continue; }
 
           totalTrips++;
-          const pA = phanTichPhutAnToan(valA);
-          const pB = phanTichPhutAnToan(valB);
-          let adjA = pA;
-          let adjB = pB;
-          if (valA && valB && !isNaN(pA) && !isNaN(pB)) {
-            if (pA >= 1140 && pB < 300) adjB += 1440;
-            else if (pB >= 1140 && pA < 300) adjA += 1440;
-          }
+          const pA = chuyenPhut(valA);
+          const pB = chuyenPhut(valB);
 
           if (valA && valB) {
-            if (adjA < adjB) {
-              cells.push({ type: "flight", top: valA, topCls: "cold1a", btm: valB, btmCls: "cold1b" });
-              if (!isNaN(pA)) rawDeparturesA.push({ time: valA, rawMin: pA, not: currentNot });
-            } else {
-              cells.push({ type: "flight", top: valA, topCls: "cold2a", btm: valB, btmCls: "cold2b" });
-              if (!isNaN(pB)) rawDeparturesB.push({ time: valB, rawMin: pB, not: currentNot });
-            }
+            if (pA < pB) cells.push({ type: "flight", top: valA, topCls: "cold1a", btm: valB, btmCls: "cold1b" });
+            else cells.push({ type: "flight", top: valA, topCls: "cold2a", btm: valB, btmCls: "cold2b" });
           } else if (valA) {
             cells.push({ type: "flight", top: valA, topCls: "cold1a", btm: "", btmCls: "" });
-            if (!isNaN(pA)) rawDeparturesA.push({ time: valA, rawMin: pA, not: currentNot });
           } else {
             cells.push({ type: "flight", top: "", topCls: "", btm: valB, btmCls: "cold2b" });
-            if (!isNaN(pB)) rawDeparturesB.push({ time: valB, rawMin: pB, not: currentNot });
           }
         }
-        notList.push({ not: currentNot, dauA, dauB, cells, totalTrips });
+        notList.push({ not: notVal || (r / 2 + 1), dauA, dauB, cells, totalTrips });
       }
 
       let maxCols = 0;
@@ -1889,11 +1586,7 @@
       });
 
       const totalCols = maxCols + 3;
-      let colgroupHtml = '<colgroup><col style="width:42px;"><col style="width:146px;">';
-      for (let k = 0; k < maxCols; k++) colgroupHtml += '<col>';
-      colgroupHtml += '<col style="width:52px;"></colgroup>';
-
-      let html = colgroupHtml + '<thead>';
+      let html = '<thead>';
 
       if (bannerLines.length > 0) {
         bannerLines.forEach((line) => {
@@ -1909,7 +1602,7 @@
         html += `<tr><td class="colstt">${item.not}</td><td class="coldau"><span class="colsa">${item.dauA}</span><span class="colsb">${item.dauB}</span></td>`;
         let cnt = 0;
         item.cells.forEach(c => {
-          if (c.type === "thayca") html += '<td class="colthayca">Thay<br>ca</td>';
+          if (c.type === "thayca") html += '<td class="colthayca">Thay ca</td>';
           else if (c.type === "diemdanh") html += `<td class="coldiemdanh">${c.val}</td>`;
           else if (c.type === "flight") html += `<td class="colflight"><span class="${c.topCls}">${c.top}</span><span class="${c.btmCls}">${c.btm}</span></td>`;
           else html += '<td></td>';
@@ -1922,29 +1615,11 @@
       html += `<tr style="font-weight:bold; background:#FAFAFA;"><td colspan="2" style="text-align:center;">Tổng lượt</td><td colspan="${maxCols}"></td><td class="coltotal" style="color:#0F86DB;">${tongLuot}</td></tr></tbody>`;
 
       $('#mainScheduleTable').html(html);
-
-      // Chuẩn bị dữ liệu Biểu đồ dọc (Hanoibus)
-      _parsedVerticalData = {
-        bannerLines,
-        dauAName: resolvedDauA || 'Đầu A',
-        dauBName: resolvedDauB || 'Đầu B',
-        tripsA: chuanHoaSapXepQuaDem(rawDeparturesA),
-        tripsB: chuanHoaSapXepQuaDem(rawDeparturesB)
-      };
-
-      if (_scheduleViewMode === 'vertical') {
-        $('#horizontalScheduleBox').hide();
-        $('#verticalScheduleBox').show();
-        renderBieuDoDocHanoibus();
-      } else {
-        $('#verticalScheduleBox').hide();
-        $('#horizontalScheduleBox').show();
-      }
-
       $('#viewerWrapper').show();
       $('html, body').animate({ scrollTop: $('#routeSchemaWrapper').offset().top - 20 }, 300);
     }
 
+    
     function chuyenNhanhSangBieuDo(xn, tenTuyen, maTuyen) {
       chuyenTab('tab-bieudo');
       if (xn) $('#selXn').val(xn).trigger('change');
@@ -1968,41 +1643,6 @@
         }
       }, 350);
     }
-  
-    /* EQUAL_SCHEDULE_COLGROUP_OBSERVER */
-    (function initEqualScheduleColgroup() {
-      function syncColgroup() {
-        const tbl = document.getElementById('mainScheduleTable');
-        if (!tbl) return;
-        const rows = Array.from(tbl.querySelectorAll('tr'));
-        let maxCells = 0;
-        rows.forEach(tr => {
-          let count = 0;
-          Array.from(tr.children).forEach(cell => {
-            count += parseInt(cell.getAttribute('colspan') || '1', 10);
-          });
-          if (count > maxCells) maxCells = count;
-        });
-        if (maxCells < 4) return;
-        let cg = tbl.querySelector('colgroup[data-equal-cols="1"]');
-        if (!cg) {
-          cg = document.createElement('colgroup');
-          cg.setAttribute('data-equal-cols', '1');
-          tbl.insertBefore(cg, tbl.firstChild);
-        }
-        const midCount = maxCells - 3;
-        let colsHtml = '<col style="width:44px;"><col style="width:148px;">';
-        for (let i = 0; i < midCount; i++) colsHtml += '<col>';
-        colsHtml += '<col style="width:54px;">';
-        if (cg.innerHTML !== colsHtml) cg.innerHTML = colsHtml;
-      }
-      const target = document.getElementById('mainScheduleTable');
-      if (target) {
-        new MutationObserver(syncColgroup).observe(target, { childList: true, subtree: true });
-        syncColgroup();
-      }
-    })();
-
   </script>
 </body>
 </html>
