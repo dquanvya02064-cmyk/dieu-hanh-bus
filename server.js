@@ -1581,15 +1581,29 @@ app.get('/api/tim-kiem-xe', (req, res, next) => {
   try {
     const q = String(req.query.q || '').trim().toLowerCase();
     const isAdminRequest = req.query.all === 'true';
-    const tuyenQuery = (req.query.tuyen || '').trim().toUpperCase();
+    const tuyenQuery = String(req.query.tuyen || '').trim().toUpperCase();
+    const xnQuery = String(req.query.xn || '').trim().toLowerCase();
+    const statusQuery = String(req.query.status || '').trim().toLowerCase();
+
     const raw = await getRawData();
     let xeList = Array.isArray(raw.xeList) ? raw.xeList : [];
+    const tuyenMap = raw.tuyenList || {};
 
     const normalizeBks = value => String(value || '').replace(/[\s\-\.]/g, '').toLowerCase();
-    let ketQua = isAdminRequest ? xeList : q ? xeList.filter(x => normalizeBks(x.bks).includes(normalizeBks(q))) : [];
-    
+    const chuanHoaTuyen = str => String(str || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+
+    if (!isAdminRequest && !q && !tuyenQuery && !xnQuery) {
+      return res.json({ success: true, data: [] });
+    }
+
+    let ketQua = xeList;
+
+    if (q) {
+      const cleanQ = normalizeBks(q);
+      ketQua = ketQua.filter(x => normalizeBks(x.bks).includes(cleanQ));
+    }
+
     if (tuyenQuery) {
-      const chuanHoaTuyen = str => String(str || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
       const tuyenQueryNorm = chuanHoaTuyen(tuyenQuery);
       ketQua = ketQua.filter(x => chuanHoaTuyen(x.maTuyen) === tuyenQueryNorm);
     }
@@ -1597,23 +1611,43 @@ app.get('/api/tim-kiem-xe', (req, res, next) => {
     if (!isAdminRequest) {
       ketQua = ketQua.filter(x => {
         const maXe = String(x.maTuyen || '').toUpperCase();
-        const route = raw.tuyenList?.[maXe] || Object.values(raw.tuyenList || {}).find(item => String(item.maTuyen || '').toUpperCase() === maXe);
+        if (maXe === 'DP') return true;
+        const route = tuyenMap[maXe] || Object.values(tuyenMap).find(item => String(item.maTuyen || '').toUpperCase() === maXe);
         return !route || route.status !== 'locked';
       });
     }
 
-    const tuyenMap = raw.tuyenList || {};
     ketQua = ketQua.map(x => {
-      const maXe = (x.maTuyen || '').toUpperCase();
-      let foundTuyen = tuyenMap[maXe] || Object.values(tuyenMap).find(t => (t.maTuyen || '').toUpperCase() === maXe);
-      return {
+      const maXe = String(x.maTuyen || '').toUpperCase();
+      const foundTuyen = tuyenMap[maXe] || Object.values(tuyenMap).find(t => String(t.maTuyen || '').toUpperCase() === maXe);
+      const isDp = maXe === 'DP' || x.status === 'locked' || x.status === 'paused' || x.trangThai === 'locked';
+      const item = {
         ...x,
-        tenTuyen: foundTuyen ? foundTuyen.tenTuyen : `Tuyến ${x.maTuyen}`,
-        xn: foundTuyen ? foundTuyen.xn : (x.donVi || ''),
+        tenTuyen: maXe === 'DP' ? 'Bến Dự Phòng (DP)' : (foundTuyen ? foundTuyen.tenTuyen : `Tuyến ${x.maTuyen}`),
+        xn: foundTuyen ? foundTuyen.xn : (x.donVi || x.xn || ''),
         soXeVd: foundTuyen ? (foundTuyen.soXeVd || 0) : 0,
-        soXeKh: foundTuyen ? (foundTuyen.soXeKh || foundTuyen.soXe || 0) : 0
+        soXeKh: foundTuyen ? (foundTuyen.soXeKh || foundTuyen.soXe || 0) : 0,
+        isDp
       };
+      if (!isAdminRequest) {
+        delete item.pendingSchedule;
+        delete item.lichHen;
+        delete item.history;
+        delete item.updatedBy;
+      }
+      return item;
     });
+
+    if (xnQuery) {
+      ketQua = ketQua.filter(x => String(x.xn || '').trim().toLowerCase() === xnQuery);
+    }
+
+    if (statusQuery === 'active') {
+      ketQua = ketQua.filter(x => !x.isDp);
+    } else if (statusQuery === 'dp') {
+      ketQua = ketQua.filter(x => x.isDp);
+    }
+
     res.json({ success: true, data: ketQua });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
