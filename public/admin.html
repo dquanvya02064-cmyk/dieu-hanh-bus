@@ -597,14 +597,15 @@
                 <button type="button" class="btn btn-default" style="height:30px; font-size:12px;" onclick="$('#filterXeMauKeyword').val(''); _xmRenderLimit=50; veBangXeMauAdmin();"><i class="fa fa-refresh"></i> Làm mới</button>
               </div>
               <div class="table-responsive-wrapper">
-                <table class="table-custom">
+                <table class="table-custom" style="width: 100%; table-layout: auto;">
                   <thead>
                     <tr>
-                      <th style="width: 48px; min-width: 48px; text-align: center; white-space: nowrap;">STT</th>
-                      <th style="min-width: 210px;">Chủng loại xe (Nhãn hiệu + Model)</th>
-                      <th style="width: 110px; min-width: 110px; text-align: center; white-space: nowrap;">Sức chứa chuẩn</th>
-                      <th style="width: 80px; min-width: 80px; text-align: center; white-space: nowrap;">Năm SX</th>
-                      <th style="width: 90px; min-width: 90px; text-align: center; white-space: nowrap;">Hành động</th>
+                      <th style="width: 105px; min-width: 105px; white-space: nowrap;">Tài khoản</th>
+                      <th style="width: 125px; min-width: 125px; white-space: nowrap;">Kiểu</th>
+                      <th style="width: 185px; min-width: 185px; white-space: nowrap;">Đơn vị quản lý</th>
+                      <th style="min-width: 240px;">Quyền hạn chức năng</th>
+                      <th style="width: 95px; min-width: 95px; text-align: center; white-space: nowrap;">Trạng thái</th>
+                      <th style="width: 265px; min-width: 265px; text-align: center; white-space: nowrap;">Hành động</th>
                     </tr>
                   </thead>
                   <tbody id="tblDanhSachXeMau"></tbody>
@@ -817,9 +818,12 @@
               <div id="accountCreatePanel" style="margin-bottom: 15px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; background: #F8FAFC; padding: 12px; border: 1px solid #D0D7DE; border-radius: 4px;">
                 <input type="text" id="newAccUser" class="form-control" placeholder="Tên đăng nhập" style="max-width: 150px;">
                 <input type="password" id="newAccPass" class="form-control" placeholder="Mật khẩu" style="max-width: 150px;">
-                <select id="newAccRole" class="form-control" style="max-width: 130px;" onchange="togglePermissionCheckboxes()">
+                <select id="newAccRole" class="form-control" style="max-width: 135px;" onchange="togglePermissionCheckboxes()">
                   <option value="staff">Bình thường</option>
                   <option value="master">Quản trị tối cao</option>
+                </select>
+                <select id="newAccXn" class="form-control" style="max-width: 220px;" title="Phạm vi đơn vị chủ quản">
+                  <option value="">Tất cả đơn vị chủ quản</option>
                 </select>
                 <div id="permissionGroup" class="permission-groups"></div>
                 <button class="btn btn-primary" data-action-permission="users.create" onclick="taoTaiKhoanMoi()"><i class="fa fa-user-plus"></i> Thêm</button>
@@ -1243,11 +1247,7 @@
       if (window.innerWidth <= 768) { $('#sidebarMenu').addClass('collapsed'); }
 
       requestAnimationFrame(() => {
-        if (sectionId === 'sec-users') { apDungGioiHanDonVi();
-      napOptionsDonViChoTaiKhoan();
-      apDungGioiHanDonVi();
-      napOptionsDonViChoTaiKhoan();
-      taiDanhSachTaiKhoan(); }
+        if (sectionId === 'sec-users') { apDungGioiHanDonVi(); napOptionsDonViChoTaiKhoan(); taiDanhSachTaiKhoan(); }
         else if (sectionId === 'sec-thongbao') { taiTaiThongBaoAdmin(); }
         else if (sectionId === 'sec-lichhen') { taiDanhSachLichHen(); }
         else { renderTabNeuCan(sectionId); }
@@ -3236,15 +3236,27 @@
     }
 
     
+    let _cachedXnList = [];
     function getDanhSachDonViChuQuan() {
-      const set = new Set();
+      const set = new Set(_cachedXnList);
       if (typeof dsXn !== "undefined" && dsXn) {
         dsXn.forEach(x => { if (x) set.add(String(x).trim()); });
       }
       if (typeof mapTuyenChiTiet !== "undefined" && mapTuyenChiTiet && typeof mapTuyenChiTiet.forEach === "function") {
         mapTuyenChiTiet.forEach(r => { if (r && r.xn) set.add(String(r.xn).trim()); });
       }
-      return Array.from(set).sort((a, b) => a.localeCompare(b, "vi"));
+      const arr = Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b, "vi"));
+      if (arr.length > 0) _cachedXnList = arr;
+      return arr;
+    }
+
+    function getUserAllowedXns() {
+      try {
+        const raw = sessionStorage.getItem('admin_allowed_xns');
+        if (!raw) return [];
+        const arr = JSON.parse(raw);
+        return Array.isArray(arr) ? arr.filter(Boolean) : [];
+      } catch (e) { return []; }
     }
 
     function napOptionsDonViChoTaiKhoan() {
@@ -3261,15 +3273,6 @@
         myXns.forEach(xn => $sel.append(new Option(xn, xn)));
       }
       if (cur) $sel.val(cur);
-    }
-
-    function getUserAllowedXns() {
-      try {
-        const raw = sessionStorage.getItem('admin_allowed_xns');
-        if (!raw) return [];
-        const arr = JSON.parse(raw);
-        return Array.isArray(arr) ? arr.filter(Boolean) : [];
-      } catch (e) { return []; }
     }
 
     function apDungGioiHanDonVi() {
@@ -3307,82 +3310,6 @@
       });
     }
 
-    
-    function getDanhSachDonViChuQuan() {
-      const set = new Set();
-      if (typeof allRoutes === 'object' && allRoutes) {
-        Object.values(allRoutes).forEach(r => { if (r && r.xn) set.add(String(r.xn).trim()); });
-      }
-      if (typeof danhMucData === 'object' && danhMucData) {
-        Object.keys(danhMucData).forEach(k => { if (k) set.add(String(k).trim()); });
-      }
-      return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
-    }
-
-    function napOptionsDonViChoTaiKhoan() {
-      const list = getDanhSachDonViChuQuan();
-      const myXns = getUserAllowedXns();
-      const $sel = $('#newAccXn');
-      if (!$sel.length) return;
-      const cur = $sel.val();
-      $sel.empty();
-      if (myXns.length === 0) {
-        $sel.append('<option value="">Tất cả đơn vị chủ quản</option>');
-        list.forEach(xn => $sel.append(new Option(xn, xn)));
-      } else {
-        myXns.forEach(xn => $sel.append(new Option(xn, xn)));
-      }
-      if (cur) $sel.val(cur);
-    }
-
-    function getUserAllowedXns() {
-      try {
-        const raw = sessionStorage.getItem('admin_allowed_xns');
-        if (!raw) return [];
-        const arr = JSON.parse(raw);
-        return Array.isArray(arr) ? arr.filter(Boolean) : [];
-      } catch (e) { return []; }
-    }
-
-    function apDungGioiHanDonVi() {
-      const allowed = getUserAllowedXns();
-      if (!allowed.length) return;
-      if (typeof allRoutes === 'object' && allRoutes) {
-        Object.keys(allRoutes).forEach(k => {
-          const xn = String(allRoutes[k]?.xn || '').trim();
-          if (xn && !allowed.includes(xn)) delete allRoutes[k];
-        });
-      }
-      if (typeof danhMucData === 'object' && danhMucData) {
-        Object.keys(danhMucData).forEach(k => {
-          if (!allowed.includes(String(k).trim())) delete danhMucData[k];
-        });
-      }
-      if (Array.isArray(allXeList)) {
-        const validRoutes = new Set(Object.keys(allRoutes || {}));
-        allXeList = allXeList.filter(x => {
-          const mt = String(x.maTuyen || '').trim().toUpperCase();
-          return !mt || mt === 'DP' || validRoutes.has(mt);
-        });
-      }
-      if (allowed.length === 1) {
-        ['#selXnTuyenMoi', '#selXnSuaTuyen', '#selXnBieuDo', '#filterXnTuyen', '#filterXnXe'].forEach(sel => {
-          const $el = $(sel);
-          if ($el.length) $el.val(allowed[0]).trigger('change');
-        });
-      }
-    }
-
-    function yeuCauMaPinQuan(tieuDe, callback) {
-      hienPromptCustom(tieuDe || 'Xác thực mã PIN tài khoản gốc [quan]', 'Nhập mã PIN bảo mật...', function(pin) {
-        if (!pin) {
-          showToast('Đã hủy thao tác do chưa nhập mã PIN.', 'warn');
-          return;
-        }
-        callback(pin);
-      });
-    }
-
     // SECTION: QUẢN TRỊ NGƯỜI DÙNG
     function togglePermissionCheckboxes() {
       const role = $('#newAccRole').val();
@@ -3400,7 +3327,17 @@
           headers: { 'x-admin-user': sessionStorage.getItem('admin_user') }
         }).then(r => r.json());
         if (res.success) {
-          const allXns = getDanhSachDonViChuQuan();
+          let allXns = getDanhSachDonViChuQuan();
+          if (allXns.length === 0) {
+            try {
+              const dmRes = await fetch(`${API_BASE}/api/danh-muc?admin=true`).then(r => r.json());
+              const set = new Set();
+              (dmRes.allRoutes || []).forEach(r => { if (r && r.xn) set.add(String(r.xn).trim()); });
+              allXns = Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b, "vi"));
+              _cachedXnList = allXns;
+              napOptionsDonViChoTaiKhoan();
+            } catch (e) {}
+          }
           const myXns = getUserAllowedXns();
           let html = '';
           res.data.forEach(acc => {
