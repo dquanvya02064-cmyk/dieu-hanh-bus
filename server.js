@@ -71,6 +71,72 @@ const BusModel = mongoose.model('BusData', busDataSchema);
 
 
 // --- MIDDLEWARE BẢO MẬT & XÁC THỰC QUẢN TRỊ ---
+
+function getUserScopedXns(user) {
+  if (!user || user.username === 'quan' || user.role === 'master') {
+    const rawArr = Array.isArray(user?.allowedXns) ? user.allowedXns.map(x => String(x || '').trim()).filter(Boolean) : [];
+    return user?.username === 'quan' ? [] : rawArr;
+  }
+  return Array.isArray(user.allowedXns) ? user.allowedXns.map(x => String(x || '').trim()).filter(Boolean) : [];
+}
+
+function isRequestWithinUserXns(req, user, raw) {
+  const allowedXns = getUserScopedXns(user);
+  if (allowedXns.length === 0) return { ok: true };
+  if (req.method === 'GET') return { ok: true };
+
+  const body = req.body || {};
+  const tuyenMap = (raw && raw.tuyenList && typeof raw.tuyenList === 'object') ? raw.tuyenList : {};
+  const isRouteAllowed = (ma) => {
+    const key = String(ma || '').trim().toUpperCase();
+    if (!key || key === 'DP') return true;
+    const found = tuyenMap[key] || Object.values(tuyenMap).find(t => String(t.maTuyen || '').trim().toUpperCase() === key);
+    if (!found || !found.xn) return true;
+    return allowedXns.includes(String(found.xn).trim());
+  };
+
+  if (body.xn && !allowedXns.includes(String(body.xn).trim())) {
+    return { ok: false, message: 'Tài khoản của bạn chỉ được thao tác trong đơn vị: ' + allowedXns.join(', ') };
+  }
+  if (body.donVi && !allowedXns.includes(String(body.donVi).trim())) {
+    return { ok: false, message: 'Đơn vị [' + body.donVi + '] nằm ngoài phạm vi quản lý của bạn!' };
+  }
+  if ((body.maTuyen || body.tuyen) && !isRouteAllowed(body.maTuyen || body.tuyen)) {
+    return { ok: false, message: 'Tuyến [' + (body.maTuyen || body.tuyen) + '] thuộc đơn vị khác, bạn không có quyền thao tác!' };
+  }
+  if (body.tenTab && Array.isArray(raw?.bieuDoList)) {
+    const bd = raw.bieuDoList.find(b => b.tenTab === body.tenTab);
+    if (bd) {
+      if (bd.xn && !allowedXns.includes(String(bd.xn).trim())) {
+        return { ok: false, message: 'Biểu đồ [' + body.tenTab + '] thuộc đơn vị khác!' };
+      }
+      if (bd.tuyen && !isRouteAllowed(bd.tuyen)) {
+        return { ok: false, message: 'Biểu đồ [' + body.tenTab + '] thuộc tuyến của đơn vị khác!' };
+      }
+    }
+  }
+  const bksCheckList = []
+    .concat(Array.isArray(body.bksList) ? body.bksList : [])
+    .concat(body.bks ? [body.bks] : [])
+    .concat(Array.isArray(body.cars) ? body.cars.map(c => c.bks) : []);
+  if (bksCheckList.length > 0 && Array.isArray(raw?.xeList)) {
+    const norm = b => String(b || '').replace(/[\s\-\.]/g, '').toUpperCase();
+    const xeByBks = new Map(raw.xeList.map(x => [norm(x.bks), x]));
+    for (const b of bksCheckList) {
+      const ex = xeByBks.get(norm(b));
+      if (ex) {
+        if (ex.donVi && !allowedXns.includes(String(ex.donVi).trim())) {
+          return { ok: false, message: 'Xe [' + b + '] thuộc đơn vị [' + ex.donVi + '], ngoài phạm vi của bạn!' };
+        }
+        if (ex.maTuyen && !isRouteAllowed(ex.maTuyen)) {
+          return { ok: false, message: 'Xe [' + b + '] đang thuộc tuyến [' + ex.maTuyen + '] của đơn vị khác!' };
+        }
+      }
+    }
+  }
+  return { ok: true };
+}
+
 async function verifyAdmin(req, res, next) {
   try {
     if (Buffer.byteLength(AUTH_TOKEN_SECRET) < 32) {
@@ -452,7 +518,16 @@ app.get('/api/admin/lay-danh-sach-lich', verifyAdmin, async (req, res) => {
 
     res.json({
       success: true,
-      pending: pending.filter(item => item.source !== 'notification' || hasAdminPermission(req.adminUser, 'notifications.view'))
+      pending: pending.filter(item => {
+        if (item.source === 'notification' && !hasAdminPermission(req.adminUser, 'notifications.view')) return false;
+        const apptXns = getUserScopedXns(req.adminUser);
+        if (apptXns.length === 0 || item.source === 'notification') return true;
+        const m = String(item.target || '').match(/Tuyến\s+(.+)$/i);
+        const ma = m ? m[1].trim().toUpperCase() : '';
+        if (!ma || ma === 'BẾN DP') return true;
+        const rObj = (raw.tuyenList || {})[ma] || Object.values(raw.tuyenList || {}).find(t => String(t.maTuyen || '').trim().toUpperCase() === ma);
+        return !rObj || !rObj.xn || apptXns.includes(String(rObj.xn).trim());
+      })
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -765,7 +840,12 @@ app.post('/api/admin/login', async (req, res) => {
 app.get('/api/admin/danh-sach-tai-khoan', verifyAdmin, async (req, res) => {
   try {
     const raw = await getRawData();
-    const accounts = (raw.taiKhoanList || []).map(({ password, ...account }) => ({
+    const actorXns = getUserScopedXns(req.adminUser);
+    const accounts = (raw.taiKhoanList || []).filter(account => {
+      if (actorXns.length === 0) return true;
+      const targetXns = getUserScopedXns(account);
+      return targetXns.length > 0 && targetXns.every(x => actorXns.includes(x));
+    }).map(({ password, ...account }) => ({
       ...account,
       permissions: expandAdminPermissions(account.permissions || [])
     }));
@@ -1164,6 +1244,7 @@ app.get('/api/danh-muc', (req, res, next) => {
     const canViewRouteDetails = !isAdmin || hasAdminPermission(req.adminUser, 'routes.view') || hasAdminPermission(req.adminUser, 'fleet.view');
     const canViewAdminRoutes = canViewRouteDetails || (isAdmin && hasAdminPermission(req.adminUser, 'charts.view'));
     const canViewAdminCharts = !isAdmin || hasAdminPermission(req.adminUser, 'charts.view');
+    const scopedXns = isAdmin ? getUserScopedXns(req.adminUser) : [];
     let danhMucList = [];
     let allRoutesList = [];
     const activeRouteNames = new Set();
@@ -1175,6 +1256,7 @@ app.get('/api/danh-muc', (req, res, next) => {
     if (raw.tuyenList && typeof raw.tuyenList === 'object') {
       for (let k in raw.tuyenList) {
         const item = raw.tuyenList[k];
+        if (scopedXns.length > 0 && !scopedXns.includes(String(item.xn || '').trim())) continue;
         const code = normCode(item.maTuyen || k);
         if (code) routeByCode.set(code, item);
         if (isAdmin || item.status !== 'locked') {
@@ -1195,7 +1277,13 @@ app.get('/api/danh-muc', (req, res, next) => {
           const matchedRoute = code ? routeByCode.get(code) : null;
           return { item, code, matchedRoute };
         })
-        .filter(({ item, matchedRoute }) => isAdmin ? true : (matchedRoute ? matchedRoute.status !== 'locked' : activeRouteNames.has(item.tuyen)))
+        .filter(({ item, matchedRoute }) => {
+          if (scopedXns.length > 0) {
+            const chartXn = String((matchedRoute && matchedRoute.xn) || item.xn || '').trim();
+            if (!chartXn || !scopedXns.includes(chartXn)) return false;
+          }
+          return isAdmin ? true : (matchedRoute ? matchedRoute.status !== 'locked' : activeRouteNames.has(item.tuyen));
+        })
         .map(({ item, code, matchedRoute }) => ({
           maTuyen: (matchedRoute && matchedRoute.maTuyen) || code || "",
           xn: (matchedRoute && matchedRoute.xn) || item.xn || "",
@@ -1638,6 +1726,14 @@ app.get('/api/tim-kiem-xe', (req, res, next) => {
       return item;
     });
 
+    const xeScopedXns = isAdminRequest ? getUserScopedXns(req.adminUser) : [];
+    if (xeScopedXns.length > 0) {
+      ketQua = ketQua.filter(x => {
+        const maXe = String(x.maTuyen || '').trim().toUpperCase();
+        if (maXe === 'DP' && !x.xn && !x.donVi) return true;
+        return xeScopedXns.includes(String(x.xn || '').trim());
+      });
+    }
     if (xnQuery) {
       ketQua = ketQua.filter(x => String(x.xn || '').trim().toLowerCase() === xnQuery);
     }

@@ -344,12 +344,12 @@
                 <table class="table-custom" style="width: 100%; table-layout: auto;">
                   <thead>
                     <tr>
-                      <th style="width: 56px; min-width: 56px; text-align: center; white-space: nowrap;">Mã</th>
-                      <th style="min-width: 190px;">Tên Tuyến</th>
-                      <th style="min-width: 150px;">Đơn vị chủ quản</th>
-                      <th style="min-width: 135px;">Phương tiện (VD / KH)</th>
-                      <th style="width: 105px; min-width: 105px; text-align: center; white-space: nowrap;">Trạng thái</th>
-                      <th style="width: 120px; min-width: 120px; text-align: center; white-space: nowrap;">Hành động</th>
+                      <th style="width: 105px; min-width: 105px; white-space: nowrap;">Tài khoản</th>
+                      <th style="width: 125px; min-width: 125px; white-space: nowrap;">Kiểu</th>
+                      <th style="width: 185px; min-width: 185px; white-space: nowrap;">Đơn vị quản lý</th>
+                      <th style="min-width: 240px;">Quyền hạn chức năng</th>
+                      <th style="width: 95px; min-width: 95px; text-align: center; white-space: nowrap;">Trạng thái</th>
+                      <th style="width: 265px; min-width: 265px; text-align: center; white-space: nowrap;">Hành động</th>
                     </tr>
                   </thead>
                   <tbody id="tblDanhSachTuyen"></tbody>
@@ -1275,6 +1275,14 @@
         if (!tenXn) return;
         dsXn.add(tenXn);
         doVaoSelect2("selXn", dsXn, "xí nghiệp");
+        const _myScopedXns = getUserAllowedXns();
+        if (_myScopedXns.length === 1) {
+          $('#selXn').val(_myScopedXns[0]).prop('disabled', true).trigger('change.select2');
+          $('button[onclick*="themXnMoiNhanh"]').hide();
+        } else {
+          $('#selXn').prop('disabled', false);
+          $('button[onclick*="themXnMoiNhanh"]').show();
+        }
         $('#selXn').val(tenXn).trigger('change.select2');
         showToast(`Đã thêm Đơn vị [${tenXn}] vào danh sách chọn!`, "success");
       });
