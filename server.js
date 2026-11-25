@@ -1563,42 +1563,30 @@ app.post('/api/admin/quet-bieu-do-ai', verifyAdmin, async (req, res) => {
 
     let parsedResult = null;
 
-    // Thử gemini-3.8-flash tối đa 3 lần (tự đợi 1.5s nếu Google báo high demand / 503)
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    // Danh sach model toc do cao, ho tro Free Tier & tat thinking de boc bang 3-5s
+    const fastModels = [
+      'gemini-3-flash-preview',
+      'gemini-3.1-flash-lite-preview',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite'
+    ];
+
+    for (const modelName of fastModels) {
       try {
-        parsedResult = await callGemini('gemini-3.8-flash', true);
-        break;
+        parsedResult = await callGemini(modelName, true);
+        if (parsedResult) break;
       } catch (e) {
-        errors.push('[Lần ' + attempt + '] ' + e.message);
-        const isTransient = e.status === 503 || e.status === 429 || /high demand|overloaded|unavailable|try again/i.test(e.rawMsg || '');
-        if (isTransient && attempt < 3) {
-          await sleep(1500 * attempt);
-          continue;
-        }
-        break;
-      }
-    }
-
-    // Dự phòng: tự dò model mới nhất khả dụng trên API key nếu 3.8-flash đang nghẽn
-    if (!parsedResult) {
-      try {
-        const listResp = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + encodeURIComponent(apiKey));
-        const listData = await listResp.json();
-        const fallbacks = (listData.models || [])
-          .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
-          .map(m => m.name.replace(/^models\//, ''))
-          .filter(n => /gemini-(3|4)/i.test(n) && !/3\.8-flash$|tts|image|audio|computer|deep-research/i.test(n));
-
-        for (const fb of fallbacks.slice(0, 2)) {
+        errors.push(e.message);
+        const isTransient = e.status === 503 || e.status === 429 || /high demand|overloaded|unavailable/i.test(e.rawMsg || '');
+        if (isTransient) {
+          await sleep(800);
           try {
-            parsedResult = await callGemini(fb, true);
-            break;
-          } catch (e) {
-            errors.push(e.message);
+            parsedResult = await callGemini(modelName, true);
+            if (parsedResult) break;
+          } catch (e2) {
+            errors.push(e2.message);
           }
         }
-      } catch (e) {
-        errors.push('ListModels: ' + e.message);
       }
     }
 
