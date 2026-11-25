@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-  <!-- THƯ VIỆN SHEETJS XỬ LÝ EXCEL 1-CLICK CLIENT-SIDE -->
+  <!-- THƯ VIỆN SHEETJS XỬ LÝ EXCEL CLIENT-SIDE -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
@@ -454,8 +454,8 @@
                 <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                   <button type="button" class="btn btn-success" data-action-permission="fleet.edit" style="padding:4px 10px;font-size:11px;height:28px;" onclick="moModalThemXeMoi()"><i class="fa fa-plus"></i> Thêm xe</button>
                   <input type="file" id="fileExcelDoiXe" accept=".xlsx,.xls,.csv" style="display:none;" onchange="xuLyImportExcelXe(this)">
-                  <button type="button" class="btn btn-success" data-action-permission="fleet.edit" style="padding:4px 10px;font-size:11px;height:28px;" onclick="$('#fileExcelDoiXe').click()"><i class="fa fa-file-excel-o"></i> Nhập Excel 1-Click</button>
-                  <button type="button" class="btn btn-primary" data-action-permission="fleet.view" style="padding:4px 10px;font-size:11px;height:28px;" onclick="xuatExcelDanhSachXeLoc()"><i class="fa fa-download"></i> Xuất Excel 1-Click</button>
+                  <button type="button" class="btn btn-success" data-action-permission="fleet.edit" style="padding:4px 10px;font-size:11px;height:28px;" onclick="$('#fileExcelDoiXe').click()"><i class="fa fa-file-excel-o"></i> Nhập Excel </button>
+                  <button type="button" class="btn btn-primary" data-action-permission="fleet.view" style="padding:4px 10px;font-size:11px;height:28px;" onclick="xuatExcelDanhSachXeLoc()"><i class="fa fa-download"></i> Xuất Excel </button>
                   <button type="button" class="btn btn-default" data-action-permission="fleet.edit" style="padding:4px 10px;font-size:11px;height:28px;" onclick="$('#boxDanNhanhXeTab').slideToggle(180)"><i class="fa fa-clipboard"></i> Dán nhanh Excel</button>
                 </div>
               </div>
@@ -563,7 +563,7 @@
         <!-- SECTION: QUẢN TRỊ DANH MỤC XE MẪU -->
         <div id="sec-xemau" class="content-section">
           <div class="panel-custom">
-            <div class="panel-heading"><span><i class="fa fa-car"></i> Quản trị Danh mục Mác xe, Sức chứa & Năm sản xuất chuẩn</span></div>
+            <div class="panel-heading"><span><i class="fa fa-car"></i> Quản trị Danh mục Mác xe, Sức chứa & Năm sản xuất</span></div>
             <div class="panel-body">
               <div style="margin-bottom: 15px; background: #F8FAFC; padding: 14px; border: 1px solid #D0D7DE; border-radius: 6px;">
                 <h4 style="font-size: 12px; margin-bottom: 8px; color: #2C3E50; font-weight: bold;"><i class="fa fa-plus-circle"></i> Thêm nhanh Mác xe mẫu mới:</h4>
@@ -576,12 +576,12 @@
                 </div>
               </div>
 
-              <!-- CỤM EXCEL 1-CLICK CHO XE MẪU -->
+              <!-- CỤM EXCEL CHO XE MẪU -->
               <div style="margin-bottom: 15px; background: #F8FAFC; padding: 12px; border: 1px solid #D0D7DE; border-radius: 6px;">
                 <div style="margin-bottom: 8px; display: flex; gap: 8px; align-items: center;">
                   <input type="file" id="fileExcelXeMau" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyImportExcelXeMau(this)">
-                  <button type="button" class="btn btn-success btn-sm" data-action-permission="vehicleModels.edit" onclick="$('#fileExcelXeMau').click()"><i class="fa fa-file-excel-o"></i> Nhập Excel 1-Click</button>
-                  <button type="button" class="btn btn-primary btn-sm" onclick="xuatExcelDanhMucXeMau()"><i class="fa fa-download"></i> Xuất Excel 1-Click</button>
+                  <button type="button" class="btn btn-success btn-sm" data-action-permission="vehicleModels.edit" onclick="$('#fileExcelXeMau').click()"><i class="fa fa-file-excel-o"></i> Nhập Excel</button>
+                  <button type="button" class="btn btn-primary btn-sm" onclick="xuatExcelDanhMucXeMau()"><i class="fa fa-download"></i> Xuất Excel</button>
                 </div>
                 <span style="font-size: 11px; color: #666; font-style: italic;">Hoặc dán nhanh từ Excel (Cột 1: Chủng loại | Cột 2: Sức chứa | Cột 3: Năm sản xuất):</span>
                 <div style="display: flex; gap: 10px; margin-top: 4px;">
@@ -618,7 +618,7 @@
         <!-- SECTION 3: BIỂU ĐỒ -->
         <div id="sec-bieudo" class="content-section">
           <div class="panel-custom">
-            <div class="panel-heading"><span><i class="fa fa-calendar-plus-o"></i> Quản trị Biểu đồ chạy xe & Theo dõi biểu đồ thiếu</span></div>
+            <div class="panel-heading"><span><i class="fa fa-calendar-plus-o"></i> Quản trị & Theo dõi Biểu đồ chạy xe</span></div>
             <div class="panel-body">
               <div class="form-grid">
                 <label>Chọn tuyến:</label>
@@ -637,7 +637,7 @@
                 <label>Phạm vi ngày trong tuần:</label>
                 <div>
                   <div style="margin-bottom: 8px;">
-                    <label class="radio-item" style="font-weight: bold; color: #1B4F72; cursor: pointer;"><input type="checkbox" id="chkCaTuan" onchange="toggleCaTuan(this)"> [☑] Chọn Cả tuần (T2 - Chủ nhật)</label>
+                    <label class="radio-item" style="font-weight: bold; color: #1B4F72; cursor: pointer;"><input type="checkbox" id="chkCaTuan" onchange="toggleCaTuan(this)"> Chọn Cả tuần</label>
                   </div>
                   <div class="days-row" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; background: #F8FAFC; padding: 8px 12px; border: 1px solid #D0D7DE; border-radius: 6px;">
                     <label class="day-item" style="cursor: pointer;"><input type="checkbox" class="chk-ngay-le" value="2" onchange="onCheckboxDayChange()"> Thứ 2</label>
@@ -655,10 +655,10 @@
                 
                 <label>Dữ liệu giờ (Excel):</label>
                 <div>
-                  <!-- NÚT IMPORT EXCEL 1-CLICK CHO BIỂU ĐỒ -->
+                  <!-- NÚT IMPORT EXCEL CHO BIỂU ĐỒ -->
                   <div style="margin-bottom: 8px; display: flex; gap: 8px; align-items: center;">
                     <input type="file" id="fileExcelBieuDo" accept=".xlsx, .xls, .csv" style="display: none;" onchange="xuLyImportExcelBieuDo(this)">
-                    <button type="button" class="btn btn-success btn-sm" data-action-permission="charts.edit" onclick="$('#fileExcelBieuDo').click()"><i class="fa fa-file-excel-o"></i> Nhập file Excel 1-Click</button>
+                    <button type="button" class="btn btn-success btn-sm" data-action-permission="charts.edit" onclick="$('#fileExcelBieuDo').click()"><i class="fa fa-file-excel-o"></i> Nhập file Excel</button>
                     <input type="file" id="fileAiBieuDo" accept="image/*,.pdf,application/pdf" style="display: none;" onchange="xuLyQuetAiBieuDo(this)">
                     <button type="button" class="btn btn-primary btn-sm" data-action-permission="charts.edit" style="background:#6C5CE7;border-color:#5B4BC4;" onclick="$('#fileAiBieuDo').click()"><i class="fa fa-magic"></i> Quét Ảnh / PDF (AI)</button>
                     <button type="button" class="btn btn-default btn-sm" data-action-permission="charts.edit" onclick="$('#boxPasteAiBieuDo').slideToggle(160)"><i class="fa fa-clipboard"></i> Dán ảnh (Ctrl+V)</button>
@@ -667,7 +667,7 @@
                     <i class="fa fa-image" style="font-size:16px;margin-right:6px;"></i> Bấm vào khung này rồi nhấn <b>Ctrl + V</b> để dán trực tiếp ảnh chụp biểu đồ từ bộ nhớ tạm!
                   </div>
                   <div id="aiScanStatusBox" style="display:none;margin-bottom:8px;padding:9px 12px;border-radius:6px;font-size:12px;"></div>
-                  <textarea id="txtRawData" class="form-control" oninput="capNhatPreviewBieuDo()" placeholder="Copy cả bảng từ Excel/Sheets, bấm Nhập file Excel 1-Click hoặc Quét Ảnh / PDF (AI) ở trên..."></textarea>
+                  <textarea id="txtRawData" class="form-control" oninput="capNhatPreviewBieuDo()" placeholder="Copy cả bảng từ Excel/Sheets, bấm Nhập file Excel hoặc Quét Ảnh / PDF (AI) ở trên..."></textarea>
                   <div id="previewBieuDoWrapper" style="display:none;margin-top:8px;border:1px solid #D0D7DE;border-radius:6px;background:#FFF;overflow:hidden;">
                     <div style="background:#F1F5F9;padding:6px 10px;font-size:11px;font-weight:bold;color:#1E293B;display:flex;justify-content:space-between;align-items:center;">
                       <span><i class="fa fa-table" style="color:#0F86DB;"></i> Xem trước bảng dữ liệu sẽ lưu (<span id="previewRowCount">0</span> dòng)</span>
@@ -1738,7 +1738,7 @@
       });
     }
 
-    // HELPER SHEETJS 1-CLICK READ/WRITE FILE EXCEL (.XLSX / .CSV)
+    // HELPER SHEETJS READ/WRITE FILE EXCEL (.XLSX / .CSV)
     function docFileExcelTuyen(fileInput, callback) {
       const file = fileInput.files ? fileInput.files[0] : null;
       if (!file) return;
@@ -1772,7 +1772,7 @@
       }
     }
 
-    // NHẬP / XUẤT EXCEL ĐỘI XE 1-CLICK
+    // NHẬP / XUẤT EXCEL ĐỘI XE
     function xuLyImportExcelXe(fileInput) {
       docFileExcelTuyen(fileInput, function(matrix) {
         if (!matrix || matrix.length === 0) return;
@@ -1844,7 +1844,7 @@
       xuatFileExcelTieuchuan(dataExport, `Danh_sach_xe_${maTuyen}.xlsx`);
     }
 
-    // NHẬP / XUẤT EXCEL MÁC XE MẪU 1-CLICK
+    // NHẬP / XUẤT EXCEL MÁC XE MẪU
     function xuLyImportExcelXeMau(fileInput) {
       docFileExcelTuyen(fileInput, async function(matrix) {
         if (!matrix || matrix.length === 0) return;
@@ -1867,14 +1867,14 @@
 
     function xuatExcelDanhMucXeMau() {
       if (!danhMucXeMau || danhMucXeMau.length === 0) return showToast("Danh mục mác xe mẫu rỗng!", "error");
-      const dataExport = [["Chủng loại xe (Nhãn hiệu + Model)", "Sức chứa chuẩn", "Năm sản xuất"]];
+      const dataExport = [["Chủng loại xe (Nhãn hiệu + Model)", "Sức chứa", "Năm sản xuất"]];
       danhMucXeMau.forEach(m => {
         dataExport.push([m.chungLoai || '', m.sucChua || '', m.namSx || '']);
       });
       xuatFileExcelTieuchuan(dataExport, "Danh_muc_xe_mau.xlsx");
     }
 
-    // NHẬP EXCEL BIỂU ĐỒ 1-CLICK
+    // NHẬP EXCEL BIỂU ĐỒ
     function xuLyImportExcelBieuDo(fileInput) {
       docFileExcelTuyen(fileInput, function(matrix) {
         if (!matrix || matrix.length === 0) return;
